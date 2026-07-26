@@ -247,7 +247,7 @@ create table public.quotes (
   tax_amount      numeric(12,2),
   total           numeric(12,2),
   valid_until     date,
-  design_quote_id uuid,  -- link to the /design tool; becomes a real FK in the integration slice, when the target table is known (DECISIONS 002)
+  design_quote_id uuid,  -- external reference, deliberately no FK — see COMMENT below (DECISIONS 017)
   sent_at         timestamptz,
   accepted_at     timestamptz,
   body_snapshot   jsonb,                                -- terms + totals exactly as sent
@@ -256,6 +256,11 @@ create table public.quotes (
 );
 
 create index quotes_job_id_idx on public.quotes (job_id);
+
+comment on column public.quotes.design_quote_id is
+  'External reference to the /design quoting tool, which lives in a separate '
+  'Supabase project; integrity is not enforced at the database level and '
+  'cross-referencing happens over the API when /design ships.';
 
 create table public.quote_line_items (
   id         uuid primary key default gen_random_uuid(),

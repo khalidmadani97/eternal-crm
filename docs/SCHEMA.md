@@ -3,7 +3,7 @@
 Source of truth for the data model. If code and this document disagree, this
 document is wrong — fix it in the same commit.
 
-Shared Supabase project with the `/design` quoting tool. All tables below are new.
+The CRM's own Supabase project — not shared with `/design` (DECISIONS 017).
 
 ---
 
@@ -135,7 +135,7 @@ Replaces loose date fields on the job. A job has many scheduled events.
 | status | quote_status not null | default `draft` |
 | subtotal, tax_rate, tax_amount, total | numeric(12,2) / numeric(5,4) | |
 | valid_until | date | |
-| design_quote_id | uuid | link to the `/design` tool output, nullable |
+| design_quote_id | uuid | nullable, **no FK** — external reference to `/design`, which lives in a separate Supabase project; integrity is not DB-enforced, cross-referencing is over the API when `/design` ships |
 | sent_at, accepted_at | timestamptz | |
 | body_snapshot | jsonb | terms + totals as sent |
 

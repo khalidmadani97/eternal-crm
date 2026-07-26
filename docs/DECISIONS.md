@@ -36,7 +36,7 @@ If that integration never happens, this decision was wrong.
 ---
 
 ## 002 — Same Supabase project as `/design`
-2026-07 · accepted
+2026-07 · superseded by 017
 
 **Decision** — CRM tables live in the `public` schema of the existing project.
 
@@ -263,3 +263,21 @@ non-negotiables.
 **Consequence** — Verifying "migration runs clean on a fresh DB" requires the
 local stack (Docker). Slightly slower loop; `/design`'s data is never one
 mistyped flag away from deletion.
+
+---
+
+## 017 — Own Supabase project; not shared with `/design` (supersedes 002)
+2026-07 · accepted
+
+**Context** — `/design` is not live, the two systems have independent
+lifecycles, and a shared project made a linked reset capable of destroying
+another application.
+
+**Decision** — The CRM gets its own Supabase project. `quotes.design_quote_id`
+stays as a plain nullable uuid with no foreign key; any cross-referencing
+happens over the API when `/design` ships.
+
+**Consequence** — `design_quote_id` is an unenforced reference and linkage is
+an API call — a small cost against full blast-radius isolation. The local-only
+reset discipline (016) stands: post-cutover, the linked project holds live
+financial records.

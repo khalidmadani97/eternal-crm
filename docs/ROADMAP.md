@@ -17,7 +17,7 @@ against tables that already exist; a genuine modelling error found later is a
 new migration plus a DECISIONS entry.
 
 - Vite + React + TS strict, Tailwind, TanStack Query, React Router, react-hook-form + zod
-- Supabase CLI linked to the existing `/design` project
+- Supabase CLI linked to the CRM's own Supabase project (DECISIONS 017)
 - One migration containing every enum and table in `docs/SCHEMA.md` — including
   `calls`, `messages`, `consent_records`, and `inbound_leads` — with RLS and the
   explicit delete-policy matrix, indexes on all FKs (plus `contacts.phone`),
@@ -300,7 +300,7 @@ lands on the job after the app next comes to the foreground with connectivity.
 Do not start any of these until slices 0–14 are done and the team has used the
 system for a month. Reassess then — half of these will turn out not to matter.
 
-- `/design` quoting tool integration via `quotes.design_quote_id`
+- `/design` quoting tool integration — over the API, keyed on `quotes.design_quote_id` (separate projects, DECISIONS 017)
 - Email from inside the app
 - Automated follow-up reminders
 - A customer-facing job status page

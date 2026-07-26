@@ -23,8 +23,8 @@ Do not add to this list without an entry in `docs/DECISIONS.md`.
 | Comms | Twilio — voice (dial-out bridging) + SMS, Slice 10 (DECISIONS 012) |
 | Deploy | Vercel |
 
-Shares a Supabase project with the `/design` quoting tool. CRM tables live in the
-`public` schema alongside it; do not create a second project.
+The CRM has its **own** Supabase project (DECISIONS 017). `/design` lives in a
+separate project; any linkage between them is an API call, never a shared table.
 
 ---
 
@@ -64,18 +64,12 @@ These are the standing rules. They override convenience.
 
 ## Non-negotiables
 
-**Shared project safety — read this before touching the database**
-
-**This Supabase project is SHARED with the `/design` quoting tool, which has
-live paying customers.**
-
-- **NEVER run `supabase db reset --linked`, or any reset, drop, or truncate
-  against the linked project. It would destroy `/design`.**
-- **The ONLY safe reset target is the local Docker instance.**
-- **The only permitted command against the linked project is
-  `supabase db push`.**
-- **`npm run db:reset` runs the LOCAL reset only. No script that can reset
-  the linked project may ever be added.** (DECISIONS 016, amending 002.)
+**Destructive commands run against LOCAL Docker only.** Reset, drop, and
+truncate are never run against the linked project. Once we cut over from
+InvoiceFly the linked project holds live financial records, and there is no
+undo. `db push` is the only command permitted against linked. `npm run
+db:reset` targets local only; no script that can reset the linked project may
+ever be added. (DECISIONS 016, 017.)
 
 **Database**
 
