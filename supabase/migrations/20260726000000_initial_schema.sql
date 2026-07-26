@@ -14,9 +14,8 @@
 --   7.  Stage-change trigger (activity row + won_at / lost_at stamps)
 --   8.  SMS consent trigger
 --   9.  Comms write path: record_call(), record_message()
---   10. delete_file()
---   11. Storage buckets
---   12. Row Level Security and privilege grants
+--   10. Storage buckets
+--   11. Row Level Security and privilege grants
 -- ============================================================================
 
 
@@ -528,7 +527,7 @@ create trigger trg_inbound_leads_updated_at      before update on public.inbound
 --   soft delete only:   companies, contacts, jobs
 --   hard delete:        tasks, appointments (RLS policy, section 12);
 --                       line items only while parent is draft (guards below);
---                       files only via delete_file() (guard trigger below)
+--                       files delete-denied until Slice 3 (guard trigger below)
 --   permanently denied: activities, calls, messages, payments, quotes,
 --                       invoices, contracts, consent_records, inbound_leads
 -- ----------------------------------------------------------------------------
@@ -581,19 +580,21 @@ $$;
 create trigger trg_quote_line_items_draft_only   before delete on public.quote_line_items   for each row execute function public.quote_line_item_delete_guard();
 create trigger trg_invoice_line_items_draft_only before delete on public.invoice_line_items for each row execute function public.invoice_line_item_delete_guard();
 
--- files: hard delete is permitted, but ONLY through delete_file(), which
--- removes the Storage object in the same transaction — a direct DELETE would
--- orphan the object in a private bucket forever. The guard checks a
--- transaction-local flag that only delete_file() sets, so this binds every
--- role: clients, the service role, and the dashboard alike.
+-- files: undeletable in Slice 0 (DECISIONS 018). Supabase blocks SQL deletes
+-- of storage.objects, so a same-transaction SQL delete would orphan the
+-- physical backing object. Slice 3 ships the real path in its own migration:
+-- an edge function removes the object via the Storage API FIRST, then a
+-- service-role RPC deletes the row, authorising this guard via the
+-- transaction-local flag below. Until then nothing sets the flag, so files
+-- cannot be deleted by any role — safe, since nothing can create one either.
 create function public.files_delete_guard()
 returns trigger
 language plpgsql
 as $$
 begin
   if current_setting('app.delete_file_authorized', true) is distinct from old.id::text then
-    raise exception 'DELETE on files is only allowed through delete_file()'
-      using hint = 'delete_file() also removes the Storage object; a direct DELETE would orphan it.';
+    raise exception 'DELETE on files is not allowed'
+      using hint = 'The delete path ships in Slice 3: Storage API object removal first, then the service-role RPC. See DECISIONS 018.';
   end if;
   return old;
 end;
@@ -826,38 +827,7 @@ $$;
 
 
 -- ----------------------------------------------------------------------------
--- 10. delete_file()
--- The only way to delete a file: removes the Storage object and the files row
--- in one transaction, so the private bucket never accumulates orphans that
--- nothing will ever clean up. Clients get no direct DELETE on files at all.
--- ----------------------------------------------------------------------------
-
-create function public.delete_file(p_file_id uuid)
-returns void
-language plpgsql
-security definer
-set search_path = public, storage
-as $$
-declare
-  v_path text;
-begin
-  select storage_path into v_path from public.files where id = p_file_id;
-  if v_path is null then
-    raise exception 'file % not found', p_file_id;
-  end if;
-
-  -- Transaction-local authorization for this one row; files_delete_guard()
-  -- rejects any DELETE not flagged this way. Resets automatically at commit.
-  perform set_config('app.delete_file_authorized', p_file_id::text, true);
-
-  delete from storage.objects where bucket_id = 'job-files' and name = v_path;
-  delete from public.files where id = p_file_id;
-end;
-$$;
-
-
--- ----------------------------------------------------------------------------
--- 11. STORAGE BUCKETS
+-- 10. STORAGE BUCKETS
 -- Both private. Access policies arrive with the slices that upload (3, 10);
 -- until then nothing can read or write them through the storage API.
 --   job-files: jobs/{job_id}/{uuid}-{filename}
@@ -870,7 +840,7 @@ on conflict (id) do nothing;
 
 
 -- ----------------------------------------------------------------------------
--- 12. ROW LEVEL SECURITY AND PRIVILEGE GRANTS
+-- 11. ROW LEVEL SECURITY AND PRIVILEGE GRANTS
 -- Single-office team: authenticated staff see everything (DECISIONS 009).
 -- No anon access to anything, ever — public pages go through edge functions
 -- with the service role (DECISIONS 008). The delete matrix is mostly enforced
@@ -980,8 +950,9 @@ grant update (notes) on public.calls to authenticated;
 create policy "staff update notes" on public.calls
   for update to authenticated using (true) with check (true);
 
--- files: no delete policy and no DELETE grant — deletion happens only inside
--- delete_file() (security definer).
+-- files: no delete policy and no DELETE grant — undeletable until Slice 3
+-- ships the delete path (DECISIONS 018). The section 6 guard is the real
+-- enforcement; this is defence in depth for clients.
 revoke delete on public.files from authenticated;
 
 -- Comms write path is service-role only: revoke from everyone, grant back
@@ -990,6 +961,5 @@ revoke execute on function public.record_call(text, call_direction, text, text, 
 revoke execute on function public.record_message(text, call_direction, text, text, uuid, message_status, uuid, text, text[], timestamptz, timestamptz, text) from public, anon, authenticated;
 
 -- next_document_number stays callable by staff — job/quote/invoice creation
--- happens client-side. delete_file is the staff path for removing files.
+-- happens client-side.
 grant execute on function public.next_document_number(text) to authenticated;
-grant execute on function public.delete_file(uuid) to authenticated;

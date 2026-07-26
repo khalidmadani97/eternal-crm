@@ -211,3 +211,14 @@ insert into public.appointments (job_id, kind, starts_at, ends_at, notes) values
    now() + interval '8 days',  now() + interval '8 days 4 hours', 'Day 2 — island + backsplash.'),
   ('00000000-0000-4000-8000-000000000309', 'service',
    now() + interval '5 days',  now() + interval '5 days 1 hour',  'Re-seal seam near cooktop.');
+
+-- ----------------------------------------------------------------------------
+-- tasks — one open, one completed, so the tasks-delete acceptance check has
+-- real rows to act on instead of passing vacuously. assigned_to null: real
+-- profiles arrive with auth in Slice 1.
+-- ----------------------------------------------------------------------------
+insert into public.tasks (job_id, title, due_date, completed_at) values
+  ('00000000-0000-4000-8000-000000000304', 'Follow up on island quote',
+   (now() + interval '2 days')::date, null),
+  ('00000000-0000-4000-8000-000000000309', 'Ask for a Google review',
+   (now() - interval '8 days')::date, now() - interval '7 days');

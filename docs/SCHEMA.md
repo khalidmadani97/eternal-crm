@@ -248,9 +248,13 @@ exactly one activity row, written atomically by `record_call()` /
 
 Supabase Storage bucket `job-files`, private, path `jobs/{job_id}/{uuid}-{filename}`.
 
-Hard delete is permitted but only through `delete_file(file_id)`, which removes
-the Storage object and the row in the same operation. Orphaned objects in a
-private bucket accumulate forever and nothing else will ever clean them up.
+Files are **undeletable in Slice 0** — a guard trigger blocks `DELETE` for
+every role, including the service role and the dashboard. Supabase blocks SQL
+deletes of `storage.objects`, so a same-transaction SQL delete path would
+orphan the physical backing object (DECISIONS 018). Slice 3 ships the real
+path in its own migration: an edge function removes the object via the
+Storage API **first**, then a service-role RPC deletes the row — a visible
+dangling row is recoverable; an invisible orphaned object is not.
 
 ### calls
 One row per Twilio voice call. Written only by the service role through
@@ -369,8 +373,8 @@ Defined in the Slice 0 migration; the schema is not complete without them.
   rows. Atomically insert the `activities` row and the call/message row in one
   transaction; idempotent on the provider SID, so a replayed webhook produces
   one row, not two.
-- `delete_file(file_id)` — the only way to delete a file: removes the Storage
-  object and the `files` row together, never in client code.
+- `files_delete_guard()` — blocks `DELETE` on files for every role until the
+  Slice 3 delete path authorises it via a transaction-local flag (DECISIONS 018).
 - `convert_quote_to_invoice()` — Slice 8.
 
 ---
@@ -400,7 +404,8 @@ Small single-office team. Do not build permissions you do not need.
 | policy | tables |
 |---|---|
 | soft delete only — `deleted_at`; `DELETE` denied at the DB | companies, contacts, jobs |
-| hard delete permitted | tasks, appointments; files **only via `delete_file()`**; quote_line_items and invoice_line_items **only while the parent document is `draft`** |
+| hard delete permitted | tasks, appointments; quote_line_items and invoice_line_items **only while the parent document is `draft`** |
+| delete denied until Slice 3 ships the delete path | files — an edge function removes the Storage object via the Storage API **first**, then a service-role RPC deletes the row (DECISIONS 018) |
 | delete permanently denied | activities, calls, messages, payments, quotes, invoices, contracts, consent_records, inbound_leads |
 
 ---

@@ -281,3 +281,27 @@ happens over the API when `/design` ships.
 an API call — a small cost against full blast-radius isolation. The local-only
 reset discipline (016) stands: post-cutover, the linked project holds live
 financial records.
+
+---
+
+## 018 — Files undeletable until Slice 3; no SQL deletes of Storage objects
+2026-07 · accepted
+
+**Context** — The delete matrix originally required file deletion to remove
+the Storage object in the same RPC. Supabase now blocks SQL deletes on
+`storage.objects` with its own trigger. An undocumented GUC escape hatch
+exists (`storage.allow_delete_query`) but was rejected: deleting only the
+database row never touches the physical backing object, which would sit
+orphaned and invisible forever — the exact failure the rule exists to
+prevent, moved somewhere nobody can see it.
+
+**Decision** — Slice 0 ships only `files_delete_guard()`: files cannot be
+deleted by any role. Slice 3 ships the real path in its own migration: an
+edge function removes the object via the Storage API **first**, then a
+service-role RPC deletes the row, authorising the guard via its
+transaction-local flag. Object-first ordering because a visible dangling row
+is recoverable and an invisible orphaned object is not.
+
+**Consequence** — No file deletion of any kind until Slice 3 — safe, since
+nothing can create a file before then either. The guard's authorisation flag
+ships in Slice 0 so the Slice 3 RPC needs no schema change to the guard.

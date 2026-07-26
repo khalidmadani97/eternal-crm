@@ -74,6 +74,9 @@ present.
 - Stage change writes an `activities` row via trigger — verify the trigger fires
 - Activity timeline, newest first, with a note composer
 - File upload to Storage with a `kind` selector, list with download links
+- File delete path (own migration): edge function removes the Storage object
+  via the Storage API **first**, then a service-role RPC deletes the row and
+  authorises the Slice 0 guard (DECISIONS 018)
 - Tasks list scoped to the job, inline add and complete
 - Editable fields: title, site address, values, lead source, assignee
 
