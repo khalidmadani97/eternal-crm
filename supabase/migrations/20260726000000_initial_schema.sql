@@ -528,7 +528,7 @@ create trigger trg_inbound_leads_updated_at      before update on public.inbound
 --   soft delete only:   companies, contacts, jobs
 --   hard delete:        tasks, appointments (RLS policy, section 12);
 --                       line items only while parent is draft (guards below);
---                       files only via delete_file() (no RLS delete policy)
+--                       files only via delete_file() (guard trigger below)
 --   permanently denied: activities, calls, messages, payments, quotes,
 --                       invoices, contracts, consent_records, inbound_leads
 -- ----------------------------------------------------------------------------
@@ -580,6 +580,28 @@ $$;
 
 create trigger trg_quote_line_items_draft_only   before delete on public.quote_line_items   for each row execute function public.quote_line_item_delete_guard();
 create trigger trg_invoice_line_items_draft_only before delete on public.invoice_line_items for each row execute function public.invoice_line_item_delete_guard();
+
+-- files: hard delete is permitted, but ONLY through delete_file(), which
+-- removes the Storage object in the same transaction — a direct DELETE would
+-- orphan the object in a private bucket forever. The guard checks a
+-- transaction-local flag that only delete_file() sets, so this binds every
+-- role: clients, the service role, and the dashboard alike.
+create function public.files_delete_guard()
+returns trigger
+language plpgsql
+as $$
+begin
+  if current_setting('app.delete_file_authorized', true) is distinct from old.id::text then
+    raise exception 'DELETE on files is only allowed through delete_file()'
+      using hint = 'delete_file() also removes the Storage object; a direct DELETE would orphan it.';
+  end if;
+  return old;
+end;
+$$;
+
+create trigger trg_files_delete_via_rpc
+  before delete on public.files
+  for each row execute function public.files_delete_guard();
 
 
 -- ----------------------------------------------------------------------------
@@ -823,6 +845,10 @@ begin
   if v_path is null then
     raise exception 'file % not found', p_file_id;
   end if;
+
+  -- Transaction-local authorization for this one row; files_delete_guard()
+  -- rejects any DELETE not flagged this way. Resets automatically at commit.
+  perform set_config('app.delete_file_authorized', p_file_id::text, true);
 
   delete from storage.objects where bucket_id = 'job-files' and name = v_path;
   delete from public.files where id = p_file_id;
