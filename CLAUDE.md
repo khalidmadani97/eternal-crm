@@ -64,6 +64,19 @@ These are the standing rules. They override convenience.
 
 ## Non-negotiables
 
+**Shared project safety — read this before touching the database**
+
+**This Supabase project is SHARED with the `/design` quoting tool, which has
+live paying customers.**
+
+- **NEVER run `supabase db reset --linked`, or any reset, drop, or truncate
+  against the linked project. It would destroy `/design`.**
+- **The ONLY safe reset target is the local Docker instance.**
+- **The only permitted command against the linked project is
+  `supabase db push`.**
+- **`npm run db:reset` runs the LOCAL reset only. No script that can reset
+  the linked project may ever be added.** (DECISIONS 016, amending 002.)
+
 **Database**
 
 - Schema changes go in a numbered migration in `supabase/migrations/`. Never edit

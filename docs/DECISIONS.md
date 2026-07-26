@@ -244,3 +244,22 @@ when writing `contacts.phone` (which is constrained).
 **Consequence** — Malformed leads sit visibly with a `parse_error` instead of
 vanishing, and conversion carries the normalisation burden. Zapier never
 retry-loops on a lead we already have.
+
+---
+
+## 016 — No destructive commands against the linked project (amends 002)
+2026-07 · accepted
+
+**Context** — Decision 002 put the CRM in the same Supabase project as the
+`/design` quoting tool, which has live paying customers. `supabase db reset
+--linked` (or any drop/truncate against the linked project) would destroy it.
+
+**Decision** — Resets run only against the local Docker instance. The only
+command ever run against the linked project is `supabase db push`. The
+`db:reset` npm script targets local only, and no script that can reset the
+linked project may be added. Recorded in bold at the top of CLAUDE.md's
+non-negotiables.
+
+**Consequence** — Verifying "migration runs clean on a fresh DB" requires the
+local stack (Docker). Slightly slower loop; `/design`'s data is never one
+mistyped flag away from deletion.
