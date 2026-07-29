@@ -421,3 +421,16 @@ verify_jwt = false
 [functions.sign-contract]
 # Public signing page — the single-use token is the authentication (DECISIONS 008).
 verify_jwt = false
+
+[functions.call-twiml]
+# Twilio webhook — authenticated by the X-Twilio-Signature HMAC, not a JWT.
+verify_jwt = false
+
+[functions.call-status]
+verify_jwt = false
+
+[functions.sms-inbound]
+verify_jwt = false
+
+[functions.sms-status]
+verify_jwt = false

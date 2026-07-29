@@ -4,6 +4,7 @@ import { useProfiles } from '../../auth/api'
 import { formatCurrency } from '../../../lib/format'
 import { JOB_STAGES, useJob, useUpdateJob } from '../api'
 import type { JobDetail, JobStage } from '../api'
+import { CommsThread } from '../../comms/components/CommsThread'
 import { JobContracts } from '../../contracts/components/JobContracts'
 import { JobQuotes } from '../../quotes/components/JobQuotes'
 import { JobAppointments } from '../../schedule/components/JobAppointments'
@@ -40,6 +41,14 @@ export function JobDetailPage() {
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_20rem]">
         <div className="space-y-4">
           <JobDetailsForm job={job} />
+          {job.contact && (
+            <CommsThread
+              contactId={job.contact.id}
+              contactName={job.contact.full_name}
+              contactPhone={job.contact.phone}
+              jobId={job.id}
+            />
+          )}
           <ActivityTimeline jobId={job.id} />
         </div>
         <div className="space-y-4">
