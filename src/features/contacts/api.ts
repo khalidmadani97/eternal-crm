@@ -53,3 +53,118 @@ export function useCreateContact() {
     },
   })
 }
+
+// ── Contacts list / detail (Slice 5) ─────────────────────────────────────────
+
+export interface ContactRow {
+  id: string
+  full_name: string
+  phone: string | null
+  email: string | null
+  address: string | null
+  lead_source: string | null
+  auto_created: boolean
+  notes: string | null
+  company: { id: string; name: string } | null
+}
+
+export function useContacts(includeAutoCreated: boolean) {
+  return useQuery({
+    queryKey: ['contacts', 'list', includeAutoCreated],
+    queryFn: async (): Promise<ContactRow[]> => {
+      let query = supabase
+        .from('contacts')
+        .select(
+          'id, full_name, phone, email, address, lead_source, auto_created, notes, company:companies ( id, name )',
+        )
+        .is('deleted_at', null)
+        .order('full_name')
+      if (!includeAutoCreated) query = query.eq('auto_created', false)
+      const { data, error } = await query
+      if (error) throw error
+      return data as unknown as ContactRow[]
+    },
+  })
+}
+
+export interface ContactDetail extends ContactRow {
+  jobs: {
+    id: string
+    job_number: string
+    title: string
+    stage: string
+    value_est: number | null
+    value_final: number | null
+    created_at: string
+    deleted_at: string | null
+  }[]
+}
+
+export function useContact(id: string) {
+  return useQuery({
+    queryKey: ['contacts', 'detail', id],
+    queryFn: async (): Promise<ContactDetail> => {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select(
+          `id, full_name, phone, email, address, lead_source, auto_created, notes,
+           company:companies ( id, name ),
+           jobs ( id, job_number, title, stage, value_est, value_final, created_at, deleted_at )`,
+        )
+        .eq('id', id)
+        .single()
+      if (error) throw error
+      const detail = data as unknown as ContactDetail
+      detail.jobs = detail.jobs.filter((j) => j.deleted_at === null)
+      return detail
+    },
+  })
+}
+
+export interface ContactInput {
+  full_name: string
+  phone: string | null
+  email: string | null
+  address: string | null
+  lead_source: string | null
+  company_id: string | null
+  notes: string | null
+  auto_created?: boolean
+}
+
+export function useUpdateContact() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, input }: { id: string; input: Partial<ContactInput> }) => {
+      const { error } = await supabase.from('contacts').update(input).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['contacts'] }),
+  })
+}
+
+export function useCreateFullContact() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: ContactInput) => {
+      const { data, error } = await supabase.from('contacts').insert(input).select('id').single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['contacts'] }),
+  })
+}
+
+export function useSoftDeleteContact() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('contacts')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['contacts'] }),
+  })
+}
