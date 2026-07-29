@@ -305,3 +305,46 @@ is recoverable and an invisible orphaned object is not.
 **Consequence** — No file deletion of any kind until Slice 3 — safe, since
 nothing can create a file before then either. The guard's authorisation flag
 ships in Slice 0 so the Slice 3 RPC needs no schema change to the guard.
+
+---
+
+## 019 — Client companion packages: `@supabase/supabase-js`, `@hookform/resolvers`
+2026-07 · accepted
+
+**Context** — Slice 1 needs the browser client for the already-chosen Supabase
+stack, and the standard bridge between react-hook-form and zod (both already
+in the stack table).
+
+**Decision** — Add `@supabase/supabase-js` (the only supported JS client for
+Supabase Auth/Postgrest/Storage) and `@hookform/resolvers` (first-party
+react-hook-form resolver package; the zod resolver lives there). Neither is a
+new stack choice — they are the runtime halves of choices already made.
+
+**Consequence** — Two more permanent dependencies, both maintained by the
+vendors of stack components we already committed to.
+
+---
+
+## 020 — Table privileges are explicit; default grants are not trusted
+2026-07 · accepted
+
+**Context** — The Slice 0 migration relied on Supabase's default privileges to
+give `authenticated` DML on new tables and revoked back what should not be
+allowed. On the current stack the defaults do not apply to migration-created
+tables at all: every table came up with no SELECT/INSERT/UPDATE/DELETE for
+anon, authenticated, or service_role, and every API request failed with
+"permission denied" before RLS was consulted. Found in Slice 1's first
+end-to-end auth test.
+
+**Decision** — `20260729000001_explicit_grants.sql` grants privileges
+explicitly, mirroring the delete-policy matrix in docs/SCHEMA.md. From now on
+every migration that creates a table also grants its privileges explicitly in
+the same migration — the default-privilege behaviour of the platform is never
+assumed. anon gets no grants, ever. service_role gets full DML; the guard
+triggers (which fire for the service role too) remain the enforcement for
+immutable tables.
+
+**Consequence** — Grant statements are boilerplate in every table migration,
+in exchange for a permission model that is readable in one file and immune to
+platform changes in default privileges. The revoke-then-narrow dance for
+calls/messages in Slice 0 is superseded by grant-only statements.

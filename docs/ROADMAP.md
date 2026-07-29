@@ -40,7 +40,11 @@ return consecutive numbers. Types generated. App builds and serves a blank page.
 ---
 
 ## Slice 1 — Auth and shell
-**Status:** not started
+**Status:** done (2026-07-29) — signup trigger verified (admin-created user got
+a profiles row with role from metadata); login rejects bad credentials; RLS +
+grant matrix verified positive and negative via REST (DECISIONS 020 fixed
+missing table grants); shell/redirect logic in place, verified by code
+walkthrough — worth one manual browser pass
 
 - Supabase email/password auth, no signup — accounts created manually
 - `profiles` row created by trigger on user insert
