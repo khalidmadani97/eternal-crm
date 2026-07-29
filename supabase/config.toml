@@ -434,3 +434,6 @@ verify_jwt = false
 
 [functions.sms-status]
 verify_jwt = false
+
+[functions.softphone-twiml]
+verify_jwt = false

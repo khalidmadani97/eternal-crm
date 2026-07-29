@@ -80,15 +80,19 @@ Deno.serve(async (req) => {
     return new Response('ok', { status: 200 })
   }
 
-  // Completion callback.
+  // Completion callback — either a StatusCallback (CallStatus) or a softphone
+  // <Dial action> callback (DialCallStatus / DialCallDuration).
+  const isDialAction = url.searchParams.get('action') === '1'
+  const callStatus = isDialAction ? (params.DialCallStatus ?? params.CallStatus) : params.CallStatus
+  const duration = isDialAction ? params.DialCallDuration : params.CallDuration
   const outcome =
-    params.CallStatus === 'completed'
+    callStatus === 'completed'
       ? 'connected'
-      : params.CallStatus === 'busy'
+      : callStatus === 'busy'
         ? 'busy'
-        : params.CallStatus === 'no-answer'
+        : callStatus === 'no-answer'
           ? 'no_answer'
-          : params.CallStatus === 'failed'
+          : callStatus === 'failed'
             ? 'failed'
             : null
 
@@ -101,8 +105,14 @@ Deno.serve(async (req) => {
     p_job_id: jobId,
     p_outcome: outcome,
     p_ended_at: new Date().toISOString(),
-    p_duration_seconds: params.CallDuration ? Number(params.CallDuration) : null,
+    p_duration_seconds: duration ? Number(duration) : null,
   })
   if (error) return new Response(error.message, { status: 500 })
+  if (isDialAction) {
+    // Action callbacks control call flow — return empty TwiML to hang up.
+    return new Response('<?xml version="1.0" encoding="UTF-8"?><Response/>', {
+      headers: { 'Content-Type': 'text/xml' },
+    })
+  }
   return new Response('ok', { status: 200 })
 })
