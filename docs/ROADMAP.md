@@ -175,7 +175,13 @@ five actions work with a thumb.
 ---
 
 ## Slice 7 — Quotes
-**Status:** not started
+**Status:** done (2026-07-29) — line editor with cent-exact math (integer
+cents, half-up commercial rounding; verified 47.5 × 87.99 case); totals at
+the stored tax_rate; send freezes body_snapshot and the DB guard rejects
+line-item deletes after draft (verified); accept stamps accepted_at and
+offers the move to Won; branded print view (espresso/gold, Lora/Poppins) —
+"PDF" is browser print-to-PDF per DECISIONS 021; render checked by code
+walkthrough, worth one visual pass.
 
 - Line item editor: description, qty, unit, unit price, auto amount
 - Subtotal, HST at the stored `tax_rate`, total

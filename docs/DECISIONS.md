@@ -348,3 +348,24 @@ immutable tables.
 in exchange for a permission model that is readable in one file and immune to
 platform changes in default privileges. The revoke-then-narrow dance for
 calls/messages in Slice 0 is superseded by grant-only statements.
+
+---
+
+## 021 — Document PDFs are print-styled HTML via the browser
+2026-07 · accepted
+
+**Context** — Slice 7 needs branded quote PDFs (and Slice 8 invoices, Slice 9
+signed contracts). A JS PDF library is a heavy permanent dependency, and we
+do not email documents from the app (out of scope), so a download button that
+opens the browser's print-to-PDF on a print-styled route covers the workflow.
+
+**Decision** — `/quotes/:id/print` (and later invoice equivalents) are
+chrome-free routes styled with the brand (espresso `#3b2a20` / gold
+`#b08d3f`, Lora headings, Poppins body, fonts loaded only on those routes).
+"PDF render" = browser print-to-PDF. Exception: the Slice 9 signed-contract
+PDF is generated server-side in the signing edge function because it must be
+produced without a staff browser in the loop.
+
+**Consequence** — Zero new dependencies now; pixel-perfect control lives in
+one stylesheet per document. If the after-v1 email feature ever lands,
+server-side rendering will need a real PDF pipeline then.
