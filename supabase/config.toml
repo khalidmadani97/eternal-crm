@@ -417,3 +417,7 @@ enabled = true
 [functions.stripe-webhook]
 # Stripe authenticates with its HMAC signature, not a Supabase JWT.
 verify_jwt = false
+
+[functions.sign-contract]
+# Public signing page — the single-use token is the authentication (DECISIONS 008).
+verify_jwt = false

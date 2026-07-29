@@ -230,7 +230,14 @@ payment end to end. Two invoices created back to back have consecutive numbers.
 ---
 
 ## Slice 9 — Contracts and e-signature
-**Status:** not started
+**Status:** done (2026-07-29) — full flow verified against the local stack:
+signing page serves the frozen body via the service-role edge function (no
+anon RLS); signing captured name/email/IP/timestamp and produced a valid PDF
+with all audit fields confirmed inside the PDF content streams; token reuse
+→ 409, expired token rejected on GET and POST, tampering with a signed
+contract blocked by the DB trigger; signed PDF also lands in the job's files
+list. pdf-lib is function-scoped (DECISIONS 022). Note: production wants a
+/sign/:token rewrite to the function URL in vercel.json at deploy time.
 
 Highest risk. Everything else should be stable first.
 

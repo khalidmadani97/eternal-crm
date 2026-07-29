@@ -4,6 +4,7 @@ import { useProfiles } from '../../auth/api'
 import { formatCurrency } from '../../../lib/format'
 import { JOB_STAGES, useJob, useUpdateJob } from '../api'
 import type { JobDetail, JobStage } from '../api'
+import { JobContracts } from '../../contracts/components/JobContracts'
 import { JobQuotes } from '../../quotes/components/JobQuotes'
 import { JobAppointments } from '../../schedule/components/JobAppointments'
 import { ActivityTimeline } from '../components/ActivityTimeline'
@@ -44,6 +45,7 @@ export function JobDetailPage() {
         <div className="space-y-4">
           <JobAppointments jobId={job.id} />
           <JobQuotes jobId={job.id} />
+          <JobContracts job={job} />
           <JobTasks jobId={job.id} />
           <JobFiles jobId={job.id} />
         </div>
