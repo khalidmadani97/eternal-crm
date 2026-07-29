@@ -123,7 +123,11 @@ failed update rolls the card back visibly. This is the screen that replaces Trel
 ---
 
 ## Slice 5 — Contacts and companies
-**Status:** not started
+**Status:** done (2026-07-29) — company detail shows every job with matching
+company_id; referred totals reconcile exactly against SQL for all three seed
+companies; hard DELETE denied at the DB, soft delete hides from lists;
+auto-created contacts filtered out by default with a "show unverified"
+toggle; editing an unverified contact marks it verified.
 
 - Contacts list and detail with job history
 - Companies list and detail with contacts and all referred jobs, plus total
