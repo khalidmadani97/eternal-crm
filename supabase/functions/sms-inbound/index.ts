@@ -110,5 +110,28 @@ Deno.serve(async (req) => {
   })
   if (recordError) return new Response(recordError.message, { status: 500 })
 
+  // Push notification to staff devices (best-effort — never fails the webhook).
+  try {
+    const { data: contactRow } = await sb
+      .from('contacts')
+      .select('full_name')
+      .eq('id', contact.id)
+      .single()
+    await fetch(publicFunctionUrl('send-push'), {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: contactRow?.full_name ?? from,
+        body: isStop ? 'Sent STOP — outbound texts now blocked' : body.slice(0, 120),
+        url: '/inbox',
+      }),
+    })
+  } catch {
+    /* push is best-effort */
+  }
+
   return twiml('') // no auto-reply
 })
