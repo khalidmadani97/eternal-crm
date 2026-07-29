@@ -9,7 +9,9 @@ Mark slices done here as you go. Claude Code reads this file to know where it is
 ---
 
 ## Slice 0 — Foundation
-**Status:** not started
+**Status:** done (2026-07-29) — migration + seed run clean on a fresh local DB;
+`next_document_number('INV')` returned consecutive INV-2026-0004/0005; types
+generated; build and lint pass
 
 Repo (git init, .gitignore), tooling, Supabase link, the **complete** schema,
 seed data. The schema ships whole — later slices build UI and edge functions
