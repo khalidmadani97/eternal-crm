@@ -58,7 +58,12 @@ to a protected URL while logged out redirects to login.
 ---
 
 ## Slice 2 — Jobs list
-**Status:** not started
+**Status:** done (2026-07-29) — all 12 seeded jobs render via the verified list
+query; create-job persisted EI-2026-0013 (consecutive); filters/sort are
+client-side over the fetched list (small dataset, one query — revisit if jobs
+exceed a few thousand); loading/empty/error states present. Note: job-number
+RPC + insert are two steps, so a failed insert can gap EI numbers — cosmetic
+for jobs; invoices must mint inside one server-side function (Slice 8).
 
 - Table: job number, title, contact, company, stage badge, value, install date,
   assigned to
