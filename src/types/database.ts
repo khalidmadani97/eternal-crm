@@ -1102,7 +1102,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      convert_quote_to_invoice: {
+        Args: { p_quote_id: string }
+        Returns: string
+      }
+      create_invoice: {
+        Args: { p_job_id: string; p_tax_rate?: number }
+        Returns: string
+      }
+      delete_file: { Args: { p_file_id: string }; Returns: undefined }
       next_document_number: { Args: { p_prefix: string }; Returns: string }
+      recompute_invoice_paid: {
+        Args: { p_invoice_id: string }
+        Returns: undefined
+      }
       record_call: {
         Args: {
           p_answered_at?: string
@@ -1138,6 +1151,10 @@ export type Database = {
           p_to_number: string
         }
         Returns: string
+      }
+      void_invoice: {
+        Args: { p_invoice_id: string; p_reason: string }
+        Returns: undefined
       }
     }
     Enums: {
