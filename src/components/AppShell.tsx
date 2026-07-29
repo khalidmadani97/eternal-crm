@@ -1,0 +1,57 @@
+import { NavLink, Outlet } from 'react-router-dom'
+import { useAuth } from '../features/auth/AuthProvider'
+
+const NAV_ITEMS = [
+  { to: '/jobs', label: 'Jobs' },
+  { to: '/board', label: 'Board' },
+  { to: '/calendar', label: 'Calendar' },
+  { to: '/contacts', label: 'Contacts' },
+  { to: '/invoices', label: 'Invoices' },
+  { to: '/reports', label: 'Reports' },
+]
+
+export function AppShell() {
+  const { session, signOut } = useAuth()
+
+  return (
+    <div className="flex min-h-screen bg-stone-100">
+      <aside className="flex w-56 flex-col bg-stone-900 text-stone-300">
+        <div className="px-5 py-6">
+          <span className="text-lg font-semibold text-amber-500">Eternal</span>
+          <span className="text-lg font-light text-stone-100"> CRM</span>
+        </div>
+        <nav className="flex-1 space-y-1 px-3">
+          {NAV_ITEMS.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                `block rounded px-3 py-2 text-sm ${
+                  isActive
+                    ? 'bg-stone-800 font-medium text-amber-400'
+                    : 'hover:bg-stone-800 hover:text-stone-100'
+                }`
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+      </aside>
+      <div className="flex flex-1 flex-col">
+        <header className="flex items-center justify-end gap-4 border-b border-stone-200 bg-white px-6 py-3">
+          <span className="text-sm text-stone-600">{session?.user.email}</span>
+          <button
+            onClick={() => void signOut()}
+            className="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50"
+          >
+            Sign out
+          </button>
+        </header>
+        <main className="flex-1 p-6">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  )
+}

@@ -11,6 +11,8 @@
     "db:reset": "supabase db reset"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.5.7",
+    "@supabase/supabase-js": "^2.111.0",
     "@tanstack/react-query": "^5.51.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
