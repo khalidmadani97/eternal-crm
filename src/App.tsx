@@ -15,6 +15,7 @@ import { InvoicePrintPage } from './features/invoices/routes/InvoicePrintPage'
 import { InvoicesListPage } from './features/invoices/routes/InvoicesListPage'
 import { QuoteEditorPage } from './features/quotes/routes/QuoteEditorPage'
 import { QuotePrintPage } from './features/quotes/routes/QuotePrintPage'
+import { InboxPage } from './features/comms/routes/InboxPage'
 import { CalendarPage } from './features/schedule/routes/CalendarPage'
 import { FieldPage } from './features/schedule/routes/FieldPage'
 
@@ -45,6 +46,7 @@ export function App() {
               <Route path="/contacts/:id" element={<ContactDetailPage />} />
               <Route path="/companies" element={<CompaniesListPage />} />
               <Route path="/companies/:id" element={<CompanyDetailPage />} />
+              <Route path="/inbox" element={<InboxPage />} />
               <Route path="/invoices" element={<InvoicesListPage />} />
               <Route path="/invoices/:id" element={<InvoiceEditorPage />} />
               <Route path="/reports" element={<Placeholder title="Reports" />} />

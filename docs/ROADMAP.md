@@ -259,7 +259,21 @@ afterwards does not change the already-signed document.
 ---
 
 ## Slice 10 — Comms: native voice and SMS (Twilio)
-**Status:** not started
+**Status:** code-complete (2026-07-29) — everything verifiable without live
+Twilio credentials is verified locally: webhook signature validation (bad sig
+→ 403, valid locally-computed HMAC accepted); inbound SMS auto-creates an
+unverified contact, writes the implied CASL grant with the message as
+evidence, lands on the newest open job, and replays are fully idempotent
+(no duplicate message OR consent rows); STOP writes a withdrawn record and a
+direct SQL outbound insert is blocked by the DB trigger; send-sms fails
+closed (403) on withdrawn or absent consent BEFORE Twilio is called. Fixes
+along the way: record_call/record_message needed explicit service_role
+grants (DECISIONS 020 failure class). REMAINING for live sign-off: set
+TWILIO_* secrets, point Twilio webhooks at the deployed functions, then run
+the acceptance script (real call with announcement + recording playback,
+real SMS round trip, delivery statuses). Bridging TwiML, announcement
+whisper, recording copy-then-delete, and status callbacks are written and
+awaiting that pass.
 
 Schema already exists from Slice 0. This slice is edge functions and UI.
 See DECISIONS 012/013. Softphone is **not** here — it is Slice 13.
