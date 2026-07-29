@@ -391,6 +391,8 @@ export function useMoveJobStage() {
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      // The field page reads job.stage through the appointments query.
+      void queryClient.invalidateQueries({ queryKey: ['appointments'] })
     },
   })
 }

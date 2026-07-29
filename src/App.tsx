@@ -10,6 +10,8 @@ import { CompaniesListPage } from './features/companies/routes/CompaniesListPage
 import { CompanyDetailPage } from './features/companies/routes/CompanyDetailPage'
 import { ContactDetailPage } from './features/contacts/routes/ContactDetailPage'
 import { ContactsListPage } from './features/contacts/routes/ContactsListPage'
+import { CalendarPage } from './features/schedule/routes/CalendarPage'
+import { FieldPage } from './features/schedule/routes/FieldPage'
 
 function Placeholder({ title }: { title: string }) {
   return <h1 className="text-xl font-semibold text-stone-900">{title}</h1>
@@ -22,12 +24,14 @@ export function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={<ProtectedRoute />}>
+            {/* Mobile field view — deliberately outside the desktop shell. */}
+            <Route path="/field" element={<FieldPage />} />
             <Route element={<AppShell />}>
               <Route index element={<Navigate to="/jobs" replace />} />
               <Route path="/jobs" element={<JobsListPage />} />
               <Route path="/jobs/:id" element={<JobDetailPage />} />
               <Route path="/board" element={<BoardPage />} />
-              <Route path="/calendar" element={<Placeholder title="Calendar" />} />
+              <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/contacts" element={<ContactsListPage />} />
               <Route path="/contacts/:id" element={<ContactDetailPage />} />
               <Route path="/companies" element={<CompaniesListPage />} />
