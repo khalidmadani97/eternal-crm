@@ -356,3 +356,41 @@ export function useToggleTask(jobId: string) {
     },
   })
 }
+
+// ── Board ────────────────────────────────────────────────────────────────────
+
+/** Stage move with an optimistic cache update and rollback — the board drags
+ *  cards; a failed write must visibly snap the card back. */
+export function useMoveJobStage() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      id,
+      stage,
+      lostReason,
+    }: {
+      id: string
+      stage: JobStage
+      lostReason?: string
+    }) => {
+      const patch: { stage: JobStage; lost_reason?: string } = { stage }
+      if (lostReason) patch.lost_reason = lostReason
+      const { error } = await supabase.from('jobs').update(patch).eq('id', id)
+      if (error) throw error
+    },
+    onMutate: async ({ id, stage }) => {
+      await queryClient.cancelQueries({ queryKey: ['jobs', 'list'] })
+      const previous = queryClient.getQueryData<JobListRow[]>(['jobs', 'list'])
+      queryClient.setQueryData<JobListRow[]>(['jobs', 'list'], (old) =>
+        old?.map((j) => (j.id === id ? { ...j, stage } : j)),
+      )
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(['jobs', 'list'], context.previous)
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['jobs'] })
+    },
+  })
+}
