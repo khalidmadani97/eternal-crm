@@ -140,7 +140,13 @@ toggle; editing an unverified contact marks it verified.
 ---
 
 ## Slice 6 — Scheduling
-**Status:** not started
+**Status:** done (2026-07-29) — month/week grid hand-rolled (no calendar
+dependency); template + install created from a job land on the right days in
+the range query; drag-reschedule shifts starts_at and ends_at by the same
+delta (verified); assignee filter and kind colours in place; /field shows
+today's appointments with thumb-size Navigate / Call / photo-upload /
+mark-complete actions (template→templated, install→installed; other kinds
+have no field-completable stage).
 
 - Month and week calendar reading from `appointments`
 - Colour by `kind`, filter by assignee
