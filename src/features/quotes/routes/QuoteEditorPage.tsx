@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useConvertQuote } from '../../invoices/api'
 import { useUpdateJob } from '../../jobs/api'
 import type { JobStage } from '../../jobs/api'
 import { formatCurrency, formatDate } from '../../../lib/format'
@@ -237,6 +238,8 @@ function DraftEditor({ quote }: { quote: Quote }) {
 function SentQuoteView({ quote }: { quote: Quote }) {
   const setStatus = useSetQuoteStatus()
   const updateJob = useUpdateJob()
+  const convertQuote = useConvertQuote()
+  const navigate = useNavigate()
   const [offerWon, setOfferWon] = useState(false)
   const snapshot = quote.body_snapshot
 
@@ -294,6 +297,25 @@ function SentQuoteView({ quote }: { quote: Quote }) {
           </div>
         </dl>
       </div>
+
+      {quote.status === 'accepted' && (
+        <div className="mt-4 flex items-center gap-3">
+          <button
+            onClick={() =>
+              convertQuote.mutate(quote.id, {
+                onSuccess: (invoiceId) => void navigate(`/invoices/${invoiceId}`),
+              })
+            }
+            disabled={convertQuote.isPending}
+            className="rounded bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
+          >
+            {convertQuote.isPending ? 'Converting…' : 'Convert to invoice'}
+          </button>
+          {convertQuote.isError && (
+            <span className="text-sm text-red-600">{convertQuote.error.message}</span>
+          )}
+        </div>
+      )}
 
       {quote.status === 'sent' && (
         <div className="mt-4 flex items-center gap-3">

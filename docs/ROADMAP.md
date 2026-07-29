@@ -196,7 +196,18 @@ correct branding, sending freezes the snapshot, accepting prompts the stage chan
 ---
 
 ## Slice 8 — Invoices and payments
-**Status:** not started
+**Status:** done (2026-07-29) — all money paths verified at the DB level:
+convert_quote_to_invoice copies totals to the cent; back-to-back invoices got
+consecutive numbers (minted inside the insert transaction, gapless); editing
+a sent invoice or its line items fails at the database; partial e-transfer →
+`partial` with correct balance, full payment → `paid` + paid_at, negative
+refund → back to `partial`; void requires a reason and writes a reversal
+activity; payment DELETE denied. Stripe webhook verified locally with real
+HMAC signatures: bad sig 403, good sig records the payment end to end,
+replay is idempotent (one row). Live Stripe needs STRIPE_SECRET_KEY /
+STRIPE_WEBHOOK_SECRET / APP_URL in function secrets. CSV export + branded
+print view with the HST number in place (HST value is a placeholder in
+lib/business.ts — fill before first client invoice).
 
 This is where a bug costs money instead of time. Slow down.
 

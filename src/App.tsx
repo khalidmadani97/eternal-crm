@@ -10,6 +10,9 @@ import { CompaniesListPage } from './features/companies/routes/CompaniesListPage
 import { CompanyDetailPage } from './features/companies/routes/CompanyDetailPage'
 import { ContactDetailPage } from './features/contacts/routes/ContactDetailPage'
 import { ContactsListPage } from './features/contacts/routes/ContactsListPage'
+import { InvoiceEditorPage } from './features/invoices/routes/InvoiceEditorPage'
+import { InvoicePrintPage } from './features/invoices/routes/InvoicePrintPage'
+import { InvoicesListPage } from './features/invoices/routes/InvoicesListPage'
 import { QuoteEditorPage } from './features/quotes/routes/QuoteEditorPage'
 import { QuotePrintPage } from './features/quotes/routes/QuotePrintPage'
 import { CalendarPage } from './features/schedule/routes/CalendarPage'
@@ -30,6 +33,7 @@ export function App() {
             <Route path="/field" element={<FieldPage />} />
             {/* Print view — no shell chrome so print-to-PDF is clean. */}
             <Route path="/quotes/:id/print" element={<QuotePrintPage />} />
+            <Route path="/invoices/:id/print" element={<InvoicePrintPage />} />
             <Route element={<AppShell />}>
               <Route index element={<Navigate to="/jobs" replace />} />
               <Route path="/jobs" element={<JobsListPage />} />
@@ -41,7 +45,8 @@ export function App() {
               <Route path="/contacts/:id" element={<ContactDetailPage />} />
               <Route path="/companies" element={<CompaniesListPage />} />
               <Route path="/companies/:id" element={<CompanyDetailPage />} />
-              <Route path="/invoices" element={<Placeholder title="Invoices" />} />
+              <Route path="/invoices" element={<InvoicesListPage />} />
+              <Route path="/invoices/:id" element={<InvoiceEditorPage />} />
               <Route path="/reports" element={<Placeholder title="Reports" />} />
             </Route>
           </Route>
