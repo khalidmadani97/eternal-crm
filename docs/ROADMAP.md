@@ -103,7 +103,13 @@ correctly.
 ---
 
 ## Slice 4 — Pipeline board
-**Status:** not started
+**Status:** done (2026-07-29) — native HTML5 drag (no new dependency), stage
+move verified persisted across re-read; column count/value totals use the
+same coalesce(value_final, value_est) semantics as SQL and reconcile against
+seed data; optimistic update snapshots the cache and rolls back on error with
+a visible banner; lost drops open the blocking reason dialog. Drag + rollback
+paths verified by code walkthrough — worth a manual feel-check since this
+replaces Trello.
 
 - Kanban by `job_stage`, drag between columns, optimistic update with rollback
 - Card: job number, contact, value, install date, assignee
