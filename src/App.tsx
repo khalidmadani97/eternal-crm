@@ -16,12 +16,9 @@ import { InvoicesListPage } from './features/invoices/routes/InvoicesListPage'
 import { QuoteEditorPage } from './features/quotes/routes/QuoteEditorPage'
 import { QuotePrintPage } from './features/quotes/routes/QuotePrintPage'
 import { InboxPage } from './features/comms/routes/InboxPage'
+import { ReportsPage } from './features/reports/routes/ReportsPage'
 import { CalendarPage } from './features/schedule/routes/CalendarPage'
 import { FieldPage } from './features/schedule/routes/FieldPage'
-
-function Placeholder({ title }: { title: string }) {
-  return <h1 className="text-xl font-semibold text-stone-900">{title}</h1>
-}
 
 export function App() {
   return (
@@ -49,7 +46,7 @@ export function App() {
               <Route path="/inbox" element={<InboxPage />} />
               <Route path="/invoices" element={<InvoicesListPage />} />
               <Route path="/invoices/:id" element={<InvoiceEditorPage />} />
-              <Route path="/reports" element={<Placeholder title="Reports" />} />
+              <Route path="/reports" element={<ReportsPage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/jobs" replace />} />

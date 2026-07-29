@@ -309,7 +309,11 @@ bad signature gets 403. Replaying the same webhook twice creates one row.
 ---
 
 ## Slice 11 — Reporting
-**Status:** not started
+**Status:** done (2026-07-29) — all four figures reconcile against manual SQL
+on the seed data: pipeline by stage matched byte-for-byte across 11 stages;
+win rate by lead_source (date-ranged, decided = won/lost, open excluded from
+the rate) matched; invoiced-vs-collected by month and the referral
+leaderboard matched. Loading/empty/error states per panel.
 
 Four numbers, nothing more:
 
