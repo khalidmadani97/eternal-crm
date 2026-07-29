@@ -4,6 +4,7 @@ import { useUploadFile } from '../../jobs/api'
 import { useMoveJobStage } from '../../jobs/api'
 import type { JobStage } from '../../jobs/api'
 import { formatPhone } from '../../../lib/format'
+import { enqueueUpload } from '../../../lib/uploadQueue'
 import { APPT_KIND_LABELS, APPT_KIND_STYLES, useAppointments } from '../api'
 import type { AppointmentRow } from '../api'
 
@@ -61,15 +62,28 @@ function FieldCard({ appt }: { appt: AppointmentRow }) {
   const moveStage = useMoveJobStage()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploaded, setUploaded] = useState(0)
+  const [queued, setQueued] = useState(0)
 
   const completeTo = COMPLETE_TO[appt.kind]
   const alreadyComplete = job && completeTo ? job.stage === completeTo : false
 
+  // No signal on site: photos queue in IndexedDB and flush on the next
+  // foreground with connectivity (Slice 14 — no Background Sync API).
   const onPhotos = async (files: FileList | null) => {
     if (!files || !session || !job) return
     for (const file of Array.from(files)) {
-      await upload.mutateAsync({ file, kind: 'site_photo', userId: session.user.id })
-      setUploaded((n) => n + 1)
+      if (!navigator.onLine) {
+        await enqueueUpload({ jobId: job.id, kind: 'site_photo', file, userId: session.user.id })
+        setQueued((n) => n + 1)
+        continue
+      }
+      try {
+        await upload.mutateAsync({ file, kind: 'site_photo', userId: session.user.id })
+        setUploaded((n) => n + 1)
+      } catch {
+        await enqueueUpload({ jobId: job.id, kind: 'site_photo', file, userId: session.user.id })
+        setQueued((n) => n + 1)
+      }
     }
     if (fileRef.current) fileRef.current.value = ''
   }
@@ -125,7 +139,13 @@ function FieldCard({ appt }: { appt: AppointmentRow }) {
               Call {job.contact?.phone ? formatPhone(job.contact.phone) : ''}
             </a>
             <label className="flex min-h-12 cursor-pointer items-center justify-center rounded-lg border border-stone-300 bg-white text-sm font-medium text-stone-800 active:bg-stone-100">
-              {upload.isPending ? 'Uploading…' : uploaded > 0 ? `Photos (${uploaded} up)` : 'Upload photos'}
+              {upload.isPending
+                ? 'Uploading…'
+                : queued > 0
+                  ? `Photos (${queued} queued offline)`
+                  : uploaded > 0
+                    ? `Photos (${uploaded} up)`
+                    : 'Upload photos'}
               <input
                 ref={fileRef}
                 type="file"

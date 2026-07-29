@@ -369,7 +369,16 @@ the flag off, nothing about it is reachable.
 ---
 
 ## Slice 14 — PWA
-**Status:** not started
+**Status:** code-complete (2026-07-29) — manifest (standalone, /field start
+URL), placeholder branded icons (replace with real artwork), hand-written
+service worker: cache is a speed layer only (API paths never cached,
+network-first navigations, cache-first hashed assets); offline photo queue
+in IndexedDB flushed on foreground/online (no Background Sync API);
+push_subscriptions table + bell-toggle enrolment + send-push function
+(web-push/VAPID) wired so an inbound SMS notifies staff devices. REMAINING
+for live sign-off: generate VAPID keys (npx web-push generate-vapid-keys),
+set VAPID_* secrets + VITE_VAPID_PUBLIC_KEY, deploy over HTTPS, then run
+the install/push/offline-photo acceptance on real Android and iOS devices.
 
 Manifest, service worker, icon set, installable. See DECISIONS 014.
 
