@@ -79,7 +79,12 @@ present.
 ---
 
 ## Slice 3 — Job detail
-**Status:** not started
+**Status:** done (2026-07-29) — stage-change trigger verified (activities row
+with from/to; won_at stamped); notes persist newest-first; task add/complete
+verified; file upload → signed-URL download → edge-function delete verified
+end to end (object removed first, then row via service-role RPC; direct
+client DELETE denied). Fix along the way: delete_file() needed an explicit
+service_role execute grant after the public revoke.
 
 - Header: job number, title, stage selector, contact and company links, value
 - Stage change writes an `activities` row via trigger — verify the trigger fires

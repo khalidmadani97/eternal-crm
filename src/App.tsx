@@ -3,6 +3,7 @@ import { AppShell } from './components/AppShell'
 import { AuthProvider } from './features/auth/AuthProvider'
 import { ProtectedRoute } from './features/auth/ProtectedRoute'
 import { LoginPage } from './features/auth/routes/LoginPage'
+import { JobDetailPage } from './features/jobs/routes/JobDetailPage'
 import { JobsListPage } from './features/jobs/routes/JobsListPage'
 
 function Placeholder({ title }: { title: string }) {
@@ -19,6 +20,7 @@ export function App() {
             <Route element={<AppShell />}>
               <Route index element={<Navigate to="/jobs" replace />} />
               <Route path="/jobs" element={<JobsListPage />} />
+              <Route path="/jobs/:id" element={<JobDetailPage />} />
               <Route path="/board" element={<Placeholder title="Board" />} />
               <Route path="/calendar" element={<Placeholder title="Calendar" />} />
               <Route path="/contacts" element={<Placeholder title="Contacts" />} />
