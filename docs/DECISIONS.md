@@ -369,3 +369,21 @@ produced without a staff browser in the loop.
 **Consequence** — Zero new dependencies now; pixel-perfect control lives in
 one stylesheet per document. If the after-v1 email feature ever lands,
 server-side rendering will need a real PDF pipeline then.
+
+---
+
+## 022 — `pdf-lib` in the signing edge function
+2026-07 · accepted
+
+**Context** — The signed-contract PDF must be produced server-side at the
+moment of signing, with the audit trail embedded, without a staff browser in
+the loop — print-styled HTML (021) cannot do that.
+
+**Decision** — The `sign-contract` edge function uses `pdf-lib` (pure JS, no
+native deps, runs in Deno) to compose the signed document: full contract
+text, signature image, signer name/email, IP, and UTC timestamp. It is a
+function-level dependency only — the web app does not ship it.
+
+**Consequence** — One dependency scoped to one edge function. The visual
+fidelity is deliberately plain (typewritten agreement, not the branded
+quote look) — what matters here is evidentiary completeness, not styling.
