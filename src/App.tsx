@@ -10,6 +10,8 @@ import { CompaniesListPage } from './features/companies/routes/CompaniesListPage
 import { CompanyDetailPage } from './features/companies/routes/CompanyDetailPage'
 import { ContactDetailPage } from './features/contacts/routes/ContactDetailPage'
 import { ContactsListPage } from './features/contacts/routes/ContactsListPage'
+import { QuoteEditorPage } from './features/quotes/routes/QuoteEditorPage'
+import { QuotePrintPage } from './features/quotes/routes/QuotePrintPage'
 import { CalendarPage } from './features/schedule/routes/CalendarPage'
 import { FieldPage } from './features/schedule/routes/FieldPage'
 
@@ -26,10 +28,13 @@ export function App() {
           <Route element={<ProtectedRoute />}>
             {/* Mobile field view — deliberately outside the desktop shell. */}
             <Route path="/field" element={<FieldPage />} />
+            {/* Print view — no shell chrome so print-to-PDF is clean. */}
+            <Route path="/quotes/:id/print" element={<QuotePrintPage />} />
             <Route element={<AppShell />}>
               <Route index element={<Navigate to="/jobs" replace />} />
               <Route path="/jobs" element={<JobsListPage />} />
               <Route path="/jobs/:id" element={<JobDetailPage />} />
+              <Route path="/quotes/:id" element={<QuoteEditorPage />} />
               <Route path="/board" element={<BoardPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/contacts" element={<ContactsListPage />} />
