@@ -387,3 +387,22 @@ function-level dependency only — the web app does not ship it.
 **Consequence** — One dependency scoped to one edge function. The visual
 fidelity is deliberately plain (typewritten agreement, not the branded
 quote look) — what matters here is evidentiary completeness, not styling.
+
+---
+
+## 023 — `@twilio/voice-sdk` for the feature-flagged browser softphone
+2026-07 · accepted
+
+**Context** — Slice 13 adds browser-to-phone calling as a secondary mode
+behind `VITE_FEATURE_SOFTPHONE`. Twilio's Voice SDK is the only supported
+way to run a WebRTC leg against Twilio.
+
+**Decision** — Add `@twilio/voice-sdk`, lazy-imported only when the flag is
+on, so the bundle cost is zero for the default build. Tokens are minted by
+the `voice-token` edge function (API key/secret live in function secrets);
+the TwiML App points at `softphone-twiml`, which reuses the same
+announcement whisper, recording callback, and `record_call()` path as
+dial-out bridging — no parallel write path.
+
+**Consequence** — One flag-gated dependency. Removing the softphone later is
+deleting one component, one hook, two functions, and this entry.

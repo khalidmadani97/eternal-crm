@@ -348,7 +348,14 @@ discrepancies.
 ---
 
 ## Slice 13 — Browser softphone
-**Status:** not started
+**Status:** code-complete (2026-07-29) — behind VITE_FEATURE_SOFTPHONE (off:
+component never renders, SDK never loads — it is a lazy chunk). voice-token
+verified locally: staff-only (401 otherwise), mints a structurally correct
+Twilio FPA JWT (HS256 signature verified against the API secret, voice
+outgoing grant, 1h expiry). softphone-twiml reuses the bridging whisper /
+recording / record_call() path — no parallel writes. REMAINING for live
+sign-off: create the Twilio API key + TwiML App pointing at softphone-twiml,
+set the four secrets, flip the flag, and complete a browser→phone call.
 
 Secondary calling mode, behind a feature flag. Twilio Voice SDK
 (`@twilio/voice-sdk` — needs its DECISIONS entry when added), a token-minting

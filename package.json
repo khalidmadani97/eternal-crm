@@ -14,6 +14,7 @@
     "@hookform/resolvers": "^5.5.7",
     "@supabase/supabase-js": "^2.111.0",
     "@tanstack/react-query": "^5.51.0",
+    "@twilio/voice-sdk": "^2.18.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.52.0",

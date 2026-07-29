@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatDateTime, formatPhone } from '../../../lib/format'
 import { commsFileUrl, useSendSms, useStartCall, useThread } from '../api'
+import { SOFTPHONE_ENABLED, SoftphoneButton } from './Softphone'
 
 interface Props {
   contactId: string
@@ -39,13 +40,18 @@ export function CommsThread({ contactId, contactName, contactPhone, jobId }: Pro
           <h2 className="text-sm font-semibold text-stone-800">{contactName}</h2>
           <p className="text-xs text-stone-400">{formatPhone(contactPhone)}</p>
         </div>
-        <button
-          onClick={() => startCall.mutate({ contactId, jobId })}
-          disabled={startCall.isPending || !contactPhone}
-          className="rounded bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
-        >
-          {startCall.isPending ? 'Calling…' : '📞 Call'}
-        </button>
+        <div className="flex items-center gap-2">
+          {SOFTPHONE_ENABLED && contactPhone && (
+            <SoftphoneButton contactId={contactId} contactPhone={contactPhone} jobId={jobId} />
+          )}
+          <button
+            onClick={() => startCall.mutate({ contactId, jobId })}
+            disabled={startCall.isPending || !contactPhone}
+            className="rounded bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
+          >
+            {startCall.isPending ? 'Calling…' : '📞 Call'}
+          </button>
+        </div>
       </div>
       {startCall.isError && (
         <p className="border-b border-red-100 bg-red-50 px-4 py-1.5 text-xs text-red-700">
