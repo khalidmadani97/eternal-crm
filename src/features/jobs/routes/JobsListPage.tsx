@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useProfiles } from '../../auth/api'
 import { formatCurrency, formatDate } from '../../../lib/format'
 import { installDate, JOB_STAGES, useJobs } from '../api'
@@ -145,8 +146,16 @@ export function JobsListPage() {
             <tbody>
               {visible.map((j) => (
                 <tr key={j.id} className="border-b border-stone-100 last:border-0 hover:bg-stone-50">
-                  <td className="px-4 py-3 font-medium text-stone-900">{j.job_number}</td>
-                  <td className="px-4 py-3">{j.title}</td>
+                  <td className="px-4 py-3 font-medium">
+                    <Link to={`/jobs/${j.id}`} className="text-stone-900 hover:text-amber-700 hover:underline">
+                      {j.job_number}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Link to={`/jobs/${j.id}`} className="hover:text-amber-700">
+                      {j.title}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3">{j.contact?.full_name ?? '—'}</td>
                   <td className="px-4 py-3">{j.company?.name ?? '—'}</td>
                   <td className="px-4 py-3">
