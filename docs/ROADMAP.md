@@ -327,7 +327,14 @@ Four numbers, nothing more:
 ---
 
 ## Slice 12 — Migration and cutover
-**Status:** not started
+**Status:** scripts ready (2026-07-29) — `scripts/import-trello.mjs` and
+`scripts/import-invoicefly.mjs`, both dry-run by default with `--execute` to
+write, refuse non-local URLs without an explicit override, dedupe contacts
+by phone then name, and are idempotent on re-run (verified against synthetic
+fixtures on the local stack; balances landed to the cent with correct
+partial status). BLOCKED on real exports: edit STAGE_MAP to the real Trello
+list names, run against the linked project, then run the one-month parallel
+reconciliation before declaring done. Delete scripts/ after cutover.
 
 - One-shot Trello CSV import script — contacts, jobs, stage mapping. Delete it after.
 - Import open InvoiceFly invoices and outstanding balances
