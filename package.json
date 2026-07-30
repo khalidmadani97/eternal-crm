@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "db:reset": "supabase db reset"
+    "db:reset": "supabase db reset && node scripts/create-dev-user.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.5.7",
