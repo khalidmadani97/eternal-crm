@@ -3,7 +3,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useJobs } from '../../jobs/api'
 import { formatCurrency, formatDate } from '../../../lib/format'
 import { invoicesToCsv, useCreateInvoice, useInvoices } from '../api'
-import type { InvoiceStatus } from '../api'
+import type { Invoice, InvoiceStatus } from '../api'
+import { RecordPaymentDialog } from '../components/RecordPaymentDialog'
+import { formatCurrency as fc } from '../../../lib/format'
 
 export const INVOICE_STATUS_BADGES: Record<InvoiceStatus, string> = {
   draft: 'bg-stone-200 text-stone-700',
@@ -31,8 +33,31 @@ export function InvoicesListPage() {
   const { data: invoices, isPending, isError, error, refetch } = useInvoices()
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all'>('all')
   const [showNew, setShowNew] = useState(false)
+  const [search, setSearch] = useState('')
+  const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null)
 
-  const visible = invoices?.filter((inv) => statusFilter === 'all' || inv.status === statusFilter)
+  const balance = (inv: Invoice) => Number(inv.total) - Number(inv.amount_paid)
+  const thisMonth = new Date().toISOString().slice(0, 7)
+  const stats = {
+    outstanding: (invoices ?? [])
+      .filter((i) => i.status === 'sent' || i.status === 'partial')
+      .reduce((s, i) => s + balance(i), 0),
+    overdue: (invoices ?? []).filter(isOverdue).reduce((s, i) => s + balance(i), 0),
+    collected: (invoices ?? [])
+      .flatMap((i) => i.payments)
+      .filter((p) => p.received_at.startsWith(thisMonth))
+      .reduce((s, p) => s + Number(p.amount), 0),
+    drafts: (invoices ?? []).filter((i) => i.status === 'draft').length,
+  }
+
+  const visible = invoices?.filter((inv) => {
+    if (statusFilter !== 'all' && inv.status !== statusFilter) return false
+    const term = search.trim().toLowerCase()
+    if (!term) return true
+    return `${inv.invoice_number} ${inv.job?.contact?.full_name ?? ''} ${inv.job?.job_number ?? ''}`
+      .toLowerCase()
+      .includes(term)
+  })
 
   const exportCsv = () => {
     if (!invoices) return
@@ -49,6 +74,12 @@ export function InvoicesListPage() {
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold text-stone-900">Invoices</h1>
+        <input
+          placeholder="Search invoice #, client…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-56 rounded border border-stone-300 bg-white px-3 py-1.5 text-sm focus:border-amber-600 focus:outline-none"
+        />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as InvoiceStatus | 'all')}
@@ -76,6 +107,13 @@ export function InvoicesListPage() {
             New invoice
           </button>
         </div>
+      </div>
+
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard label="Outstanding" value={fc(stats.outstanding)} />
+        <StatCard label="Overdue" value={fc(stats.overdue)} alarm={stats.overdue > 0} />
+        <StatCard label="Collected this month" value={fc(stats.collected)} good />
+        <StatCard label="Drafts" value={String(stats.drafts)} />
       </div>
 
       {isPending && <p className="py-12 text-center text-stone-500">Loading invoices…</p>}
@@ -110,6 +148,7 @@ export function InvoicesListPage() {
                 <th className="px-4 py-3 text-right">Total</th>
                 <th className="px-4 py-3 text-right">Paid</th>
                 <th className="px-4 py-3 text-right">Balance</th>
+                <th className="px-2 py-3" />
               </tr>
             </thead>
             <tbody>
@@ -147,6 +186,16 @@ export function InvoicesListPage() {
                   <td className="px-4 py-3 text-right tabular-nums font-medium">
                     {formatCurrency(Number(inv.total) - Number(inv.amount_paid))}
                   </td>
+                  <td className="px-2 py-3 text-right">
+                    {(inv.status === 'sent' || inv.status === 'partial') && (
+                      <button
+                        onClick={() => setPayingInvoice(inv)}
+                        className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100"
+                      >
+                        + Payment
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -155,6 +204,9 @@ export function InvoicesListPage() {
       )}
 
       {showNew && <NewInvoiceDialog onClose={() => setShowNew(false)} />}
+      {payingInvoice && (
+        <RecordPaymentDialog invoice={payingInvoice} onClose={() => setPayingInvoice(null)} />
+      )}
     </div>
   )
 }
@@ -207,6 +259,31 @@ function NewInvoiceDialog({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+function StatCard({
+  label,
+  value,
+  alarm,
+  good,
+}: {
+  label: string
+  value: string
+  alarm?: boolean
+  good?: boolean
+}) {
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">{label}</p>
+      <p
+        className={`text-lg font-semibold tabular-nums ${
+          alarm ? 'text-red-700' : good ? 'text-emerald-700' : 'text-stone-900'
+        }`}
+      >
+        {value}
+      </p>
     </div>
   )
 }

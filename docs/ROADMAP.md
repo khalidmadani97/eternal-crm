@@ -533,3 +533,14 @@ lead-source fields on the new-job form, job details, and contact form are
 now dropdowns with inline "+ Add new…"; Settings page manages every
 registered list (rename, reorder, activate/deactivate, delete). Verified:
 seeded list reads, insert path, duplicate rejected by unique constraint.
+
+---
+
+## Slice 26 — Invoice polish + contracts surfaced
+**Status:** done (2026-07-31) — invoices list gets InvoiceFly-style summary
+cards (outstanding / overdue / collected this month / drafts, reconciled
+against SQL), search across number/client/job, and a one-click "+ Payment"
+action per open invoice; new Contracts nav page lists every contract with
+status, copy-signing-link, and signed-PDF actions — surfacing the Slice 9
+e-sign flow (audit-trail PDF, single-use token, Electronic Commerce Act
+compliance) that previously lived only on the job card.

@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { to: '/contacts', label: 'Contacts' },
   { to: '/inbox', label: 'Inbox' },
   { to: '/invoices', label: 'Invoices' },
+  { to: '/contracts', label: 'Contracts' },
   { to: '/reports', label: 'Reports' },
   { to: '/settings', label: 'Settings' },
 ]

@@ -10,6 +10,7 @@ import { CompaniesListPage } from './features/companies/routes/CompaniesListPage
 import { CompanyDetailPage } from './features/companies/routes/CompanyDetailPage'
 import { ContactDetailPage } from './features/contacts/routes/ContactDetailPage'
 import { ContactsListPage } from './features/contacts/routes/ContactsListPage'
+import { ContractsListPage } from './features/contracts/routes/ContractsListPage'
 import { InvoiceEditorPage } from './features/invoices/routes/InvoiceEditorPage'
 import { InvoicePrintPage } from './features/invoices/routes/InvoicePrintPage'
 import { InvoicesListPage } from './features/invoices/routes/InvoicesListPage'
@@ -52,6 +53,7 @@ export function App() {
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/invoices" element={<InvoicesListPage />} />
               <Route path="/invoices/:id" element={<InvoiceEditorPage />} />
+              <Route path="/contracts" element={<ContractsListPage />} />
               <Route path="/reports" element={<ReportsPage />} />
             </Route>
           </Route>
