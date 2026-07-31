@@ -406,3 +406,24 @@ dial-out bridging — no parallel write path.
 
 **Consequence** — One flag-gated dependency. Removing the softphone later is
 deleting one component, one hook, two functions, and this entry.
+
+---
+
+## 024 — Job costing and P&L are in scope; books of record are not
+2026-07 · accepted
+
+**Context** — The owner needs per-job profitability (materials, subcontractor
+payments, disposal…), overhead tracking, and a monthly P&L. The out-of-scope
+rule says we do not replace accounting software.
+
+**Decision** — One `expenses` table: `job_id` set → job cost, null →
+overhead. Amounts are PRE-TAX with `hst_amount` tracked separately (an input
+tax credit is not a cost); every profit figure in the app is pre-tax
+(invoice `subtotal`, never `total`). Receipts upload to the job-files
+bucket. Expenses are management records — editable and hard-deletable,
+unlike payments/invoices. The Reports P&L is accrual (revenue by
+`issue_date`, costs by `incurred_at`) with CSV export for the bookkeeper.
+
+**Consequence** — The CRM answers "what did we actually make on this job /
+this month" the moment a receipt is entered, while QuickBooks remains the
+book of record for the CRA. If the two ever disagree, QuickBooks wins.

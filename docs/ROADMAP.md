@@ -404,3 +404,14 @@ system for a month. Reassess then — half of these will turn out not to matter.
 - Email from inside the app
 - Automated follow-up reminders
 - A customer-facing job status page
+
+---
+
+## Slice 15 — Job costing, expenses, monthly P&L
+**Status:** done (2026-07-31) — expenses table (job cost vs overhead by
+job_id, pre-tax amounts with HST tracked separately per DECISIONS 024);
+Costs & profit card on job detail (invoiced pre-tax − costs = net + margin);
+receipt upload to job-files; monthly accrual P&L on Reports (revenue → job
+costs → gross → overhead → net + margin) with CSV export and inline
+overhead entry. P&L reconciled to the cent against manual SQL on seed data;
+expense insert/delete verified via REST.

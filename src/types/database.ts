@@ -456,6 +456,72 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount: number
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at: string
+          created_by: string | null
+          description: string | null
+          hst_amount: number
+          id: string
+          incurred_at: string
+          job_id: string | null
+          method: Database["public"]["Enums"]["payment_method"] | null
+          receipt_path: string | null
+          reference: string | null
+          updated_at: string
+          vendor: string | null
+        }
+        Insert: {
+          amount: number
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          hst_amount?: number
+          id?: string
+          incurred_at?: string
+          job_id?: string | null
+          method?: Database["public"]["Enums"]["payment_method"] | null
+          receipt_path?: string | null
+          reference?: string | null
+          updated_at?: string
+          vendor?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: Database["public"]["Enums"]["expense_category"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          hst_amount?: number
+          id?: string
+          incurred_at?: string
+          job_id?: string | null
+          method?: Database["public"]["Enums"]["payment_method"] | null
+          receipt_path?: string | null
+          reference?: string | null
+          updated_at?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       files: {
         Row: {
           created_at: string
@@ -1216,6 +1282,20 @@ export type Database = {
       consent_channel: "sms" | "call_recording"
       consent_status: "express" | "implied" | "withdrawn"
       contract_status: "draft" | "sent" | "signed" | "declined" | "void"
+      expense_category:
+        | "materials"
+        | "subcontractor"
+        | "labour"
+        | "equipment"
+        | "disposal"
+        | "permits"
+        | "fuel"
+        | "marketing"
+        | "office"
+        | "rent"
+        | "insurance"
+        | "software"
+        | "other"
       file_kind:
         | "measure"
         | "drawing"
@@ -1402,6 +1482,21 @@ export const Constants = {
       consent_channel: ["sms", "call_recording"],
       consent_status: ["express", "implied", "withdrawn"],
       contract_status: ["draft", "sent", "signed", "declined", "void"],
+      expense_category: [
+        "materials",
+        "subcontractor",
+        "labour",
+        "equipment",
+        "disposal",
+        "permits",
+        "fuel",
+        "marketing",
+        "office",
+        "rent",
+        "insurance",
+        "software",
+        "other",
+      ],
       file_kind: [
         "measure",
         "drawing",

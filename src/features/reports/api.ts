@@ -152,3 +152,72 @@ export function useReferralLeaderboard() {
     },
   })
 }
+
+export interface PnlMonth {
+  month: string // YYYY-MM
+  revenue: number // invoiced pre-tax (issued, non-void)
+  jobCosts: number
+  grossProfit: number
+  overhead: number
+  netProfit: number
+  margin: number | null
+}
+
+/** 5. Monthly P&L (accrual, pre-tax throughout). Management view — books of
+ *  record stay in QuickBooks (DECISIONS 024). */
+export function usePnl() {
+  return useQuery({
+    queryKey: ['reports', 'pnl'],
+    queryFn: async (): Promise<PnlMonth[]> => {
+      const [invoicesRes, expensesRes] = await Promise.all([
+        supabase
+          .from('invoices')
+          .select('issue_date, subtotal, status')
+          .not('status', 'in', '("draft","void")'),
+        supabase.from('expenses').select('job_id, amount, incurred_at'),
+      ])
+      if (invoicesRes.error) throw invoicesRes.error
+      if (expensesRes.error) throw expensesRes.error
+
+      const months = new Map<string, PnlMonth>()
+      const get = (month: string): PnlMonth => {
+        const entry =
+          months.get(month) ??
+          ({ month, revenue: 0, jobCosts: 0, grossProfit: 0, overhead: 0, netProfit: 0, margin: null })
+        months.set(month, entry)
+        return entry
+      }
+      for (const inv of invoicesRes.data) {
+        if (!inv.issue_date) continue
+        get(inv.issue_date.slice(0, 7)).revenue += Number(inv.subtotal) || 0
+      }
+      for (const e of expensesRes.data) {
+        const entry = get(e.incurred_at.slice(0, 7))
+        if (e.job_id) entry.jobCosts += Number(e.amount) || 0
+        else entry.overhead += Number(e.amount) || 0
+      }
+      for (const entry of months.values()) {
+        entry.grossProfit = entry.revenue - entry.jobCosts
+        entry.netProfit = entry.grossProfit - entry.overhead
+        entry.margin = entry.revenue > 0 ? entry.netProfit / entry.revenue : null
+      }
+      return [...months.values()].sort((a, b) => b.month.localeCompare(a.month))
+    },
+  })
+}
+
+export function pnlToCsv(rows: PnlMonth[]): string {
+  const header = 'month,revenue,job_costs,gross_profit,overhead,net_profit,margin'
+  const lines = rows.map((r) =>
+    [
+      r.month,
+      r.revenue.toFixed(2),
+      r.jobCosts.toFixed(2),
+      r.grossProfit.toFixed(2),
+      r.overhead.toFixed(2),
+      r.netProfit.toFixed(2),
+      r.margin === null ? '' : (r.margin * 100).toFixed(1) + '%',
+    ].join(','),
+  )
+  return [header, ...lines].join('\n')
+}
