@@ -5,6 +5,7 @@ import type { JobStage } from '../../jobs/api'
 import { formatCurrency, formatDate, formatPhone } from '../../../lib/format'
 import { useContact, useSoftDeleteContact, useUpdateContact } from '../api'
 import { ContactForm } from '../components/ContactForm'
+import { ContactTimeline } from '../components/ContactTimeline'
 
 export function ContactDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -87,6 +88,7 @@ export function ContactDetailPage() {
           </dl>
         </section>
 
+        <div className="space-y-4">
         <section className="rounded-lg border border-stone-200 bg-white p-4">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-stone-500">
             Jobs ({contact.jobs.length})
@@ -121,6 +123,8 @@ export function ContactDetailPage() {
             </table>
           )}
         </section>
+        <ContactTimeline contactId={contact.id} />
+        </div>
       </div>
 
       {editing && (

@@ -168,3 +168,47 @@ export function useSoftDeleteContact() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['contacts'] }),
   })
 }
+
+// ── Contact activity timeline (Slice 17) ─────────────────────────────────────
+// Contact-level events: notes, comms, DMs. job_id may or may not be set.
+
+export interface ContactActivity {
+  id: string
+  kind: string
+  body: string | null
+  created_at: string
+  user: { id: string; full_name: string | null } | null
+  job: { id: string; job_number: string } | null
+}
+
+export function useContactActivities(contactId: string) {
+  return useQuery({
+    queryKey: ['activities', 'contact', contactId],
+    queryFn: async (): Promise<ContactActivity[]> => {
+      const { data, error } = await supabase
+        .from('activities')
+        .select(
+          'id, kind, body, created_at, user:profiles ( id, full_name ), job:jobs ( id, job_number )',
+        )
+        .eq('contact_id', contactId)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      if (error) throw error
+      return data as unknown as ContactActivity[]
+    },
+  })
+}
+
+export function useAddContactNote(contactId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ body, userId }: { body: string; userId: string }) => {
+      const { error } = await supabase
+        .from('activities')
+        .insert({ contact_id: contactId, kind: 'note', body, user_id: userId })
+      if (error) throw error
+    },
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: ['activities', 'contact', contactId] }),
+  })
+}
