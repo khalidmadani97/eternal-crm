@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { JOB_STAGES } from '../../jobs/api'
 import { STAGE_LABELS } from '../../jobs/components/StageBadge'
 import { formatCurrency } from '../../../lib/format'
+import { useAuth } from '../../auth/AuthProvider'
+import { useTeam } from '../../settings/api'
 import { ExpenseDialog } from '../../expenses/components/JobCosts'
 import {
   pnlToCsv,
@@ -53,6 +55,9 @@ export function ReportsPage() {
   const referrals = useReferralLeaderboard()
   const pnl = usePnl()
   const [addingOverhead, setAddingOverhead] = useState(false)
+  const { session } = useAuth()
+  const { data: team } = useTeam()
+  const isAdmin = team?.find((m) => m.id === session?.user.id)?.role === 'admin'
 
   const exportPnl = () => {
     if (!pnl.data) return
@@ -71,6 +76,7 @@ export function ReportsPage() {
     <div>
       <h1 className="mb-4 text-xl font-semibold text-stone-900">Reports</h1>
 
+      {isAdmin && (
       <section className="mb-4 rounded-lg border border-stone-200 bg-white p-4">
         <div className="mb-3 flex items-center justify-between">
           <div>
@@ -141,6 +147,7 @@ export function ReportsPage() {
           </table>
         )}
       </section>
+      )}
       {addingOverhead && <ExpenseDialog jobId={null} onClose={() => setAddingOverhead(false)} />}
 
       <div className="grid gap-4 lg:grid-cols-2">

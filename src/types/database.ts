@@ -1514,6 +1514,7 @@ export type Database = {
         Returns: string
       }
       delete_file: { Args: { p_file_id: string }; Returns: undefined }
+      is_admin: { Args: never; Returns: boolean }
       log_contact: {
         Args: {
           p_at?: string

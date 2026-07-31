@@ -554,3 +554,28 @@ already the integration point.
 
 **Consequence** — Worst-case monthly AI spend is bounded by allowances, not
 behaviour. A blocked transcription still keeps the audio (nothing is lost).
+
+---
+
+## 031 — Admin gating at the database + backups with a Google Drive copy
+2026-07 · accepted
+
+**Context** — Company financials and privilege management must be safe even
+if the UI is bypassed, and the owner wants data backed up to company-
+controlled storage.
+
+**Decision** — Overhead expenses (job_id null) are SELECT/INSERT/UPDATE/
+DELETE-restricted to admins by RLS (staff keep job-linked costs); the true
+P&L is therefore DB-protected, and its panel plus the Business /
+Integrations / Security Settings tabs are admin-gated in the UI. A profiles
+trigger stops non-admins changing role / job_role / responsibilities (their
+own included); the service role bypasses for automation. Local password
+policy raised (12+ chars, letters+digits — set stricter in the production
+dashboard). The backup function (admin-only) dumps all 27 tables to JSON in
+a private no-client-policy bucket and uploads a copy to the company Google
+Drive when GDRIVE_CLIENT_ID/SECRET/REFRESH_TOKEN/FOLDER_ID are configured
+(drive.file scope — the app sees only files it created).
+
+**Consequence** — A leaked staff login cannot read the P&L, self-promote, or
+export data. Backups restore via the import path or straight SQL. Off-site
+copies depend on the GDRIVE_* secrets being set.
