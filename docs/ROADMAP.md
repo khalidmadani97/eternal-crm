@@ -605,3 +605,15 @@ and responsibilities shown read-only for staff — set by an admin in
 Settings → Team), my assigned jobs with last-contact recency, my open tasks,
 my AI meter. Log-contact defaults now prefer your own profile phone.
 Verified via REST: HST update, phone CHECK rejection, integration status.
+
+---
+
+## Slice 32 — Security hardening + backups
+**Status:** done (2026-07-31, DECISIONS 031) — full staff-vs-admin matrix
+verified live: staff see 0 overhead rows (admins 5) while keeping job costs;
+self-promotion blocked by trigger with own name/phone edits still allowed;
+backup function 403s staff; admin run dumped 27 tables / 97 rows / 34 KB to
+the private bucket with a working signed download, Google Drive copy
+gracefully skipped until GDRIVE_* secrets exist. P&L panel and
+Business/Integrations/Security tabs admin-only in UI on top of the DB
+enforcement.

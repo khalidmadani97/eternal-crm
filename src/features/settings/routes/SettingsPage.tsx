@@ -1,34 +1,42 @@
 import { useState } from 'react'
+import { useAuth } from '../../auth/AuthProvider'
 import { AiUsagePanel } from '../components/AiUsagePanel'
+import { BackupPanel } from '../components/BackupPanel'
 import { BusinessPanel } from '../components/BusinessPanel'
 import { IntegrationsPanel } from '../components/IntegrationsPanel'
 import { TeamEditor } from '../components/TeamEditor'
 import {
   OPTION_LISTS,
+  useTeam,
   useAddOption,
   useDeleteOption,
   useOptionList,
   useUpdateOption,
 } from '../api'
 
-type Tab = 'business' | 'team' | 'ai' | 'lists' | 'integrations'
+type Tab = 'business' | 'team' | 'ai' | 'lists' | 'integrations' | 'security'
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'business', label: 'Business' },
+const TABS: { id: Tab; label: string; adminOnly?: boolean }[] = [
+  { id: 'business', label: 'Business', adminOnly: true },
   { id: 'team', label: 'Team' },
   { id: 'ai', label: 'AI usage' },
   { id: 'lists', label: 'Dropdown lists' },
-  { id: 'integrations', label: 'Integrations' },
+  { id: 'integrations', label: 'Integrations', adminOnly: true },
+  { id: 'security', label: 'Security & backups', adminOnly: true },
 ]
 
 export function SettingsPage() {
-  const [tab, setTab] = useState<Tab>('business')
+  const { session } = useAuth()
+  const { data: team } = useTeam()
+  const isAdmin = team?.find((m) => m.id === session?.user.id)?.role === 'admin'
+  const visibleTabs = TABS.filter((t) => !t.adminOnly || isAdmin)
+  const [tab, setTab] = useState<Tab>('team')
 
   return (
     <div>
       <h1 className="mb-3 text-xl font-semibold text-stone-900">Settings</h1>
       <div className="mb-4 flex flex-wrap gap-1 border-b border-stone-200">
-        {TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
@@ -43,7 +51,7 @@ export function SettingsPage() {
         ))}
       </div>
 
-      {tab === 'business' && <BusinessPanel />}
+      {tab === 'business' && isAdmin && <BusinessPanel />}
       {tab === 'team' && (
         <div className="grid gap-4 lg:grid-cols-2">
           <TeamEditor />
@@ -61,7 +69,9 @@ export function SettingsPage() {
           ))}
         </div>
       )}
-      {tab === 'integrations' && <IntegrationsPanel />}
+      {tab === 'integrations' && isAdmin && <IntegrationsPanel />}
+      {tab === 'security' && isAdmin && <BackupPanel />}
+      {tab === 'business' && !isAdmin && null}
     </div>
   )
 }
