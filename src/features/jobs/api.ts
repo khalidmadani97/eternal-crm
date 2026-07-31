@@ -396,3 +396,44 @@ export function useMoveJobStage() {
     },
   })
 }
+
+// ── Stage settings (Slice 21) ────────────────────────────────────────────────
+// Enum keys are fixed; label, column order, and visibility are customizable.
+
+export interface StageSetting {
+  stage: JobStage
+  label: string
+  position: number
+  hidden: boolean
+}
+
+export function useStageSettings() {
+  return useQuery({
+    queryKey: ['stage-settings'],
+    queryFn: async (): Promise<StageSetting[]> => {
+      const { data, error } = await supabase
+        .from('stage_settings')
+        .select('stage, label, position, hidden')
+        .order('position')
+      if (error) throw error
+      return data as StageSetting[]
+    },
+    staleTime: 60_000,
+  })
+}
+
+export function useSaveStageSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (settings: StageSetting[]) => {
+      for (const s of settings) {
+        const { error } = await supabase
+          .from('stage_settings')
+          .update({ label: s.label, position: s.position, hidden: s.hidden })
+          .eq('stage', s.stage)
+        if (error) throw error
+      }
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['stage-settings'] }),
+  })
+}

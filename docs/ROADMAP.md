@@ -469,3 +469,19 @@ page fetches the tokened URL for signed-in staff with subscribe steps.
 Verified: staff URL fetch, 401/403 auth matrix, valid VCALENDAR with all
 seed events. Set ICS_FEED_TOKEN (and PUBLIC_SUPABASE_URL) in production
 secrets; Google refreshes feeds every few hours (their cadence, not ours).
+
+---
+
+## Slice 21 — Board drag fix + customizable stages
+**Status:** done (2026-07-31) — two root causes fixed for cards not moving:
+(1) stale sessions after a db reset hit activities_user_id_fkey inside the
+stage-change trigger, failing every move — the trigger now attributes only
+when the profile exists, and the dev user has a fixed id so resets no longer
+invalidate sessions; (2) drag handlers lacked dataTransfer.setData (Safari
+won't start a drag without it), inner links hijacked the gesture, and drops
+lacked preventDefault (Firefox navigates) — fixed on the board and both
+calendar views. Stages: stage_settings table (rename/reorder/hide; enum keys
+fixed so triggers and reporting are untouchable) with a Customize dialog on
+the board; custom labels flow through badges and columns; hidden stages
+still show while occupied. Verified via REST: defaults seeded, rename works,
+client DELETE denied.

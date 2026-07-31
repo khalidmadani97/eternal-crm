@@ -15,6 +15,10 @@ const res = await fetch(`${LOCAL_URL}/auth/v1/admin/users`, {
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
+    // Fixed id: sessions issued before a db reset stay valid after it —
+    // otherwise every reset silently breaks the logged-in browser with
+    // activities_user_id_fkey errors.
+    id: '00000000-0000-4000-a000-00000000cafe',
     email: 'khalid@eternalinteriors.ca',
     password: 'eternal-dev-2026',
     email_confirm: true,

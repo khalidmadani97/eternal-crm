@@ -215,7 +215,7 @@ export function CalendarPage() {
               <div
                 key={key}
                 onDragOver={(e) => e.preventDefault()}
-                onDrop={() => dropOn(day)}
+                onDrop={(e) => { e.preventDefault(); dropOn(day) }}
                 onDoubleClick={() => setCreateOn(key)}
                 className={`min-h-24 bg-white p-1 ${
                   inMonth ? '' : 'bg-stone-50 text-stone-400'
@@ -244,7 +244,11 @@ export function CalendarPage() {
                     <div
                       key={a.id}
                       draggable
-                      onDragStart={() => setDragged(a)}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', a.id)
+                        e.dataTransfer.effectAllowed = 'move'
+                        setDragged(a)
+                      }}
                       onDragEnd={() => setDragged(null)}
                       className={`cursor-grab rounded border px-1.5 py-1 text-xs ${APPT_KIND_STYLES[a.kind]} ${
                         dragged?.id === a.id ? 'opacity-40' : ''
@@ -260,6 +264,7 @@ export function CalendarPage() {
                       {a.job && (
                         <Link
                           to={`/jobs/${a.job.id}`}
+                          draggable={false}
                           className="block truncate hover:underline"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -390,7 +395,8 @@ function WeekGrid({
                       setHoverSlot(slotId)
                     }}
                     onDragLeave={() => setHoverSlot((s) => (s === slotId ? null : s))}
-                    onDrop={() => {
+                    onDrop={(e) => {
+                      e.preventDefault()
                       setHoverSlot(null)
                       onDropSlot(day, minutes)
                     }}
@@ -427,7 +433,11 @@ function WeekGrid({
                   <div
                     key={a.id}
                     draggable
-                    onDragStart={() => setDragged(a)}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', a.id)
+                      e.dataTransfer.effectAllowed = 'move'
+                      setDragged(a)
+                    }}
                     onDragEnd={() => setDragged(null)}
                     className={`absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded border px-1.5 py-0.5 text-xs ${APPT_KIND_STYLES[a.kind]} ${
                       dragged?.id === a.id ? 'opacity-40' : ''
@@ -441,6 +451,7 @@ function WeekGrid({
                     {a.job && (
                       <Link
                         to={`/jobs/${a.job.id}`}
+                        draggable={false}
                         className="block truncate hover:underline"
                         onClick={(e) => e.stopPropagation()}
                       >
