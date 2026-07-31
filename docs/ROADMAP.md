@@ -425,3 +425,14 @@ dashboard as the landing page (today's schedule, overdue invoices with
 balances, tasks due, leads going cold after 7 untouched days, open-pipeline
 headline); overdue badges on the invoices list. All query shapes verified
 against the REST API; every panel has loading/empty/error states.
+
+---
+
+## Slice 17 — Voice notes
+**Status:** done (2026-07-31) — dictation via the browser-native Web Speech
+API (no dependency, no key; mic hidden on unsupported browsers). Shared
+NoteComposer with live interim transcript, editable before save, used by the
+job activity timeline and a new contact-card Notes & activity timeline
+(contact-level activities were already in the schema; the UI now exposes
+them). Write path verified via REST; the mic itself needs a manual browser
+pass (mic permission cannot be exercised headlessly).
