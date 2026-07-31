@@ -8,7 +8,7 @@
 // office. Advisory only: it writes nothing without a click.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { json, requireStaff } from '../_shared/twilio.ts'
+import { checkAiCredits, json, logAiUsage, requireStaff } from '../_shared/twilio.ts'
 
 function systemPrompt(me: {
   name: string
@@ -76,6 +76,18 @@ Deno.serve(async (req) => {
   const model = Deno.env.get('AI_MODEL') ?? 'kimi-k2-0711-preview'
 
   const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+
+  const credits = await checkAiCredits(sb, auth.userId)
+  if (!credits.allowed) {
+    return json(
+      {
+        error: `AI credits used up for this month (${credits.used}/${credits.cap}). An admin can grant extra in Settings → AI usage.`,
+        usage: credits,
+      },
+      429,
+    )
+  }
+
   const today = new Date().toISOString().slice(0, 10)
 
   // ── Who is asking, and who exists ────────────────────────────────────────
@@ -228,10 +240,16 @@ Deno.serve(async (req) => {
     return json({ error: 'The model returned malformed JSON — try again' }, 502)
   }
 
+  await logAiUsage(
+    sb, auth.userId, 'daily-brief', model,
+    llmBody.usage?.prompt_tokens ?? null, llmBody.usage?.completion_tokens ?? null,
+  )
+
   return json({
     brief,
     model,
     generated_at: new Date().toISOString(),
     for: { name: me.name, job_role: meRow?.job_role ?? null },
+    usage: { used: credits.used + 1, cap: credits.cap },
   })
 })

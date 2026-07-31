@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AiUsagePanel } from '../components/AiUsagePanel'
 import { TeamEditor } from '../components/TeamEditor'
 import {
   OPTION_LISTS,
@@ -18,6 +19,7 @@ export function SettingsPage() {
       </p>
       <div className="grid gap-4 lg:grid-cols-2">
         <TeamEditor />
+        <AiUsagePanel />
         {OPTION_LISTS.map((list) => (
           <ListEditor key={list.key} listKey={list.key} label={list.label} description={list.description} />
         ))}

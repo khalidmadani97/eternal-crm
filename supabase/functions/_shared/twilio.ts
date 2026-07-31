@@ -145,3 +145,50 @@ export async function requireStaff(req: Request): Promise<{ userId: string } | R
   if (error || !data.user) return json({ error: 'Not authenticated' }, 401)
   return { userId: data.user.id }
 }
+
+// ── AI credits (Slice 30) ────────────────────────────────────────────────────
+
+const DEFAULT_MONTHLY_PROMPTS = 60
+
+export interface CreditCheck {
+  allowed: boolean
+  used: number
+  cap: number
+}
+
+/** Count this calendar month's AI calls against the user's cap. */
+export async function checkAiCredits(sb: SupabaseClient, userId: string): Promise<CreditCheck> {
+  const monthStart = new Date()
+  monthStart.setUTCDate(1)
+  monthStart.setUTCHours(0, 0, 0, 0)
+  const [usageRes, allowanceRes] = await Promise.all([
+    sb
+      .from('ai_usage')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('created_at', monthStart.toISOString()),
+    sb.from('ai_allowances').select('monthly_prompts, extra_prompts').eq('user_id', userId).maybeSingle(),
+  ])
+  const used = usageRes.count ?? 0
+  const cap = allowanceRes.data
+    ? allowanceRes.data.monthly_prompts + allowanceRes.data.extra_prompts
+    : DEFAULT_MONTHLY_PROMPTS
+  return { allowed: used < cap, used, cap }
+}
+
+export async function logAiUsage(
+  sb: SupabaseClient,
+  userId: string,
+  functionName: string,
+  model: string | null,
+  promptTokens: number | null,
+  completionTokens: number | null,
+): Promise<void> {
+  await sb.from('ai_usage').insert({
+    user_id: userId,
+    function_name: functionName,
+    model,
+    prompt_tokens: promptTokens,
+    completion_tokens: completionTokens,
+  })
+}

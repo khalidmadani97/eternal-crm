@@ -92,6 +92,79 @@ export type Database = {
           },
         ]
       }
+      ai_allowances: {
+        Row: {
+          created_at: string
+          extra_prompts: number
+          monthly_prompts: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          extra_prompts?: number
+          monthly_prompts?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          extra_prompts?: number
+          monthly_prompts?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_allowances_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_usage: {
+        Row: {
+          completion_tokens: number | null
+          created_at: string
+          function_name: string
+          id: string
+          model: string | null
+          prompt_tokens: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completion_tokens?: number | null
+          created_at?: string
+          function_name: string
+          id?: string
+          model?: string | null
+          prompt_tokens?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completion_tokens?: number | null
+          created_at?: string
+          function_name?: string
+          id?: string
+          model?: string | null
+          prompt_tokens?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           assigned_to: string | null

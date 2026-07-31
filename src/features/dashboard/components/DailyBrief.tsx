@@ -32,6 +32,7 @@ interface Brief {
 interface BriefResponse {
   brief: Brief
   for?: { name: string; job_role: string | null }
+  usage?: { used: number; cap: number }
 }
 
 const CATEGORY_CHIPS: Record<string, string> = {
@@ -69,13 +70,20 @@ export function DailyBrief() {
             </span>
           )}
         </h2>
-        <button
-          onClick={() => generate.mutate()}
-          disabled={generate.isPending}
-          className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
-        >
-          {generate.isPending ? 'Reading everything…' : generate.data ? 'Refresh' : 'Plan my day'}
-        </button>
+        <span className="flex items-center gap-2">
+          {generate.data?.usage && (
+            <span className="text-xs text-amber-700/70">
+              {generate.data.usage.cap - generate.data.usage.used} credits left
+            </span>
+          )}
+          <button
+            onClick={() => generate.mutate()}
+            disabled={generate.isPending}
+            className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
+          >
+            {generate.isPending ? 'Reading everything…' : generate.data ? 'Refresh' : 'Plan my day'}
+          </button>
+        </span>
       </div>
       {generate.isError && (
         <p className="text-sm text-red-600">

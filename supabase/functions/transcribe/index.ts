@@ -4,7 +4,7 @@
 // browser's live dictation draft — the audio itself is always kept.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { json, requireStaff } from '../_shared/twilio.ts'
+import { checkAiCredits, json, logAiUsage, requireStaff } from '../_shared/twilio.ts'
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
@@ -34,6 +34,18 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   )
+
+  const credits = await checkAiCredits(service, auth.userId)
+  if (!credits.allowed) {
+    return json(
+      {
+        error: `AI credits used up for this month (${credits.used}/${credits.cap}) — recording saved without transcription.`,
+        usage: credits,
+      },
+      429,
+    )
+  }
+
   const { data: audio, error: downloadError } = await service.storage
     .from('job-files')
     .download(path)
@@ -54,5 +66,6 @@ Deno.serve(async (req) => {
   if (!res.ok) {
     return json({ error: `Whisper: ${result?.error?.message ?? res.status}` }, 502)
   }
-  return json({ text: (result.text ?? '').trim() })
+  await logAiUsage(service, auth.userId, 'transcribe', sttModel, null, null)
+  return json({ text: (result.text ?? '').trim(), usage: { used: credits.used + 1, cap: credits.cap } })
 })

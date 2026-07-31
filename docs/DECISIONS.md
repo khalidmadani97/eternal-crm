@@ -534,3 +534,23 @@ Admins may update any profile (new RLS policy); permission role
 **Consequence** — Retuning someone's brief is editing a sentence, not code.
 Verified live: a sales-authored feasibility doubt surfaced as P1 in the
 production manager's brief, correctly attributed, with lead-chasing absent.
+
+---
+
+## 030 — AI credits: metered per user, monthly allowance + granted extras
+2026-07 · accepted
+
+**Context** — AI calls cost real money and should be visible and boundable
+per person.
+
+**Decision** — `ai_usage` logs every model call (user, function, model,
+tokens); `ai_allowances` holds monthly_prompts (default 60) plus an
+admin-granted extra_prompts pool for the current month. The daily-brief and
+transcribe functions check the cap BEFORE calling the model and return 429
+with the meter when spent. Settings → AI usage shows per-person meters;
+admins edit allowances and grant +25 blocks. Paid top-ups later = a Stripe
+product whose webhook increments extra_prompts — the grant mechanism is
+already the integration point.
+
+**Consequence** — Worst-case monthly AI spend is bounded by allowances, not
+behaviour. A blocked transcription still keeps the audio (nothing is lost).
