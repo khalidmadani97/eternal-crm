@@ -176,6 +176,7 @@ export interface ContactActivity {
   id: string
   kind: string
   body: string | null
+  meta: Record<string, unknown> | null
   created_at: string
   user: { id: string; full_name: string | null } | null
   job: { id: string; job_number: string } | null
@@ -188,7 +189,7 @@ export function useContactActivities(contactId: string) {
       const { data, error } = await supabase
         .from('activities')
         .select(
-          'id, kind, body, created_at, user:profiles ( id, full_name ), job:jobs ( id, job_number )',
+          'id, kind, body, meta, created_at, user:profiles ( id, full_name ), job:jobs ( id, job_number )',
         )
         .eq('contact_id', contactId)
         .order('created_at', { ascending: false })
@@ -202,10 +203,22 @@ export function useContactActivities(contactId: string) {
 export function useAddContactNote(contactId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ body, userId }: { body: string; userId: string }) => {
-      const { error } = await supabase
-        .from('activities')
-        .insert({ contact_id: contactId, kind: 'note', body, user_id: userId })
+    mutationFn: async ({
+      body,
+      userId,
+      audioPath,
+    }: {
+      body: string
+      userId: string
+      audioPath?: string | null
+    }) => {
+      const { error } = await supabase.from('activities').insert({
+        contact_id: contactId,
+        kind: 'note',
+        body,
+        user_id: userId,
+        meta: audioPath ? { audio_path: audioPath } : null,
+      })
       if (error) throw error
     },
     onSuccess: () =>

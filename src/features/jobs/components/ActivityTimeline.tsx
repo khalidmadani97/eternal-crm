@@ -1,3 +1,4 @@
+import { AudioNote } from '../../../components/AudioNote'
 import { NoteComposer } from '../../../components/NoteComposer'
 import { useAuth } from '../../auth/AuthProvider'
 import { formatDateTime } from '../../../lib/format'
@@ -29,9 +30,9 @@ export function ActivityTimeline({ jobId }: { jobId: string }) {
         <NoteComposer
           pending={addNote.isPending}
           errorMessage={addNote.isError ? `Could not add the note. ${addNote.error.message}` : null}
-          onSubmit={async (body) => {
+          onSubmit={async ({ body, audioPath }) => {
             if (!session) return
-            await addNote.mutateAsync({ body, userId: session.user.id })
+            await addNote.mutateAsync({ body, userId: session.user.id, audioPath })
           }}
         />
       </div>
@@ -48,6 +49,7 @@ export function ActivityTimeline({ jobId }: { jobId: string }) {
             <span aria-hidden>{KIND_ICONS[a.kind] ?? '•'}</span>
             <div className="min-w-0 flex-1">
               <p className="text-stone-800">{describeActivity(a.kind, a.body, a.meta)}</p>
+              {typeof a.meta?.audio_path === 'string' && <AudioNote path={a.meta.audio_path} />}
               <p className="text-xs text-stone-400">
                 {formatDateTime(a.created_at)}
                 {a.user?.full_name ? ` — ${a.user.full_name}` : ''}

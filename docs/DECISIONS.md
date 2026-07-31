@@ -449,3 +449,22 @@ merge SMS + DMs sorted by time, with channel badges.
 **Consequence** — No E.164 constraint was weakened and SMS threading is
 untouched. Live wiring requires a Meta app (webhook URL + verify token, app
 secret, page token with pages_messaging — subject to Meta app review).
+
+---
+
+## 026 — Voice memos keep the audio; Whisper transcribes when configured
+2026-07 · accepted
+
+**Context** — Browser-native dictation quality disappointed. The recording
+itself is the reliable artifact; transcription is an enhancement.
+
+**Decision** — The note composer records real audio (MediaRecorder → private
+job-files bucket under voice-notes/, attached to the activity as
+meta.audio_path, playable on timelines). The `transcribe` edge function runs
+it through OpenAI Whisper when OPENAI_API_KEY is set in function secrets;
+without the key the browser's live draft stands and the audio is still
+attached. Text remains editable before saving in all cases.
+
+**Consequence** — One optional secret; no new client dependency. Whisper
+cost is ~fractions of a cent per note. If Whisper is down or unconfigured,
+nothing is lost — the recording is always saved first.
