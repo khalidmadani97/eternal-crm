@@ -6,6 +6,7 @@ import { APPT_KIND_LABELS, APPT_KIND_STYLES, useAppointments } from '../../sched
 import { usePipelineByStage } from '../../reports/api'
 import { StageBadge } from '../../jobs/components/StageBadge'
 import type { JobStage } from '../../jobs/api'
+import { DailyBrief } from '../components/DailyBrief'
 
 // The morning screen: what needs attention today, without hunting for it.
 
@@ -118,6 +119,8 @@ export function HomePage() {
           </>
         )}
       </p>
+
+      <DailyBrief />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-lg border border-stone-200 bg-white p-4">

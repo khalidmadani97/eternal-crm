@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useProfiles } from '../../auth/api'
-import { formatCurrency, formatDate } from '../../../lib/format'
+import { formatAgo, formatCurrency, formatDate } from '../../../lib/format'
 import { installDate, JOB_STAGES, useJobs, useUpdateJob } from '../api'
 import type { JobListRow, JobStage } from '../api'
 import { NewJobDialog } from '../components/NewJobDialog'
@@ -141,6 +141,7 @@ export function JobsListPage() {
                 <th className="px-4 py-3">Stage</th>
                 <th className="px-4 py-3 text-right">Value</th>
                 <th className="px-4 py-3">Install</th>
+                <th className="px-4 py-3">Last contact</th>
                 <th className="px-4 py-3">Assigned</th>
               </tr>
             </thead>
@@ -166,6 +167,9 @@ export function JobsListPage() {
                     {formatCurrency(j.value_final ?? j.value_est)}
                   </td>
                   <td className="px-4 py-3">{formatDate(installDate(j))}</td>
+                  <td className="px-4 py-3">
+                    <LastContactCell contact={j.contact} stage={j.stage} />
+                  </td>
                   <td className="px-4 py-3">
                     <select
                       value={j.assignee?.id ?? ''}
@@ -214,4 +218,23 @@ function sortJobs(jobs: JobListRow[], key: SortKey): JobListRow[] {
         (a, b) => (Number(b.value_final ?? b.value_est) || 0) - (Number(a.value_final ?? a.value_est) || 0),
       )
   }
+}
+
+function LastContactCell({
+  contact,
+  stage,
+}: {
+  contact: JobListRow['contact']
+  stage: JobStage
+}) {
+  const at = contact?.last_contacted_at
+  const staleDays = at ? (Date.now() - new Date(at).getTime()) / 86400_000 : Infinity
+  const earlyStage = ['new', 'contacted', 'quoted', 'follow_up'].includes(stage)
+  const alarming = earlyStage && staleDays > 7
+  return (
+    <span className={`text-xs ${alarming ? 'font-semibold text-red-600' : 'text-stone-500'}`}>
+      {formatAgo(at)}
+      {contact?.last_contact_method ? ` · ${contact.last_contact_method}` : ''}
+    </span>
+  )
 }

@@ -21,10 +21,14 @@ Deno.serve(async (req) => {
     return json({ error: 'path must be a voice-notes storage path' }, 400)
   }
 
-  const apiKey = Deno.env.get('OPENAI_API_KEY')
+  // OpenAI by default; point TRANSCRIBE_API_BASE at any OpenAI-compatible
+  // Whisper host (e.g. Groq, ~3x cheaper) without code changes.
+  const apiKey = Deno.env.get('TRANSCRIBE_API_KEY') ?? Deno.env.get('OPENAI_API_KEY')
   if (!apiKey) {
-    return json({ error: 'Transcription not configured — set OPENAI_API_KEY' }, 503)
+    return json({ error: 'Transcription not configured — set OPENAI_API_KEY (or TRANSCRIBE_API_KEY)' }, 503)
   }
+  const apiBase = Deno.env.get('TRANSCRIBE_API_BASE') ?? 'https://api.openai.com/v1'
+  const sttModel = Deno.env.get('TRANSCRIBE_MODEL') ?? 'whisper-1'
 
   const service = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -38,10 +42,10 @@ Deno.serve(async (req) => {
   const form = new FormData()
   const ext = path.split('.').pop() ?? 'webm'
   form.append('file', audio, `note.${ext}`)
-  form.append('model', 'whisper-1')
+  form.append('model', sttModel)
   form.append('language', 'en')
 
-  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+  const res = await fetch(`${apiBase}/audio/transcriptions`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}` },
     body: form,
