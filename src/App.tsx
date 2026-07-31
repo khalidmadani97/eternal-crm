@@ -3,9 +3,9 @@ import { AppShell } from './components/AppShell'
 import { AuthProvider } from './features/auth/AuthProvider'
 import { ProtectedRoute } from './features/auth/ProtectedRoute'
 import { LoginPage } from './features/auth/routes/LoginPage'
-import { BoardPage } from './features/jobs/routes/BoardPage'
 import { JobDetailPage } from './features/jobs/routes/JobDetailPage'
-import { JobsListPage } from './features/jobs/routes/JobsListPage'
+import { JobsPage } from './features/jobs/routes/JobsPage'
+import { PipelinePage } from './features/jobs/routes/PipelinePage'
 import { CompaniesListPage } from './features/companies/routes/CompaniesListPage'
 import { CompanyDetailPage } from './features/companies/routes/CompanyDetailPage'
 import { ContactDetailPage } from './features/contacts/routes/ContactDetailPage'
@@ -39,10 +39,11 @@ export function App() {
             <Route element={<AppShell />}>
               <Route index element={<Navigate to="/home" replace />} />
               <Route path="/home" element={<HomePage />} />
-              <Route path="/jobs" element={<JobsListPage />} />
+              <Route path="/jobs" element={<JobsPage />} />
               <Route path="/jobs/:id" element={<JobDetailPage />} />
               <Route path="/quotes/:id" element={<QuoteEditorPage />} />
-              <Route path="/board" element={<BoardPage />} />
+              <Route path="/pipeline" element={<PipelinePage />} />
+              <Route path="/board" element={<Navigate to="/pipeline" replace />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/contacts" element={<ContactsListPage />} />
               <Route path="/contacts/:id" element={<ContactDetailPage />} />

@@ -9,11 +9,15 @@ import { useCreateJob } from '../api'
 import { newJobSchema } from '../schema'
 import type { NewJobForm } from '../schema'
 
+import type { JobStage } from '../api'
+
 interface Props {
   onClose: () => void
+  /** Pipeline creates leads at 'new'; the Jobs workspace starts at 'won'. */
+  initialStage?: JobStage
 }
 
-export function NewJobDialog({ onClose }: Props) {
+export function NewJobDialog({ onClose, initialStage = 'new' }: Props) {
   const createJob = useCreateJob()
   const {
     register,
@@ -28,6 +32,7 @@ export function NewJobDialog({ onClose }: Props) {
   const onSubmit = async (values: NewJobForm) => {
     await createJob.mutateAsync({
       contact_id: values.contact_id,
+      stage: initialStage,
       title: values.title,
       site_address: values.site_address || null,
       value_est: values.value_est ? Number(values.value_est) : null,

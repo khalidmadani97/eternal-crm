@@ -544,3 +544,17 @@ action per open invoice; new Contracts nav page lists every contract with
 status, copy-signing-link, and signed-PDF actions — surfacing the Slice 9
 e-sign flow (audit-trail PDF, single-use token, Electronic Commerce Act
 compliance) that previously lived only on the job card.
+
+---
+
+## Slice 27 — Pipeline / Jobs split, board + list everywhere (GHL-style)
+**Status:** done (2026-07-31) — one jobs table, two workspaces: Pipeline
+(new → contacted → quoted → follow-up, with Won/Lost as terminal drop
+columns) and Jobs (won → templated → fabrication → scheduled → installed →
+closed). Each has a Board/List toggle sharing the same components
+(StageBoard + JobsTable parameterized by stage subset), so drag behaviour,
+inline assignment, filters, and stage customization work identically in
+both. Closing a lead Won moves it to the Jobs workspace automatically
+(verified: stage → won stamps won_at and switches workspace membership);
+"New lead" on Pipeline starts at new, "New job" on Jobs starts at won for
+repeat clients that skip the pipeline. /board redirects to /pipeline.

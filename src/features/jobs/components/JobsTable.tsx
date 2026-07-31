@@ -2,15 +2,24 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useProfiles } from '../../auth/api'
 import { formatAgo, formatCurrency, formatDate } from '../../../lib/format'
-import { installDate, JOB_STAGES, useJobs, useUpdateJob } from '../api'
+import { installDate, useJobs, useUpdateJob } from '../api'
 import type { JobListRow, JobStage } from '../api'
-import { NewJobDialog } from '../components/NewJobDialog'
-import { StageBadge, STAGE_LABELS } from '../components/StageBadge'
+import { NewJobDialog } from './NewJobDialog'
+import { StageBadge, STAGE_LABELS } from './StageBadge'
 
 type SortKey = 'created' | 'install' | 'value'
 
-export function JobsListPage() {
-  const { data: jobs, isPending, isError, error, refetch } = useJobs()
+export function JobsTable({
+  stages,
+  newJobStage,
+  newJobLabel,
+}: {
+  stages: JobStage[]
+  newJobStage: JobStage
+  newJobLabel: string
+}) {
+  const { data: allJobs, isPending, isError, error, refetch } = useJobs()
+  const jobs = allJobs?.filter((j) => stages.includes(j.stage))
   const { data: profiles } = useProfiles()
   const updateJob = useUpdateJob()
   const [stageFilter, setStageFilter] = useState<JobStage | 'all'>('all')
@@ -46,13 +55,12 @@ export function JobsListPage() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-stone-900">Jobs</h1>
+      <div className="mb-3 flex items-center justify-end">
         <button
           onClick={() => setShowNewJob(true)}
           className="rounded bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"
         >
-          New job
+          {newJobLabel}
         </button>
       </div>
 
@@ -69,7 +77,7 @@ export function JobsListPage() {
           className="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
         >
           <option value="all">All stages</option>
-          {JOB_STAGES.map((s) => (
+          {stages.map((s) => (
             <option key={s} value={s}>
               {STAGE_LABELS[s]}
             </option>
@@ -194,7 +202,7 @@ export function JobsListPage() {
         </div>
       )}
 
-      {showNewJob && <NewJobDialog onClose={() => setShowNewJob(false)} />}
+      {showNewJob && <NewJobDialog initialStage={newJobStage} onClose={() => setShowNewJob(false)} />}
     </div>
   )
 }
