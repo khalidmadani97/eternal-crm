@@ -1,8 +1,10 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
+import { CommandPalette } from './CommandPalette'
 import { PushToggle } from './PushToggle'
 
 const NAV_ITEMS = [
+  { to: '/home', label: 'Home' },
   { to: '/jobs', label: 'Jobs' },
   { to: '/board', label: 'Board' },
   { to: '/calendar', label: 'Calendar' },
@@ -42,6 +44,7 @@ export function AppShell() {
       </aside>
       <div className="flex flex-1 flex-col">
         <header className="flex items-center justify-end gap-4 border-b border-stone-200 bg-white px-6 py-3">
+          <CommandPalette />
           <PushToggle />
           <span className="text-sm text-stone-600">{session?.user.email}</span>
           <button

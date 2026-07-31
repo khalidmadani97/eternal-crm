@@ -415,3 +415,13 @@ receipt upload to job-files; monthly accrual P&L on Reports (revenue → job
 costs → gross → overhead → net + margin) with CSV export and inline
 overhead entry. P&L reconciled to the cent against manual SQL on seed data;
 expense insert/delete verified via REST.
+
+---
+
+## Slice 16 — Polish: global search, home dashboard, overdue indicators
+**Status:** done (2026-07-31) — Cmd/Ctrl+K palette searching jobs, contacts
+(name/phone/email), companies, and invoices with keyboard navigation; Home
+dashboard as the landing page (today's schedule, overdue invoices with
+balances, tasks due, leads going cold after 7 untouched days, open-pipeline
+headline); overdue badges on the invoices list. All query shapes verified
+against the REST API; every panel has loading/empty/error states.
