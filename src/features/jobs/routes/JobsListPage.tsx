@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useProfiles } from '../../auth/api'
 import { formatCurrency, formatDate } from '../../../lib/format'
-import { installDate, JOB_STAGES, useJobs } from '../api'
+import { installDate, JOB_STAGES, useJobs, useUpdateJob } from '../api'
 import type { JobListRow, JobStage } from '../api'
 import { NewJobDialog } from '../components/NewJobDialog'
 import { StageBadge, STAGE_LABELS } from '../components/StageBadge'
@@ -12,6 +12,7 @@ type SortKey = 'created' | 'install' | 'value'
 export function JobsListPage() {
   const { data: jobs, isPending, isError, error, refetch } = useJobs()
   const { data: profiles } = useProfiles()
+  const updateJob = useUpdateJob()
   const [stageFilter, setStageFilter] = useState<JobStage | 'all'>('all')
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
@@ -165,7 +166,23 @@ export function JobsListPage() {
                     {formatCurrency(j.value_final ?? j.value_est)}
                   </td>
                   <td className="px-4 py-3">{formatDate(installDate(j))}</td>
-                  <td className="px-4 py-3">{j.assignee?.full_name ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={j.assignee?.id ?? ''}
+                      onChange={(e) =>
+                        updateJob.mutate({ id: j.id, patch: { assigned_to: e.target.value || null } })
+                      }
+                      className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-xs text-stone-600 hover:border-stone-300"
+                      aria-label={`Assign ${j.job_number}`}
+                    >
+                      <option value="">Unassigned</option>
+                      {profiles?.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.full_name ?? 'Unnamed'}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
                 </tr>
               ))}
             </tbody>

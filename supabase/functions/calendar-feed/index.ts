@@ -115,6 +115,39 @@ Deno.serve(async (req) => {
       'END:VEVENT',
     )
   }
+  // Task deadlines ride along as all-day events.
+  let taskQuery = service
+    .from('tasks')
+    .select('id, title, due_date, updated_at, assignee:profiles ( full_name ), job:jobs ( job_number )')
+    .is('completed_at', null)
+    .not('due_date', 'is', null)
+    .gte('due_date', from.slice(0, 10))
+    .lte('due_date', to.slice(0, 10))
+  if (assignee) taskQuery = taskQuery.eq('assigned_to', assignee)
+  const { data: tasks, error: tasksError } = await taskQuery
+  if (tasksError) return new Response(tasksError.message, { status: 500 })
+  for (const t of tasks as unknown as {
+    id: string
+    title: string
+    due_date: string
+    updated_at: string
+    assignee: { full_name: string | null } | null
+    job: { job_number: string } | null
+  }[]) {
+    const dateOnly = t.due_date.replace(/-/g, '')
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:task-${t.id}@eternal-crm`,
+      `DTSTAMP:${icsDate(t.updated_at)}`,
+      `DTSTART;VALUE=DATE:${dateOnly}`,
+      `SUMMARY:${icsEscape(`☑ ${t.title}${t.job ? ` (${t.job.job_number})` : ''}`)}`,
+      ...(t.assignee?.full_name
+        ? [`DESCRIPTION:${icsEscape(`Assigned: ${t.assignee.full_name}`)}`]
+        : []),
+      'END:VEVENT',
+    )
+  }
+
   lines.push('END:VCALENDAR')
 
   return new Response(lines.join('\r\n'), {
