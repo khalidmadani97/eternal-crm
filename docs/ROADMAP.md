@@ -458,3 +458,14 @@ and surfaces the 24-hour-window error. REMAINING for live sign-off: create
 the Meta app, point the webhook at the deployed function with
 META_VERIFY_TOKEN/META_APP_SECRET/META_PAGE_TOKEN secrets, subscribe the
 page (pages_messaging needs Meta app review), send a real DM end to end.
+
+---
+
+## Slice 20 — Google Calendar link (ICS feed)
+**Status:** done (2026-07-31) — token-gated iCalendar feed from the
+calendar-feed function (last 30 days + next year of appointments, escaped
+ICS, whole-team or per-assignee). "Link Google Calendar" on the Calendar
+page fetches the tokened URL for signed-in staff with subscribe steps.
+Verified: staff URL fetch, 401/403 auth matrix, valid VCALENDAR with all
+seed events. Set ICS_FEED_TOKEN (and PUBLIC_SUPABASE_URL) in production
+secrets; Google refreshes feeds every few hours (their cadence, not ours).
