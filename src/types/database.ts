@@ -1255,6 +1255,33 @@ export type Database = {
           },
         ]
       }
+      stage_settings: {
+        Row: {
+          created_at: string
+          hidden: boolean
+          label: string
+          position: number
+          stage: Database["public"]["Enums"]["job_stage"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          hidden?: boolean
+          label: string
+          position: number
+          stage: Database["public"]["Enums"]["job_stage"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          hidden?: boolean
+          label?: string
+          position?: number
+          stage?: Database["public"]["Enums"]["job_stage"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assigned_to: string | null

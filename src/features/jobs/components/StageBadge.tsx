@@ -1,3 +1,4 @@
+import { useStageSettings } from '../api'
 import type { JobStage } from '../api'
 
 const STAGE_STYLES: Record<JobStage, string> = {
@@ -28,12 +29,23 @@ export const STAGE_LABELS: Record<JobStage, string> = {
   lost: 'Lost',
 }
 
+/** Custom labels from stage_settings, falling back to the defaults while
+ *  loading. Cached for a minute, so this is one query app-wide. */
+export function useStageLabels(): Record<JobStage, string> {
+  const { data } = useStageSettings()
+  if (!data) return STAGE_LABELS
+  const labels = { ...STAGE_LABELS }
+  for (const s of data) labels[s.stage] = s.label
+  return labels
+}
+
 export function StageBadge({ stage }: { stage: JobStage }) {
+  const labels = useStageLabels()
   return (
     <span
       className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${STAGE_STYLES[stage]}`}
     >
-      {STAGE_LABELS[stage]}
+      {labels[stage]}
     </span>
   )
 }
