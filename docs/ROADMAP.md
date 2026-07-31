@@ -436,3 +436,12 @@ job activity timeline and a new contact-card Notes & activity timeline
 (contact-level activities were already in the schema; the UI now exposes
 them). Write path verified via REST; the mic itself needs a manual browser
 pass (mic permission cannot be exercised headlessly).
+
+---
+
+## Slice 18 — Week time grid
+**Status:** done (2026-07-31) — week view is now a 7:00–20:00 time grid:
+events sized by duration and positioned by start time; dragging a block onto
+any half-hour slot (same or another day) reschedules it to that exact slot,
+with the end time shifted by the same delta. Month view keeps day-level
+drops that preserve the time of day. Needs a manual drag feel-check.

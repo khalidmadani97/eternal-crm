@@ -76,23 +76,39 @@ export function CalendarPage() {
     return map
   }, [appointments, assigneeFilter])
 
-  const dropOn = (day: Date) => {
+  const moveDragged = (newStart: Date) => {
     if (!dragged) return
     const oldStart = new Date(dragged.starts_at)
-    const newStart = new Date(
-      day.getFullYear(),
-      day.getMonth(),
-      day.getDate(),
-      oldStart.getHours(),
-      oldStart.getMinutes(),
-    )
     const delta = newStart.getTime() - oldStart.getTime()
+    setDragged(null)
     if (delta === 0) return
     const newEnd = dragged.ends_at
       ? new Date(new Date(dragged.ends_at).getTime() + delta).toISOString()
       : null
     reschedule.mutate({ id: dragged.id, startsAt: newStart.toISOString(), endsAt: newEnd })
-    setDragged(null)
+  }
+
+  // Month view: drop on a day keeps the time of day.
+  const dropOn = (day: Date) => {
+    if (!dragged) return
+    const oldStart = new Date(dragged.starts_at)
+    moveDragged(
+      new Date(day.getFullYear(), day.getMonth(), day.getDate(), oldStart.getHours(), oldStart.getMinutes()),
+    )
+  }
+
+  // Week view: drop on a half-hour slot moves the event to that exact slot.
+  const dropOnSlot = (day: Date, minutesFromMidnight: number) => {
+    if (!dragged) return
+    moveDragged(
+      new Date(
+        day.getFullYear(),
+        day.getMonth(),
+        day.getDate(),
+        Math.floor(minutesFromMidnight / 60),
+        minutesFromMidnight % 60,
+      ),
+    )
   }
 
   const monthLabel = cursor.toLocaleDateString('en-CA', { month: 'long', year: 'numeric' })
@@ -164,7 +180,18 @@ export function CalendarPage() {
         </div>
       )}
 
-      {appointments && (
+      {appointments && view === 'week' && (
+        <WeekGrid
+          days={days}
+          byDay={byDay}
+          dragged={dragged}
+          setDragged={setDragged}
+          onDropSlot={dropOnSlot}
+          onCreate={(key) => setCreateOn(key)}
+        />
+      )}
+
+      {appointments && view === 'month' && (
         <div className={`grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-stone-200 bg-stone-200`}>
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
             <div key={d} className="bg-stone-50 px-2 py-1 text-center text-xs font-semibold uppercase text-stone-500">
@@ -174,7 +201,7 @@ export function CalendarPage() {
           {days.map((day) => {
             const key = dayKey(day)
             const dayAppts = byDay.get(key) ?? []
-            const inMonth = view === 'week' || day.getMonth() === cursor.getMonth()
+            const inMonth = day.getMonth() === cursor.getMonth()
             const isToday = key === dayKey(new Date())
             return (
               <div
@@ -182,7 +209,7 @@ export function CalendarPage() {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => dropOn(day)}
                 onDoubleClick={() => setCreateOn(key)}
-                className={`min-h-24 bg-white p-1 ${view === 'week' ? 'min-h-96' : ''} ${
+                className={`min-h-24 bg-white p-1 ${
                   inMonth ? '' : 'bg-stone-50 text-stone-400'
                 }`}
               >
@@ -244,6 +271,180 @@ export function CalendarPage() {
       )}
 
       {createOn && <AppointmentDialog initialDate={createOn} onClose={() => setCreateOn(null)} />}
+    </div>
+  )
+}
+
+// ── Week time grid (Slice 18) ────────────────────────────────────────────────
+// 7:00–20:00 in half-hour slots. Events are positioned by start time and
+// duration; dragging a block onto any slot (same or another day) reschedules
+// it to that exact time.
+
+const DAY_START_HOUR = 7
+const DAY_END_HOUR = 20
+const PX_PER_HOUR = 48
+const SLOT_MINUTES = 30
+
+function WeekGrid({
+  days,
+  byDay,
+  dragged,
+  setDragged,
+  onDropSlot,
+  onCreate,
+}: {
+  days: Date[]
+  byDay: Map<string, AppointmentRow[]>
+  dragged: AppointmentRow | null
+  setDragged: (a: AppointmentRow | null) => void
+  onDropSlot: (day: Date, minutesFromMidnight: number) => void
+  onCreate: (dayKey: string) => void
+}) {
+  const [hoverSlot, setHoverSlot] = useState<string | null>(null)
+  const hours: number[] = []
+  for (let h = DAY_START_HOUR; h < DAY_END_HOUR; h++) hours.push(h)
+  const slotsPerDay = ((DAY_END_HOUR - DAY_START_HOUR) * 60) / SLOT_MINUTES
+  const gridHeight = (DAY_END_HOUR - DAY_START_HOUR) * PX_PER_HOUR
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white">
+      <div className="grid min-w-[56rem] grid-cols-[3.5rem_repeat(7,1fr)]">
+        <div className="border-b border-stone-200" />
+        {days.map((day) => {
+          const key = dayKey(day)
+          const isToday = key === dayKey(new Date())
+          return (
+            <div
+              key={key}
+              className="border-b border-l border-stone-200 px-2 py-1.5 text-center"
+            >
+              <span
+                className={`text-xs font-semibold uppercase ${
+                  isToday ? 'text-amber-700' : 'text-stone-500'
+                }`}
+              >
+                {day.toLocaleDateString('en-CA', { weekday: 'short' })}{' '}
+                <span className={isToday ? 'rounded-full bg-amber-600 px-1.5 text-white' : ''}>
+                  {day.getDate()}
+                </span>
+              </span>
+              <button
+                onClick={() => onCreate(key)}
+                className="ml-1 text-xs text-stone-300 hover:text-stone-600"
+                aria-label={`Add appointment on ${key}`}
+              >
+                +
+              </button>
+            </div>
+          )
+        })}
+
+        {/* time gutter */}
+        <div className="relative" style={{ height: gridHeight }}>
+          {hours.map((h) => (
+            <div
+              key={h}
+              className="absolute right-1 -translate-y-1/2 text-[10px] tabular-nums text-stone-400"
+              style={{ top: (h - DAY_START_HOUR) * PX_PER_HOUR }}
+            >
+              {h === 12 ? '12 pm' : h > 12 ? `${h - 12} pm` : `${h} am`}
+            </div>
+          ))}
+        </div>
+
+        {days.map((day) => {
+          const key = dayKey(day)
+          const dayAppts = byDay.get(key) ?? []
+          return (
+            <div
+              key={key}
+              className="relative border-l border-stone-200"
+              style={{ height: gridHeight }}
+            >
+              {/* hour lines */}
+              {hours.map((h) => (
+                <div
+                  key={h}
+                  className="absolute inset-x-0 border-t border-stone-100"
+                  style={{ top: (h - DAY_START_HOUR) * PX_PER_HOUR }}
+                />
+              ))}
+              {/* half-hour drop slots */}
+              {Array.from({ length: slotsPerDay }, (_, i) => {
+                const minutes = DAY_START_HOUR * 60 + i * SLOT_MINUTES
+                const slotId = `${key}-${minutes}`
+                return (
+                  <div
+                    key={slotId}
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      setHoverSlot(slotId)
+                    }}
+                    onDragLeave={() => setHoverSlot((s) => (s === slotId ? null : s))}
+                    onDrop={() => {
+                      setHoverSlot(null)
+                      onDropSlot(day, minutes)
+                    }}
+                    className={`absolute inset-x-0 ${
+                      hoverSlot === slotId && dragged ? 'bg-amber-100/70' : ''
+                    }`}
+                    style={{
+                      top: (i * SLOT_MINUTES * PX_PER_HOUR) / 60,
+                      height: (SLOT_MINUTES * PX_PER_HOUR) / 60,
+                    }}
+                  />
+                )
+              })}
+              {/* events */}
+              {dayAppts.map((a) => {
+                const start = new Date(a.starts_at)
+                const startMin = start.getHours() * 60 + start.getMinutes()
+                const endMin = a.ends_at
+                  ? (() => {
+                      const end = new Date(a.ends_at)
+                      return dayKey(end) === key
+                        ? end.getHours() * 60 + end.getMinutes()
+                        : DAY_END_HOUR * 60
+                    })()
+                  : startMin + 60
+                const top = Math.max(0, ((startMin - DAY_START_HOUR * 60) * PX_PER_HOUR) / 60)
+                const height = Math.max(
+                  22,
+                  ((Math.min(endMin, DAY_END_HOUR * 60) - Math.max(startMin, DAY_START_HOUR * 60)) *
+                    PX_PER_HOUR) /
+                    60,
+                )
+                return (
+                  <div
+                    key={a.id}
+                    draggable
+                    onDragStart={() => setDragged(a)}
+                    onDragEnd={() => setDragged(null)}
+                    className={`absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded border px-1.5 py-0.5 text-xs ${APPT_KIND_STYLES[a.kind]} ${
+                      dragged?.id === a.id ? 'opacity-40' : ''
+                    }`}
+                    style={{ top, height }}
+                  >
+                    <p className="truncate font-medium">
+                      {start.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' })}{' '}
+                      {APPT_KIND_LABELS[a.kind]}
+                    </p>
+                    {a.job && (
+                      <Link
+                        to={`/jobs/${a.job.id}`}
+                        className="block truncate hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {a.job.contact?.full_name ?? a.job.title}
+                      </Link>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
