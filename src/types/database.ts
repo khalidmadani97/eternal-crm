@@ -228,6 +228,44 @@ export type Database = {
           },
         ]
       }
+      channel_identities: {
+        Row: {
+          contact_id: string
+          created_at: string
+          display_name: string | null
+          external_id: string
+          id: string
+          platform: Database["public"]["Enums"]["dm_platform"]
+          updated_at: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          display_name?: string | null
+          external_id: string
+          id?: string
+          platform: Database["public"]["Enums"]["dm_platform"]
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          display_name?: string | null
+          external_id?: string
+          id?: string
+          platform?: Database["public"]["Enums"]["dm_platform"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_identities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           address: string | null
@@ -431,6 +469,70 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "contracts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dm_messages: {
+        Row: {
+          activity_id: string
+          body: string | null
+          contact_id: string
+          created_at: string
+          direction: Database["public"]["Enums"]["call_direction"]
+          external_id: string
+          id: string
+          job_id: string | null
+          platform: Database["public"]["Enums"]["dm_platform"]
+          provider_message_id: string
+          updated_at: string
+        }
+        Insert: {
+          activity_id: string
+          body?: string | null
+          contact_id: string
+          created_at?: string
+          direction: Database["public"]["Enums"]["call_direction"]
+          external_id: string
+          id?: string
+          job_id?: string | null
+          platform: Database["public"]["Enums"]["dm_platform"]
+          provider_message_id: string
+          updated_at?: string
+        }
+        Update: {
+          activity_id?: string
+          body?: string | null
+          contact_id?: string
+          created_at?: string
+          direction?: Database["public"]["Enums"]["call_direction"]
+          external_id?: string
+          id?: string
+          job_id?: string | null
+          platform?: Database["public"]["Enums"]["dm_platform"]
+          provider_message_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dm_messages_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: true
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dm_messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dm_messages_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
@@ -1239,6 +1341,18 @@ export type Database = {
         }
         Returns: string
       }
+      record_dm: {
+        Args: {
+          p_body?: string
+          p_contact_id: string
+          p_direction: Database["public"]["Enums"]["call_direction"]
+          p_external_id: string
+          p_job_id?: string
+          p_platform: Database["public"]["Enums"]["dm_platform"]
+          p_provider_message_id: string
+        }
+        Returns: string
+      }
       record_message: {
         Args: {
           p_body?: string
@@ -1270,6 +1384,7 @@ export type Database = {
         | "meeting"
         | "stage_change"
         | "system"
+        | "dm"
       appt_kind: "consultation" | "template" | "install" | "service" | "pickup"
       call_direction: "inbound" | "outbound"
       call_outcome: "connected" | "no_answer" | "voicemail" | "busy" | "failed"
@@ -1282,6 +1397,7 @@ export type Database = {
       consent_channel: "sms" | "call_recording"
       consent_status: "express" | "implied" | "withdrawn"
       contract_status: "draft" | "sent" | "signed" | "declined" | "void"
+      dm_platform: "messenger" | "instagram"
       expense_category:
         | "materials"
         | "subcontractor"
@@ -1468,6 +1584,7 @@ export const Constants = {
         "meeting",
         "stage_change",
         "system",
+        "dm",
       ],
       appt_kind: ["consultation", "template", "install", "service", "pickup"],
       call_direction: ["inbound", "outbound"],
@@ -1482,6 +1599,7 @@ export const Constants = {
       consent_channel: ["sms", "call_recording"],
       consent_status: ["express", "implied", "withdrawn"],
       contract_status: ["draft", "sent", "signed", "declined", "void"],
+      dm_platform: ["messenger", "instagram"],
       expense_category: [
         "materials",
         "subcontractor",

@@ -445,3 +445,16 @@ events sized by duration and positioned by start time; dragging a block onto
 any half-hour slot (same or another day) reschedules it to that exact slot,
 with the end time shifted by the same delta. Month view keeps day-level
 drops that preserve the time of day. Needs a manual drag feel-check.
+
+---
+
+## Slice 19 — Meta Messenger / Instagram integration
+**Status:** code-complete (2026-07-31) — verified locally: hub.challenge
+handshake, bad signature → 403, signed message event auto-creates an
+unverified contact + identity and lands the DM on the timeline via
+record_dm(), replay produces one row. Thread + inbox merge SMS and DMs with
+channel badges; composer picks SMS/DM per contact; send-dm records outbound
+and surfaces the 24-hour-window error. REMAINING for live sign-off: create
+the Meta app, point the webhook at the deployed function with
+META_VERIFY_TOKEN/META_APP_SECRET/META_PAGE_TOKEN secrets, subscribe the
+page (pages_messaging needs Meta app review), send a real DM end to end.

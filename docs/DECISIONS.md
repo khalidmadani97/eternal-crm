@@ -427,3 +427,25 @@ unlike payments/invoices. The Reports P&L is accrual (revenue by
 **Consequence** — The CRM answers "what did we actually make on this job /
 this month" the moment a receipt is entered, while QuickBooks remains the
 book of record for the CRA. If the two ever disagree, QuickBooks wins.
+
+---
+
+## 025 — Meta DMs get their own tables, keyed on PSID
+2026-07 · accepted
+
+**Context** — Messenger/Instagram enquiries should thread into the same
+contact card as SMS. But Meta identity is a page-scoped user ID (PSID), not
+a phone number, and the messages table CHECK-enforces E.164 on its number
+columns for threading integrity.
+
+**Decision** — `channel_identities` (platform + external_id → contact,
+staff-relinkable) and `dm_messages` (service-role writes via the atomic,
+idempotent `record_dm()`, mirroring `record_message()`). Inbound webhook
+`meta-webhook` validates X-Hub-Signature-256 (403 otherwise) and handles the
+hub.challenge handshake. Outbound `send-dm` uses the page token and surfaces
+Meta's 24-hour reply-window rejections to the UI. The thread view and inbox
+merge SMS + DMs sorted by time, with channel badges.
+
+**Consequence** — No E.164 constraint was weakened and SMS threading is
+untouched. Live wiring requires a Meta app (webhook URL + verify token, app
+secret, page token with pages_messaging — subject to Meta app review).
