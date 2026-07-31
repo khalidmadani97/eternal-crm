@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { TeamEditor } from '../components/TeamEditor'
 import {
   OPTION_LISTS,
   useAddOption,
@@ -16,6 +17,7 @@ export function SettingsPage() {
         anything already saved keeps its value.
       </p>
       <div className="grid gap-4 lg:grid-cols-2">
+        <TeamEditor />
         {OPTION_LISTS.map((list) => (
           <ListEditor key={list.key} listKey={list.key} label={list.label} description={list.description} />
         ))}

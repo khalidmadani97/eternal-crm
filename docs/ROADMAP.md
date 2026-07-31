@@ -570,3 +570,13 @@ temperature was removed so either provider works; switch back anytime via
 AI_API_BASE/AI_MODEL). Contract generation verified working at the API — the
 "not generating" symptom was the long-lived dev server's broken HMR graph
 after many branch switches; server restarted (now on :5173).
+
+---
+
+## Slice 29 — Team roles + role-aware Daily Brief
+**Status:** done (2026-07-31, DECISIONS 029) — Settings → Team edits each
+member's name, company role (editable list), and free-text responsibilities;
+the brief personalizes to the caller (header shows who it's for), categorizes
+items, and routes cross-role signals by author. Live-verified end to end:
+salesperson's porcelain-mitre uncertainty became the production manager's
+P1 with correct attribution.

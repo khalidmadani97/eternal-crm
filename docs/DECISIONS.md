@@ -512,3 +512,25 @@ Settings. Domain state machines (job_stage, statuses) remain Postgres enums
 
 **Consequence** — Adding a managed list is one OPTION_LISTS entry plus
 seeding rows; no migration for day-to-day edits.
+
+---
+
+## 029 — Role-aware briefs driven by free-text responsibilities
+2026-07 · accepted
+
+**Context** — Different roles need different mornings: production managers
+should not be told to chase leads, but they must hear about a salesperson's
+"not sure we can fabricate this" note.
+
+**Decision** — profiles gain `job_role` (from the editable job_roles option
+list) and `responsibilities` (free text, edited in Settings → Team, read
+verbatim by the agent). The daily-brief function identifies the caller,
+includes the full team directory and NOTE AUTHORS in the snapshot, and its
+prompt routes cross-role signals by name while keeping each brief in-lane.
+Items carry a category (outreach/production/internal/money/schedule) chip.
+Admins may update any profile (new RLS policy); permission role
+(admin/staff) remains separate from company role.
+
+**Consequence** — Retuning someone's brief is editing a sentence, not code.
+Verified live: a sales-authored feasibility doubt surfaced as P1 in the
+production manager's brief, correctly attributed, with lead-chasing absent.
