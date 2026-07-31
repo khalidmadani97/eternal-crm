@@ -10,10 +10,10 @@ import {
   useStageSettings,
 } from '../api'
 import type { JobListRow, JobStage, StageSetting } from '../api'
-import { LostReasonDialog } from '../components/LostReasonDialog'
-import { STAGE_LABELS } from '../components/StageBadge'
+import { LostReasonDialog } from './LostReasonDialog'
+import { STAGE_LABELS } from './StageBadge'
 
-export function BoardPage() {
+export function StageBoard({ stages }: { stages: JobStage[] }) {
   const { data: jobs, isPending, isError, error, refetch } = useJobs()
   const { data: stageSettings } = useStageSettings()
   const moveStage = useMoveJobStage()
@@ -26,8 +26,11 @@ export function BoardPage() {
   const columns: { stage: JobStage; label: string }[] = (
     stageSettings ?? JOB_STAGES.map((s, i) => ({ stage: s, label: STAGE_LABELS[s], position: i, hidden: false }))
   )
+    .filter((s) => stages.includes(s.stage))
     .filter((s) => !s.hidden || jobs?.some((j) => j.stage === s.stage))
     .map((s) => ({ stage: s.stage, label: s.label }))
+
+  const scoped = jobs?.filter((j) => stages.includes(j.stage))
 
   const drop = (stage: JobStage) => {
     setDragOver(null)
@@ -58,8 +61,7 @@ export function BoardPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-stone-900">Board</h1>
+      <div className="mb-3 flex items-center justify-end">
         <div className="flex items-center gap-3">
           {moveStage.isError && (
             <span className="text-sm text-red-600">
@@ -74,8 +76,8 @@ export function BoardPage() {
           </button>
         </div>
       </div>
-      {jobs.length === 0 && (
-        <p className="py-12 text-center text-stone-500">No jobs yet — the board fills from Jobs.</p>
+      {scoped && scoped.length === 0 && (
+        <p className="py-12 text-center text-stone-500">Nothing here yet.</p>
       )}
       <div className="flex flex-1 gap-3 overflow-x-auto pb-4">
         {columns.map(({ stage, label }) => {

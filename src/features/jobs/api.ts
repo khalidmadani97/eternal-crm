@@ -74,6 +74,7 @@ export function useJobs() {
 
 export interface NewJobInput {
   contact_id: string
+  stage?: JobStage
   title: string
   site_address: string | null
   value_est: number | null
@@ -454,3 +455,10 @@ export function useSaveStageSettings() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['stage-settings'] }),
   })
 }
+
+// ── Pipeline / production split (Slice 27, GHL-style) ────────────────────────
+// One jobs table, two workspaces. Winning a lead moves it from Pipeline to
+// Jobs automatically because membership is just the stage.
+
+export const PIPELINE_STAGES: JobStage[] = ['new', 'contacted', 'quoted', 'follow_up', 'won', 'lost']
+export const PRODUCTION_STAGES: JobStage[] = ['won', 'templated', 'fabrication', 'scheduled', 'installed', 'closed']

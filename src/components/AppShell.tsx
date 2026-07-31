@@ -5,8 +5,8 @@ import { PushToggle } from './PushToggle'
 
 const NAV_ITEMS = [
   { to: '/home', label: 'Home' },
+  { to: '/pipeline', label: 'Pipeline' },
   { to: '/jobs', label: 'Jobs' },
-  { to: '/board', label: 'Board' },
   { to: '/calendar', label: 'Calendar' },
   { to: '/tasks', label: 'Tasks' },
   { to: '/contacts', label: 'Contacts' },
