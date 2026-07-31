@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model,
-      temperature: 0.2,
+      // No explicit temperature — some models (kimi-k2.6+) accept only their default.
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
