@@ -496,3 +496,16 @@ on the month grid and an all-day row in the week grid (overdue in red), and
 ride the ICS feed as all-day events so they land in Google Calendar too;
 leads assignable inline from the jobs list assignee column (job detail
 already had it). Create/assign/reassign and feed contents verified via REST.
+
+---
+
+## Slice 23 — Voice memos: saved audio + Whisper transcription
+**Status:** done (2026-07-31, DECISIONS 026) — the composer mic now records
+real audio (MediaRecorder), uploads it to the private bucket, attaches it to
+the note (playable on job and contact timelines via signed URLs), and sends
+it to OpenAI Whisper for quality transcription when OPENAI_API_KEY is set —
+the browser live-draft is the fallback and the audio is kept regardless;
+text stays editable before saving. Verified: upload path, note meta +
+playback URL, transcribe auth matrix (401 unauthenticated, 400 non-voice
+path, graceful 503 without the key). Set OPENAI_API_KEY in function secrets
+to turn on Whisper; the recording flow itself needs one manual mic pass.
