@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { OptionSelect } from '../../../components/OptionSelect'
 import { useProfiles } from '../../auth/api'
 import { formatCurrency } from '../../../lib/format'
 import { JOB_STAGES, useJob, useUpdateJob } from '../api'
@@ -213,10 +214,10 @@ function JobDetailsForm({ job }: { job: JobDetail }) {
         )}
         {field(
           'Lead source',
-          <input
+          <OptionSelect
+            listKey="lead_sources"
             value={form.lead_source}
-            onChange={(e) => setForm({ ...form, lead_source: e.target.value })}
-            className={inputClass}
+            onChange={(v) => setForm({ ...form, lead_source: v })}
           />,
         )}
         {field(

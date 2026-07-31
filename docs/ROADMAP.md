@@ -524,3 +524,12 @@ Brief panel on Home calls the daily-brief function (Kimi default): verified
 401 unauthenticated and graceful 503 without AI_API_KEY; live LLM output
 needs the key. Each urgent item links to its job/contact and creates an
 assigned task (due-dated → lands on the calendar + ICS feed) in one click.
+
+---
+
+## Slice 25 — Editable dropdown lists + Settings
+**Status:** done (2026-07-31, DECISIONS 028) — generic option_items table;
+lead-source fields on the new-job form, job details, and contact form are
+now dropdowns with inline "+ Add new…"; Settings page manages every
+registered list (rename, reorder, activate/deactivate, delete). Verified:
+seeded list reads, insert path, duplicate rejected by unique constraint.

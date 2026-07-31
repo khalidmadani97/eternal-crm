@@ -1049,6 +1049,36 @@ export type Database = {
           },
         ]
       }
+      option_items: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          list_key: string
+          position: number
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          list_key: string
+          position?: number
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          list_key?: string
+          position?: number
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number

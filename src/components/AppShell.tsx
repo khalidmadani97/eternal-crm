@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { to: '/inbox', label: 'Inbox' },
   { to: '/invoices', label: 'Invoices' },
   { to: '/reports', label: 'Reports' },
+  { to: '/settings', label: 'Settings' },
 ]
 
 export function AppShell() {
