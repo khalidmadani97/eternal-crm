@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { AiUsagePanel } from '../components/AiUsagePanel'
+import { BusinessPanel } from '../components/BusinessPanel'
+import { IntegrationsPanel } from '../components/IntegrationsPanel'
 import { TeamEditor } from '../components/TeamEditor'
 import {
   OPTION_LISTS,
@@ -9,21 +11,57 @@ import {
   useUpdateOption,
 } from '../api'
 
+type Tab = 'business' | 'team' | 'ai' | 'lists' | 'integrations'
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'business', label: 'Business' },
+  { id: 'team', label: 'Team' },
+  { id: 'ai', label: 'AI usage' },
+  { id: 'lists', label: 'Dropdown lists' },
+  { id: 'integrations', label: 'Integrations' },
+]
+
 export function SettingsPage() {
+  const [tab, setTab] = useState<Tab>('business')
+
   return (
     <div>
-      <h1 className="mb-1 text-xl font-semibold text-stone-900">Settings</h1>
-      <p className="mb-4 text-sm text-stone-500">
-        Dropdown lists used across the CRM. Deactivating an option hides it from new entries;
-        anything already saved keeps its value.
-      </p>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <TeamEditor />
-        <AiUsagePanel />
-        {OPTION_LISTS.map((list) => (
-          <ListEditor key={list.key} listKey={list.key} label={list.label} description={list.description} />
+      <h1 className="mb-3 text-xl font-semibold text-stone-900">Settings</h1>
+      <div className="mb-4 flex flex-wrap gap-1 border-b border-stone-200">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
+              tab === t.id
+                ? 'border-amber-600 text-stone-900'
+                : 'border-transparent text-stone-500 hover:text-stone-800'
+            }`}
+          >
+            {t.label}
+          </button>
         ))}
       </div>
+
+      {tab === 'business' && <BusinessPanel />}
+      {tab === 'team' && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <TeamEditor />
+        </div>
+      )}
+      {tab === 'ai' && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <AiUsagePanel />
+        </div>
+      )}
+      {tab === 'lists' && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {OPTION_LISTS.map((list) => (
+            <ListEditor key={list.key} listKey={list.key} label={list.label} description={list.description} />
+          ))}
+        </div>
+      )}
+      {tab === 'integrations' && <IntegrationsPanel />}
     </div>
   )
 }

@@ -19,6 +19,7 @@ import { QuotePrintPage } from './features/quotes/routes/QuotePrintPage'
 import { InboxPage } from './features/comms/routes/InboxPage'
 import { HomePage } from './features/dashboard/routes/HomePage'
 import { ReportsPage } from './features/reports/routes/ReportsPage'
+import { ProfilePage } from './features/settings/routes/ProfilePage'
 import { SettingsPage } from './features/settings/routes/SettingsPage'
 import { TasksPage } from './features/tasks/routes/TasksPage'
 import { CalendarPage } from './features/schedule/routes/CalendarPage'
@@ -52,6 +53,7 @@ export function App() {
               <Route path="/inbox" element={<InboxPage />} />
               <Route path="/tasks" element={<TasksPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
               <Route path="/invoices" element={<InvoicesListPage />} />
               <Route path="/invoices/:id" element={<InvoiceEditorPage />} />
               <Route path="/contracts" element={<ContractsListPage />} />

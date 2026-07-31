@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
 import { useProfiles } from '../../auth/api'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '../../../lib/supabase'
 import { BUSINESS } from '../../../lib/business'
+import { useBusinessSettings } from '../../settings/api'
 import { CONTACT_METHOD_LABELS, useLogContact } from '../api'
 import type { ContactMethod } from '../api'
 
@@ -20,14 +23,24 @@ export function LogContactDialog({
   const { session } = useAuth()
   const { data: profiles } = useProfiles()
   const logContact = useLogContact()
+  const { data: biz } = useBusinessSettings()
+  const { data: myPhone } = useQuery({
+    queryKey: ['my-phone', session?.user.id],
+    enabled: !!session,
+    queryFn: async () => {
+      const { data } = await supabase.from('profiles').select('phone').eq('id', session!.user.id).single()
+      return (data?.phone as string | null) ?? null
+    },
+  })
 
   const defaultDetail = (method: ContactMethod): string => {
     switch (method) {
       case 'call':
       case 'sms':
-        return BUSINESS.phone
+        // Your own cell first (from your profile), else the business line.
+        return myPhone ?? biz?.phone ?? BUSINESS.phone
       case 'email':
-        return BUSINESS.email
+        return biz?.email ?? BUSINESS.email
       case 'messenger':
         return 'Meta Business Suite'
       case 'instagram':

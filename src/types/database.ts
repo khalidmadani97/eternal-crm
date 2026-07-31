@@ -216,6 +216,45 @@ export type Database = {
           },
         ]
       }
+      business_settings: {
+        Row: {
+          address: string | null
+          created_at: string
+          default_tax_rate: number
+          email: string | null
+          hst_number: string | null
+          id: boolean
+          name: string
+          phone: string | null
+          tagline: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          default_tax_rate?: number
+          email?: string | null
+          hst_number?: string | null
+          id?: boolean
+          name?: string
+          phone?: string | null
+          tagline?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          default_tax_rate?: number
+          email?: string | null
+          hst_number?: string | null
+          id?: boolean
+          name?: string
+          phone?: string | null
+          tagline?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       calls: {
         Row: {
           activity_id: string
@@ -1212,6 +1251,7 @@ export type Database = {
           full_name: string | null
           id: string
           job_role: string | null
+          phone: string | null
           responsibilities: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
@@ -1221,6 +1261,7 @@ export type Database = {
           full_name?: string | null
           id: string
           job_role?: string | null
+          phone?: string | null
           responsibilities?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
@@ -1230,6 +1271,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           job_role?: string | null
+          phone?: string | null
           responsibilities?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
