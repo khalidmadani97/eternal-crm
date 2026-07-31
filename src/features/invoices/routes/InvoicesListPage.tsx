@@ -13,6 +13,20 @@ export const INVOICE_STATUS_BADGES: Record<InvoiceStatus, string> = {
   void: 'bg-red-100 text-red-800',
 }
 
+function isOverdue(inv: {
+  status: InvoiceStatus
+  due_date: string | null
+  total: number
+  amount_paid: number
+}): boolean {
+  return (
+    (inv.status === 'sent' || inv.status === 'partial') &&
+    !!inv.due_date &&
+    inv.due_date < new Date().toISOString().slice(0, 10) &&
+    Number(inv.total) - Number(inv.amount_paid) > 0
+  )
+}
+
 export function InvoicesListPage() {
   const { data: invoices, isPending, isError, error, refetch } = useInvoices()
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all'>('all')
@@ -120,7 +134,14 @@ export function InvoicesListPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">{formatDate(inv.issue_date)}</td>
-                  <td className="px-4 py-3">{formatDate(inv.due_date)}</td>
+                  <td className="px-4 py-3">
+                    {formatDate(inv.due_date)}
+                    {isOverdue(inv) && (
+                      <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
+                        overdue
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(inv.total)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(inv.amount_paid)}</td>
                   <td className="px-4 py-3 text-right tabular-nums font-medium">
