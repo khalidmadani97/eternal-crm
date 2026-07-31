@@ -123,3 +123,23 @@ export async function signedPdfUrl(path: string): Promise<string> {
   if (error) throw error
   return data.signedUrl
 }
+
+/** Every contract, newest first — the /contracts list (Slice 26). */
+export function useAllContracts() {
+  return useQuery({
+    queryKey: ['contracts', 'all'],
+    queryFn: async (): Promise<(Contract & { job: { id: string; job_number: string; title: string; contact: { full_name: string } | null } | null })[]> => {
+      const { data, error } = await supabase
+        .from('contracts')
+        .select(
+          `id, job_id, template_version, body_snapshot, status, sign_token,
+           token_expires_at, sent_at, signed_at, signer_name, signer_email,
+           signed_pdf_path, created_at,
+           job:jobs ( id, job_number, title, contact:contacts ( full_name ) )`,
+        )
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data as never
+    },
+  })
+}
