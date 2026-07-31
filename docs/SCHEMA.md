@@ -421,3 +421,22 @@ Not a Postgres sequence: sequences do not roll back, so a failed insert would
 burn a number. Invoice numbers must be gapless — never generated client-side,
 never derived from a count. `document_counters` has no RLS policies of its
 own; it is touched only inside the security-definer function.
+
+### expenses (Slice 15, DECISIONS 024)
+Job costing and overhead. `job_id` set → job cost; null → overhead. `amount`
+is pre-tax; `hst_amount` separate (input tax credit, not a cost). Management
+records, not books of record: editable, hard-deletable by staff. Receipts in
+the job-files bucket via `receipt_path`.
+
+| column | type |
+|---|---|
+| job_id | uuid FK → jobs, nullable, on delete set null |
+| category | expense_category (`materials`,`subcontractor`,`labour`,`equipment`,`disposal`,`permits`,`fuel`,`marketing`,`office`,`rent`,`insurance`,`software`,`other`) |
+| vendor, description | text |
+| amount | numeric(12,2) — pre-tax |
+| hst_amount | numeric(12,2) default 0 |
+| method | payment_method |
+| incurred_at | date |
+| reference | text — e-transfer conf, supplier invoice # |
+| receipt_path | text — job-files bucket |
+| created_by | uuid FK → profiles |

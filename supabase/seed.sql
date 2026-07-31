@@ -222,3 +222,22 @@ insert into public.tasks (job_id, title, due_date, completed_at) values
    (now() + interval '2 days')::date, null),
   ('00000000-0000-4000-8000-000000000309', 'Ask for a Google review',
    (now() - interval '8 days')::date, now() - interval '7 days');
+
+-- Expenses (Slice 15): job costs on the delivered/in-progress jobs, plus
+-- monthly overhead. Amounts pre-tax; hst_amount tracked separately.
+insert into public.expenses (job_id, category, vendor, description, amount, hst_amount, method, incurred_at, reference) values
+  -- job costs — closed job (0310, invoiced 2026-06)
+  ('00000000-0000-4000-8000-000000000310', 'materials',     'GTA Stone Supply',   'Calacatta quartz slabs x3',      6200.00, 806.00, 'etransfer', '2026-06-05', 'ETRF-7741'),
+  ('00000000-0000-4000-8000-000000000310', 'subcontractor', 'Precision Plumbing', 'Sink + faucet reconnect',         450.00,  58.50, 'etransfer', '2026-06-18', 'ETRF-7802'),
+  ('00000000-0000-4000-8000-000000000310', 'disposal',      'Bin There',          'Old countertop disposal',         180.00,  23.40, 'card',      '2026-06-12', null),
+  -- job costs — installed job (0309, invoiced 2026-07)
+  ('00000000-0000-4000-8000-000000000309', 'materials',     'GTA Stone Supply',   'Quartzite slab + edge profile',  3100.00, 403.00, 'etransfer', '2026-07-08', 'ETRF-8103'),
+  ('00000000-0000-4000-8000-000000000309', 'subcontractor', 'Apex Electrical',    'Cooktop disconnect/reconnect',    380.00,  49.40, 'cheque',    '2026-07-15', 'CHQ-1121'),
+  -- job costs — fabrication job (0307)
+  ('00000000-0000-4000-8000-000000000307', 'materials',     'Stone Tile Depot',   'Porcelain slab, bookmatched',    4600.00, 598.00, 'etransfer', '2026-07-20', 'ETRF-8188'),
+  -- overhead (no job)
+  (null, 'rent',      'Bays 4-5 Industrial', 'Shop rent — June',        2400.00, 312.00, 'etransfer', '2026-06-01', null),
+  (null, 'insurance', 'Northbridge',         'Commercial liability',     310.00,   0.00, 'card',      '2026-06-15', null),
+  (null, 'rent',      'Bays 4-5 Industrial', 'Shop rent — July',        2400.00, 312.00, 'etransfer', '2026-07-01', null),
+  (null, 'software',  'Various SaaS',        'Design + office tools',    140.00,  18.20, 'card',      '2026-07-03', null),
+  (null, 'fuel',      'Petro-Canada',        'Truck fuel — July',        420.00,  54.60, 'card',      '2026-07-28', null);

@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom'
 import { JOB_STAGES } from '../../jobs/api'
 import { STAGE_LABELS } from '../../jobs/components/StageBadge'
 import { formatCurrency } from '../../../lib/format'
+import { ExpenseDialog } from '../../expenses/components/JobCosts'
 import {
+  pnlToCsv,
   usePipelineByStage,
+  usePnl,
   useReferralLeaderboard,
   useRevenueByMonth,
   useWinRate,
@@ -48,12 +51,98 @@ export function ReportsPage() {
   const winRate = useWinRate(from, to)
   const revenue = useRevenueByMonth()
   const referrals = useReferralLeaderboard()
+  const pnl = usePnl()
+  const [addingOverhead, setAddingOverhead] = useState(false)
+
+  const exportPnl = () => {
+    if (!pnl.data) return
+    const blob = new Blob([pnlToCsv(pnl.data)], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `pnl-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   const maxStageValue = Math.max(1, ...(pipeline.data?.map((s) => s.value) ?? []))
 
   return (
     <div>
       <h1 className="mb-4 text-xl font-semibold text-stone-900">Reports</h1>
+
+      <section className="mb-4 rounded-lg border border-stone-200 bg-white p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+              Profit &amp; loss by month
+            </h2>
+            <p className="text-xs text-stone-400">
+              Accrual, pre-tax. Management view — QuickBooks stays the book of record.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setAddingOverhead(true)}
+              className="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50"
+            >
+              + Overhead expense
+            </button>
+            <button
+              onClick={exportPnl}
+              disabled={!pnl.data?.length}
+              className="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50 disabled:opacity-50"
+            >
+              Export CSV
+            </button>
+          </div>
+        </div>
+        {pnl.isPending && <p className="py-4 text-sm text-stone-500">Loading…</p>}
+        {pnl.isError && (
+          <p className="py-4 text-sm text-red-600">Could not load. {pnl.error.message}</p>
+        )}
+        {pnl.data && pnl.data.length === 0 && (
+          <p className="py-4 text-sm text-stone-500">No invoices or expenses yet.</p>
+        )}
+        {pnl.data && pnl.data.length > 0 && (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wide text-stone-400">
+                <th className="py-1">Month</th>
+                <th className="py-1 text-right">Revenue</th>
+                <th className="py-1 text-right">Job costs</th>
+                <th className="py-1 text-right">Gross profit</th>
+                <th className="py-1 text-right">Overhead</th>
+                <th className="py-1 text-right">Net profit</th>
+                <th className="py-1 text-right">Margin</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pnl.data.map((row) => (
+                <tr key={row.month} className="border-t border-stone-100">
+                  <td className="py-1.5 font-medium">{row.month}</td>
+                  <td className="py-1.5 text-right tabular-nums">{formatCurrency(row.revenue)}</td>
+                  <td className="py-1.5 text-right tabular-nums">{formatCurrency(row.jobCosts)}</td>
+                  <td className="py-1.5 text-right tabular-nums">{formatCurrency(row.grossProfit)}</td>
+                  <td className="py-1.5 text-right tabular-nums">{formatCurrency(row.overhead)}</td>
+                  <td
+                    className={`py-1.5 text-right font-semibold tabular-nums ${
+                      row.netProfit < 0 ? 'text-red-700' : 'text-emerald-700'
+                    }`}
+                  >
+                    {formatCurrency(row.netProfit)}
+                  </td>
+                  <td className="py-1.5 text-right tabular-nums">
+                    {row.margin === null ? '—' : `${Math.round(row.margin * 100)}%`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+      {addingOverhead && <ExpenseDialog jobId={null} onClose={() => setAddingOverhead(false)} />}
+
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel
           title="Pipeline value by stage"

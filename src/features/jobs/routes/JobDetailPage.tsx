@@ -5,6 +5,7 @@ import { formatCurrency } from '../../../lib/format'
 import { JOB_STAGES, useJob, useUpdateJob } from '../api'
 import type { JobDetail, JobStage } from '../api'
 import { CommsThread } from '../../comms/components/CommsThread'
+import { JobCosts } from '../../expenses/components/JobCosts'
 import { JobContracts } from '../../contracts/components/JobContracts'
 import { JobQuotes } from '../../quotes/components/JobQuotes'
 import { JobAppointments } from '../../schedule/components/JobAppointments'
@@ -54,6 +55,7 @@ export function JobDetailPage() {
         <div className="space-y-4">
           <JobAppointments jobId={job.id} />
           <JobQuotes jobId={job.id} />
+          <JobCosts jobId={job.id} />
           <JobContracts job={job} />
           <JobTasks jobId={job.id} />
           <JobFiles jobId={job.id} />
