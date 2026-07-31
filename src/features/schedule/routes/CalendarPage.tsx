@@ -10,6 +10,7 @@ import {
 } from '../api'
 import type { AppointmentRow } from '../api'
 import { AppointmentDialog } from '../components/AppointmentDialog'
+import { CalendarSyncDialog } from '../components/CalendarSyncDialog'
 
 type ViewMode = 'month' | 'week'
 
@@ -29,6 +30,7 @@ export function CalendarPage() {
   const [cursor, setCursor] = useState(() => new Date())
   const [assigneeFilter, setAssigneeFilter] = useState('all')
   const [createOn, setCreateOn] = useState<string | null>(null)
+  const [showSync, setShowSync] = useState(false)
   const { data: profiles } = useProfiles()
   const reschedule = useRescheduleAppointment()
   const [dragged, setDragged] = useState<AppointmentRow | null>(null)
@@ -159,6 +161,12 @@ export function CalendarPage() {
             </span>
           ))}
           <button
+            onClick={() => setShowSync(true)}
+            className="rounded border border-stone-300 px-3 py-2 text-sm text-stone-700 hover:bg-stone-50"
+          >
+            Link Google Calendar
+          </button>
+          <button
             onClick={() => setCreateOn(dayKey(new Date()))}
             className="rounded bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"
           >
@@ -271,6 +279,7 @@ export function CalendarPage() {
       )}
 
       {createOn && <AppointmentDialog initialDate={createOn} onClose={() => setCreateOn(null)} />}
+      {showSync && <CalendarSyncDialog onClose={() => setShowSync(false)} />}
     </div>
   )
 }
