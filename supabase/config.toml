@@ -437,3 +437,7 @@ verify_jwt = false
 
 [functions.softphone-twiml]
 verify_jwt = false
+
+[functions.meta-webhook]
+# Meta authenticates with X-Hub-Signature-256, not a JWT.
+verify_jwt = false

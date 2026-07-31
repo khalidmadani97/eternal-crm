@@ -440,3 +440,11 @@ the job-files bucket via `receipt_path`.
 | reference | text — e-transfer conf, supplier invoice # |
 | receipt_path | text — job-files bucket |
 | created_by | uuid FK → profiles |
+
+### channel_identities / dm_messages (Slice 19, DECISIONS 025)
+Meta Messenger + Instagram DMs. `channel_identities` maps (platform,
+external PSID) → contact, unique per platform+id, staff-relinkable.
+`dm_messages` mirrors messages but keyed on PSID: activity_id (unique FK,
+one timeline row via `record_dm()`), contact_id, nullable job_id, platform,
+direction, body, `provider_message_id` unique (idempotency). Written only by
+the service role. Activities gained kind `dm`.

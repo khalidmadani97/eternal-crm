@@ -54,6 +54,8 @@ export function InboxPage() {
                     </span>
                   </div>
                   <p className="truncate text-xs text-stone-500">
+                    {t.last_channel === 'messenger' && <span title="Messenger">💠 </span>}
+                    {t.last_channel === 'instagram' && <span title="Instagram">📸 </span>}
                     {t.last_direction === 'outbound' ? 'You: ' : ''}
                     {t.last_body ?? '(media)'}
                   </p>
