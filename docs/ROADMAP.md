@@ -485,3 +485,14 @@ fixed so triggers and reporting are untouchable) with a Customize dialog on
 the board; custom labels flow through badges and columns; hidden stages
 still show while occupied. Verified via REST: defaults seeded, rename works,
 client DELETE denied.
+
+---
+
+## Slice 22 — Tasks section, calendar deadlines, assignment
+**Status:** done (2026-07-31) — standalone Tasks page (open/done/all,
+assignee filter incl. "Mine", inline add with optional job + assignee + due
+date, inline reassignment, complete/delete); task deadlines render as chips
+on the month grid and an all-day row in the week grid (overdue in red), and
+ride the ICS feed as all-day events so they land in Google Calendar too;
+leads assignable inline from the jobs list assignee column (job detail
+already had it). Create/assign/reassign and feed contents verified via REST.

@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: '/jobs', label: 'Jobs' },
   { to: '/board', label: 'Board' },
   { to: '/calendar', label: 'Calendar' },
+  { to: '/tasks', label: 'Tasks' },
   { to: '/contacts', label: 'Contacts' },
   { to: '/inbox', label: 'Inbox' },
   { to: '/invoices', label: 'Invoices' },

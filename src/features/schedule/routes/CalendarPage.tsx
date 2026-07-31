@@ -9,6 +9,8 @@ import {
   useRescheduleAppointment,
 } from '../api'
 import type { AppointmentRow } from '../api'
+import { useTasksInRange } from '../../tasks/api'
+import type { TaskRow } from '../../tasks/api'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { CalendarSyncDialog } from '../components/CalendarSyncDialog'
 
@@ -66,6 +68,20 @@ export function CalendarPage() {
     rangeStart.toISOString(),
     rangeEnd.toISOString(),
   )
+
+  const { data: rangeTasks } = useTasksInRange(
+    dayKey(rangeStart),
+    dayKey(new Date(rangeEnd.getTime() - 1)),
+  )
+  const tasksByDay = useMemo(() => {
+    const map = new Map<string, TaskRow[]>()
+    rangeTasks?.forEach((t) => {
+      if (!t.due_date) return
+      if (assigneeFilter !== 'all' && t.assignee?.id !== assigneeFilter) return
+      map.set(t.due_date, [...(map.get(t.due_date) ?? []), t])
+    })
+    return map
+  }, [rangeTasks, assigneeFilter])
 
   const byDay = useMemo(() => {
     const map = new Map<string, AppointmentRow[]>()
@@ -192,6 +208,7 @@ export function CalendarPage() {
         <WeekGrid
           days={days}
           byDay={byDay}
+          tasksByDay={tasksByDay}
           dragged={dragged}
           setDragged={setDragged}
           onDropSlot={dropOnSlot}
@@ -240,6 +257,9 @@ export function CalendarPage() {
                   </button>
                 </div>
                 <div className="space-y-1">
+                  {(tasksByDay.get(key) ?? []).map((t) => (
+                    <TaskChip key={t.id} task={t} />
+                  ))}
                   {dayAppts.map((a) => (
                     <div
                       key={a.id}
@@ -302,6 +322,7 @@ const SLOT_MINUTES = 30
 function WeekGrid({
   days,
   byDay,
+  tasksByDay,
   dragged,
   setDragged,
   onDropSlot,
@@ -309,6 +330,7 @@ function WeekGrid({
 }: {
   days: Date[]
   byDay: Map<string, AppointmentRow[]>
+  tasksByDay: Map<string, TaskRow[]>
   dragged: AppointmentRow | null
   setDragged: (a: AppointmentRow | null) => void
   onDropSlot: (day: Date, minutesFromMidnight: number) => void
@@ -349,6 +371,22 @@ function WeekGrid({
               >
                 +
               </button>
+            </div>
+          )
+        })}
+
+        {/* all-day task deadlines */}
+        <div className="border-b border-stone-200 px-1 py-0.5 text-right text-[9px] uppercase text-stone-300">
+          due
+        </div>
+        {days.map((day) => {
+          const key = dayKey(day)
+          const dayTasks = tasksByDay.get(key) ?? []
+          return (
+            <div key={`tasks-${key}`} className="space-y-0.5 border-b border-l border-stone-200 p-0.5">
+              {dayTasks.map((t) => (
+                <TaskChip key={t.id} task={t} />
+              ))}
             </div>
           )
         })}
@@ -466,5 +504,27 @@ function WeekGrid({
         })}
       </div>
     </div>
+  )
+}
+
+
+function TaskChip({ task }: { task: TaskRow }) {
+  const done = task.completed_at !== null
+  const overdue = !done && !!task.due_date && task.due_date < dayKey(new Date())
+  return (
+    <Link
+      to={task.job ? `/jobs/${task.job.id}` : '/tasks'}
+      draggable={false}
+      title={task.title}
+      className={`block truncate rounded border px-1.5 py-0.5 text-[10px] ${
+        done
+          ? 'border-stone-200 bg-stone-50 text-stone-400 line-through'
+          : overdue
+            ? 'border-red-300 bg-red-50 text-red-800'
+            : 'border-stone-300 bg-stone-100 text-stone-700'
+      }`}
+    >
+      ☑ {task.title}
+    </Link>
   )
 }
