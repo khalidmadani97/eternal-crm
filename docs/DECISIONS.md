@@ -493,3 +493,22 @@ but TRANSCRIBE_API_BASE/KEY/MODEL now allow any compatible host (e.g. Groq).
 **Consequence** — The agent is advisory only: it writes nothing without a
 click, so a hallucinated priority costs a glance, not data. Provider swap is
 an env change. Without AI_API_KEY the panel degrades to a one-line hint.
+
+---
+
+## 028 — Editable dropdown lists via one generic option_items table
+2026-07 · accepted
+
+**Context** — Lead sources (and future pick-lists) should be user-editable
+without migrations, but the schema rule says enums for real domain states.
+
+**Decision** — Presentation-level pick-lists live in `option_items`
+(list_key + value + position + active, unique per list). The stored business
+columns stay plain text, so history never breaks when an option is renamed
+or retired; deactivating hides an option from new entries only. UI:
+<OptionSelect> with inline "+ Add new…" everywhere, full management in
+Settings. Domain state machines (job_stage, statuses) remain Postgres enums
+— this mechanism is for labels-of-origin style lists, not workflow states.
+
+**Consequence** — Adding a managed list is one OPTION_LISTS entry plus
+seeding rows; no migration for day-to-day edits.

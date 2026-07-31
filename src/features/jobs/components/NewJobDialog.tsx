@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { OptionSelect } from '../../../components/OptionSelect'
 import { useContactSearch, useCreateContact } from '../../contacts/api'
 import type { ContactOption } from '../../contacts/api'
 import { normalizePhone } from '../../../lib/format'
@@ -111,22 +112,12 @@ export function NewJobDialog({ onClose }: Props) {
               )}
             </div>
             <div>
-              <label htmlFor="lead_source" className="mb-1 block text-sm font-medium text-stone-700">
-                Lead source
-              </label>
-              <input
-                id="lead_source"
-                list="lead-sources"
-                className="w-full rounded border border-stone-300 px-3 py-2 text-sm focus:border-amber-600 focus:outline-none"
-                {...register('lead_source')}
+              <label className="mb-1 block text-sm font-medium text-stone-700">Lead source</label>
+              <OptionSelect
+                listKey="lead_sources"
+                value={watch('lead_source') ?? ''}
+                onChange={(v) => setValue('lead_source', v)}
               />
-              <datalist id="lead-sources">
-                <option value="referral" />
-                <option value="website" />
-                <option value="meta" />
-                <option value="google" />
-                <option value="repeat" />
-              </datalist>
             </div>
           </div>
           {createJob.isError && (

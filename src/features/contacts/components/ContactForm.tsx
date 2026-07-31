@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { OptionSelect } from '../../../components/OptionSelect'
 import { useCompanies } from '../../companies/api'
 import { normalizePhone } from '../../../lib/format'
 import type { ContactInput, ContactRow } from '../api'
@@ -84,7 +85,11 @@ export function ContactForm({ initial, submitting, submitLabel, error, onSubmit,
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-stone-700">Lead source</span>
-          <input value={form.lead_source} onChange={set('lead_source')} className={inputClass} />
+          <OptionSelect
+            listKey="lead_sources"
+            value={form.lead_source}
+            onChange={(v) => setForm({ ...form, lead_source: v })}
+          />
         </label>
         <label className="block text-sm sm:col-span-2">
           <span className="mb-1 block font-medium text-stone-700">Notes</span>
