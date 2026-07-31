@@ -590,3 +590,18 @@ the meter travels in every response ("N credits left" on the brief panel),
 dropping the cap produced a real 429 with a helpful message, and an admin
 +25 grant unblocked immediately. Per-person usage bars + allowance editing
 + one-click grants in Settings → AI usage.
+
+---
+
+## Slice 31 — Settings hub + employee profile
+**Status:** done (2026-07-31) — Settings is now tabbed: Business (identity,
+HST number, default tax rate — stored in business_settings, admin-writable,
+rendered on quote/invoice prints with the hardcoded file as fallback only),
+Team, AI usage, Dropdown lists, and Integrations (live green/grey health for
+AI, Whisper, Twilio, softphone, Stripe, Meta, calendar feed, push — key
+presence only, never values). Top-right avatar menu → /profile: employee
+card (name + direct phone self-editable with E.164 enforcement; company role
+and responsibilities shown read-only for staff — set by an admin in
+Settings → Team), my assigned jobs with last-contact recency, my open tasks,
+my AI meter. Log-contact defaults now prefer your own profile phone.
+Verified via REST: HST update, phone CHECK rejection, integration status.

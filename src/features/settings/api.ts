@@ -133,3 +133,64 @@ export function useUpdateTeamMember() {
     },
   })
 }
+
+// ── Business settings (Slice 31) ─────────────────────────────────────────────
+
+export interface BusinessSettings {
+  name: string
+  tagline: string | null
+  phone: string | null
+  email: string | null
+  address: string | null
+  hst_number: string | null
+  default_tax_rate: number
+}
+
+export function useBusinessSettings() {
+  return useQuery({
+    queryKey: ['business-settings'],
+    queryFn: async (): Promise<BusinessSettings> => {
+      const { data, error } = await supabase
+        .from('business_settings')
+        .select('name, tagline, phone, email, address, hst_number, default_tax_rate')
+        .eq('id', true)
+        .single()
+      if (error) throw error
+      return data as BusinessSettings
+    },
+    staleTime: 60_000,
+  })
+}
+
+export function useUpdateBusinessSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (patch: Partial<BusinessSettings>) => {
+      const { error } = await supabase.from('business_settings').update(patch).eq('id', true)
+      if (error) throw error
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['business-settings'] }),
+  })
+}
+
+// ── Integration status (Slice 31) ────────────────────────────────────────────
+
+export interface IntegrationInfo {
+  configured: boolean
+  needs: string
+  what: string
+  model?: string
+  sendConfigured?: boolean
+}
+
+export function useIntegrationStatus() {
+  return useQuery({
+    queryKey: ['integration-status'],
+    queryFn: async (): Promise<Record<string, IntegrationInfo>> => {
+      const { data, error } = await supabase.functions.invoke('integration-status', { body: {} })
+      if (error) throw error
+      return data as Record<string, IntegrationInfo>
+    },
+    staleTime: 5 * 60_000,
+  })
+}

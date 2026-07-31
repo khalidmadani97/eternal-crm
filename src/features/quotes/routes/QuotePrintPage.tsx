@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { BUSINESS } from '../../../lib/business'
+import { BUSINESS as FALLBACK } from '../../../lib/business'
+import { useBusinessSettings } from '../../settings/api'
 import { formatCurrency, formatDate, formatPhone } from '../../../lib/format'
 import { lineAmount, documentTotals } from '../../../lib/money'
 import { useQuote } from '../api'
@@ -15,6 +16,16 @@ const GOLD = '#b08d3f'
 export function QuotePrintPage() {
   const { id } = useParams<{ id: string }>()
   const { data: quote, isPending, isError, error } = useQuote(id!)
+
+  const { data: dbBusiness } = useBusinessSettings()
+  const biz = {
+    name: dbBusiness?.name ?? FALLBACK.name,
+    tagline: dbBusiness?.tagline ?? FALLBACK.tagline,
+    phone: dbBusiness?.phone ?? FALLBACK.phone,
+    email: dbBusiness?.email ?? FALLBACK.email,
+    address: dbBusiness?.address ?? FALLBACK.address,
+    hstNumber: dbBusiness?.hst_number ?? FALLBACK.hstNumber,
+  }
 
   useEffect(() => {
     const link = document.createElement('link')
@@ -59,13 +70,13 @@ export function QuotePrintPage() {
       <header className="mb-8 flex items-start justify-between border-b-2 pb-6" style={{ borderColor: GOLD }}>
         <div>
           <h1 style={{ fontFamily: "'Lora', serif", color: ESPRESSO }} className="text-3xl font-semibold">
-            {BUSINESS.name}
+            {biz.name}
           </h1>
           <p className="text-sm" style={{ color: GOLD }}>
-            {BUSINESS.tagline}
+            {biz.tagline}
           </p>
           <p className="mt-2 text-xs text-stone-500">
-            {BUSINESS.address} · {formatPhone(BUSINESS.phone)} · {BUSINESS.email}
+            {biz.address} · {formatPhone(biz.phone)} · {biz.email}
           </p>
         </div>
         <div className="text-right">
@@ -154,7 +165,7 @@ export function QuotePrintPage() {
 
       <footer className="border-t border-stone-200 pt-4 text-xs text-stone-500">
         <p>
-          {BUSINESS.name} · HST # {BUSINESS.hstNumber}
+          {biz.name} · HST # {biz.hstNumber}
         </p>
         <p className="mt-1">
           Pricing subject to site verification. This quote becomes the scope of work on acceptance.
