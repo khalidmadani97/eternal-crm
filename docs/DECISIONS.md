@@ -468,3 +468,28 @@ attached. Text remains editable before saving in all cases.
 **Consequence** — One optional secret; no new client dependency. Whisper
 cost is ~fractions of a cent per note. If Whisper is down or unconfigured,
 nothing is lost — the recording is always saved first.
+
+---
+
+## 027 — Last-contacted tracking + the Daily Brief agent (Kimi by default)
+2026-07 · accepted
+
+**Context** — Leads die from silence. The owner wants per-contact
+last-touched visibility and an agent that reads everything (stages, notes,
+transcripts, recency, installs, overdue invoices) and says who to contact
+today.
+
+**Decision** — contacts carry denormalised last_contacted_* fields updated
+by triggers on every outbound sms/call/DM, plus log_contact() for
+out-of-band touches (who / method / from-detail; backdated logs never beat
+newer touches). The daily-brief edge function snapshots the operation and
+asks an OpenAI-compatible LLM for a prioritised outreach plan returned as
+strict JSON; each recommendation becomes an assigned, calendared task in one
+click. Default provider is Moonshot Kimi K2 (AI_API_KEY; AI_API_BASE /
+AI_MODEL override) — materially cheaper than GPT-4-class for this daily,
+low-stakes workload. Transcription stays Whisper (Moonshot has no STT API)
+but TRANSCRIBE_API_BASE/KEY/MODEL now allow any compatible host (e.g. Groq).
+
+**Consequence** — The agent is advisory only: it writes nothing without a
+click, so a hallucinated priority costs a glance, not data. Provider swap is
+an env change. Without AI_API_KEY the panel degrades to a one-line hint.

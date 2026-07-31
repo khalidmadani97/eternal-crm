@@ -509,3 +509,18 @@ text stays editable before saving. Verified: upload path, note meta +
 playback URL, transcribe auth matrix (401 unauthenticated, 400 non-voice
 path, graceful 503 without the key). Set OPENAI_API_KEY in function secrets
 to turn on Whisper; the recording flow itself needs one manual mic pass.
+
+---
+
+## Slice 24 — Last-contacted + Daily Brief agent
+**Status:** done (2026-07-31, DECISIONS 027) — last-contact auto-touch
+verified from outbound comms (sms trigger sets method+number); log_contact()
+verified: writes the timeline activity, attributes the chosen user, and a
+backdated manual log does not overwrite a newer automatic touch; Last
+contact column on the jobs list (red when an early-stage lead sits >7 days)
+and on the contact card with the Log contact dialog (method dropdown
+pre-fills your number / business email / Business Suite, editable). Daily
+Brief panel on Home calls the daily-brief function (Kimi default): verified
+401 unauthenticated and graceful 503 without AI_API_KEY; live LLM output
+needs the key. Each urgent item links to its job/contact and creates an
+assigned task (due-dated → lands on the calendar + ICS feed) in one click.

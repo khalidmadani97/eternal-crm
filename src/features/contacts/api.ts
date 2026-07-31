@@ -65,6 +65,9 @@ export interface ContactRow {
   lead_source: string | null
   auto_created: boolean
   notes: string | null
+  last_contacted_at: string | null
+  last_contact_method: string | null
+  last_contact_detail: string | null
   company: { id: string; name: string } | null
 }
 
@@ -75,7 +78,7 @@ export function useContacts(includeAutoCreated: boolean) {
       let query = supabase
         .from('contacts')
         .select(
-          'id, full_name, phone, email, address, lead_source, auto_created, notes, company:companies ( id, name )',
+          'id, full_name, phone, email, address, lead_source, auto_created, notes, last_contacted_at, last_contact_method, last_contact_detail, company:companies ( id, name )',
         )
         .is('deleted_at', null)
         .order('full_name')
@@ -108,6 +111,7 @@ export function useContact(id: string) {
         .from('contacts')
         .select(
           `id, full_name, phone, email, address, lead_source, auto_created, notes,
+           last_contacted_at, last_contact_method, last_contact_detail,
            company:companies ( id, name ),
            jobs ( id, job_number, title, stage, value_est, value_final, created_at, deleted_at )`,
         )
@@ -223,5 +227,55 @@ export function useAddContactNote(contactId: string) {
     },
     onSuccess: () =>
       void queryClient.invalidateQueries({ queryKey: ['activities', 'contact', contactId] }),
+  })
+}
+
+// ── Last contacted (Slice 24) ────────────────────────────────────────────────
+
+export type ContactMethod =
+  | 'call'
+  | 'sms'
+  | 'email'
+  | 'messenger'
+  | 'instagram'
+  | 'in_person'
+  | 'other'
+
+export const CONTACT_METHOD_LABELS: Record<ContactMethod, string> = {
+  call: 'Phone call',
+  sms: 'Text message',
+  email: 'Email',
+  messenger: 'Meta Business Suite (Messenger)',
+  instagram: 'Instagram DM',
+  in_person: 'In person',
+  other: 'Other',
+}
+
+export function useLogContact() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      contactId: string
+      method: ContactMethod
+      detail: string | null
+      at: string
+      by: string | null
+      note: string | null
+    }) => {
+      const { error } = await supabase.rpc('log_contact', {
+        p_contact_id: input.contactId,
+        p_method: input.method,
+        p_detail: input.detail ?? undefined,
+        p_at: input.at,
+        p_by: input.by ?? undefined,
+        p_note: input.note ?? undefined,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['contacts'] })
+      void queryClient.invalidateQueries({ queryKey: ['activities'] })
+      void queryClient.invalidateQueries({ queryKey: ['jobs'] })
+    },
   })
 }

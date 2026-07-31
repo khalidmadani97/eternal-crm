@@ -3,9 +3,12 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { StageBadge } from '../../jobs/components/StageBadge'
 import type { JobStage } from '../../jobs/api'
 import { formatCurrency, formatDate, formatPhone } from '../../../lib/format'
-import { useContact, useSoftDeleteContact, useUpdateContact } from '../api'
+import { formatAgo } from '../../../lib/format'
+import { CONTACT_METHOD_LABELS, useContact, useSoftDeleteContact, useUpdateContact } from '../api'
+import type { ContactMethod } from '../api'
 import { ContactForm } from '../components/ContactForm'
 import { ContactTimeline } from '../components/ContactTimeline'
+import { LogContactDialog } from '../components/LogContactDialog'
 
 export function ContactDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -14,6 +17,7 @@ export function ContactDetailPage() {
   const updateContact = useUpdateContact()
   const softDelete = useSoftDeleteContact()
   const [editing, setEditing] = useState(false)
+  const [logging, setLogging] = useState(false)
 
   if (isPending) return <p className="py-12 text-center text-stone-500">Loading contact…</p>
   if (isError)
@@ -84,6 +88,26 @@ export function ContactDetailPage() {
               }
             />
             <Row label="Lead source" value={contact.lead_source ?? '—'} />
+            <Row
+              label="Last contacted"
+              value={
+                <span className="flex items-center gap-2">
+                  <span>
+                    {contact.last_contacted_at ? `${formatAgo(contact.last_contacted_at)} ago` : 'Never'}
+                    {contact.last_contact_method
+                      ? ` — ${CONTACT_METHOD_LABELS[contact.last_contact_method as ContactMethod] ?? contact.last_contact_method}`
+                      : ''}
+                    {contact.last_contact_detail ? ` (${contact.last_contact_detail})` : ''}
+                  </span>
+                  <button
+                    onClick={() => setLogging(true)}
+                    className="rounded border border-stone-300 px-1.5 py-0.5 text-xs text-stone-600 hover:bg-stone-50"
+                  >
+                    Log contact
+                  </button>
+                </span>
+              }
+            />
             <Row label="Notes" value={contact.notes ?? '—'} />
           </dl>
         </section>
@@ -127,6 +151,13 @@ export function ContactDetailPage() {
         </div>
       </div>
 
+      {logging && (
+        <LogContactDialog
+          contactId={contact.id}
+          contactPhone={contact.phone}
+          onClose={() => setLogging(false)}
+        />
+      )}
       {editing && (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">

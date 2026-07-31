@@ -21,7 +21,7 @@ export const JOB_STAGES: JobStage[] = [
 const JOB_LIST_SELECT = `
   id, job_number, title, stage, value_est, value_final, lead_source,
   site_address, created_at,
-  contact:contacts ( id, full_name ),
+  contact:contacts ( id, full_name, last_contacted_at, last_contact_method ),
   company:companies ( id, name ),
   assignee:profiles ( id, full_name ),
   appointments ( id, kind, starts_at )
@@ -37,7 +37,12 @@ export interface JobListRow {
   lead_source: string | null
   site_address: string | null
   created_at: string
-  contact: { id: string; full_name: string } | null
+  contact: {
+    id: string
+    full_name: string
+    last_contacted_at: string | null
+    last_contact_method: string | null
+  } | null
   company: { id: string; name: string } | null
   assignee: { id: string; full_name: string | null } | null
   appointments: { id: string; kind: string; starts_at: string }[]

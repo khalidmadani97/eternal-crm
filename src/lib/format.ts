@@ -64,3 +64,17 @@ export function normalizePhone(input: string): string | null {
   if (bare.length === 11 && bare.startsWith('1')) return `+${bare}`
   return null
 }
+
+/** Compact relative recency for last-contacted displays: "2h", "3d", "5w". */
+export function formatAgo(value: string | null | undefined): string {
+  if (!value) return 'never'
+  const ms = Date.now() - new Date(value).getTime()
+  if (Number.isNaN(ms)) return 'never'
+  const minutes = Math.floor(ms / 60000)
+  if (minutes < 60) return `${Math.max(minutes, 0)}m`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h`
+  const days = Math.floor(hours / 24)
+  if (days < 14) return `${days}d`
+  return `${Math.floor(days / 7)}w`
+}

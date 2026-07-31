@@ -368,6 +368,10 @@ export type Database = {
           email: string | null
           full_name: string
           id: string
+          last_contact_detail: string | null
+          last_contact_method: string | null
+          last_contacted_at: string | null
+          last_contacted_by: string | null
           lead_source: string | null
           notes: string | null
           phone: string | null
@@ -382,6 +386,10 @@ export type Database = {
           email?: string | null
           full_name: string
           id?: string
+          last_contact_detail?: string | null
+          last_contact_method?: string | null
+          last_contacted_at?: string | null
+          last_contacted_by?: string | null
           lead_source?: string | null
           notes?: string | null
           phone?: string | null
@@ -396,6 +404,10 @@ export type Database = {
           email?: string | null
           full_name?: string
           id?: string
+          last_contact_detail?: string | null
+          last_contact_method?: string | null
+          last_contacted_at?: string | null
+          last_contacted_by?: string | null
           lead_source?: string | null
           notes?: string | null
           phone?: string | null
@@ -407,6 +419,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_last_contacted_by_fkey"
+            columns: ["last_contacted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1344,6 +1363,17 @@ export type Database = {
         Returns: string
       }
       delete_file: { Args: { p_file_id: string }; Returns: undefined }
+      log_contact: {
+        Args: {
+          p_at?: string
+          p_by?: string
+          p_contact_id: string
+          p_detail?: string
+          p_method: string
+          p_note?: string
+        }
+        Returns: undefined
+      }
       next_document_number: { Args: { p_prefix: string }; Returns: string }
       recompute_invoice_paid: {
         Args: { p_invoice_id: string }
@@ -1396,6 +1426,16 @@ export type Database = {
           p_to_number: string
         }
         Returns: string
+      }
+      touch_last_contacted: {
+        Args: {
+          p_at: string
+          p_by: string
+          p_contact_id: string
+          p_detail: string
+          p_method: string
+        }
+        Returns: undefined
       }
       void_invoice: {
         Args: { p_invoice_id: string; p_reason: string }
