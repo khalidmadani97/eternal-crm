@@ -16,6 +16,7 @@ interface UrgentItem {
   job_id: string | null
   who: string
   job_number: string | null
+  category?: string
   reason: string
   action: string
   priority: number
@@ -28,9 +29,22 @@ interface Brief {
   urgent: UrgentItem[]
 }
 
+interface BriefResponse {
+  brief: Brief
+  for?: { name: string; job_role: string | null }
+}
+
+const CATEGORY_CHIPS: Record<string, string> = {
+  outreach: 'bg-blue-100 text-blue-800',
+  production: 'bg-purple-100 text-purple-800',
+  internal: 'bg-stone-200 text-stone-700',
+  money: 'bg-emerald-100 text-emerald-800',
+  schedule: 'bg-orange-100 text-orange-800',
+}
+
 export function DailyBrief() {
   const generate = useMutation({
-    mutationFn: async (): Promise<Brief> => {
+    mutationFn: async (): Promise<BriefResponse> => {
       const { data, error } = await supabase.functions.invoke('daily-brief', { body: {} })
       if (error) {
         const context = (error as { context?: Response }).context
@@ -40,7 +54,7 @@ export function DailyBrief() {
         }
         throw error
       }
-      return data.brief as Brief
+      return data as BriefResponse
     },
   })
 
@@ -49,6 +63,11 @@ export function DailyBrief() {
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-800">
           ✨ Daily brief
+          {generate.data?.for?.job_role && (
+            <span className="ml-2 normal-case tracking-normal text-amber-700/70">
+              for {generate.data.for.name} · {generate.data.for.job_role}
+            </span>
+          )}
         </h2>
         <button
           onClick={() => generate.mutate()}
@@ -74,10 +93,10 @@ export function DailyBrief() {
       {generate.data && (
         <div>
           <p className="mb-3 whitespace-pre-wrap text-sm leading-relaxed text-stone-800">
-            {generate.data.summary}
+            {generate.data.brief.summary}
           </p>
           <ul className="space-y-2">
-            {generate.data.urgent.map((item, i) => (
+            {generate.data.brief.urgent.map((item, i) => (
               <UrgentRow key={`${item.contact_id}-${i}`} item={item} />
             ))}
           </ul>
@@ -122,6 +141,11 @@ function UrgentRow({ item }: { item: UrgentItem }) {
         >
           P{item.priority}
         </span>
+        {item.category && (
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${CATEGORY_CHIPS[item.category] ?? 'bg-stone-200 text-stone-700'}`}>
+            {item.category}
+          </span>
+        )}
         {link ? (
           <Link to={link} className="text-sm font-semibold text-stone-900 hover:text-amber-700 hover:underline">
             {item.who}

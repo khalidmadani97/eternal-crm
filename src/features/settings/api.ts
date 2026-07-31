@@ -6,6 +6,11 @@ import { supabase } from '../../lib/supabase'
 
 export const OPTION_LISTS: { key: string; label: string; description: string }[] = [
   {
+    key: 'job_roles',
+    label: 'Company roles',
+    description: 'Roles assignable to team members — the Daily Brief adapts to them.',
+  },
+  {
     key: 'lead_sources',
     label: 'Lead sources',
     description: 'Where jobs and contacts come from — feeds win-rate reporting.',
@@ -81,5 +86,50 @@ export function useDeleteOption() {
       if (error) throw error
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['options'] }),
+  })
+}
+
+
+// ── Team (Slice 29) ──────────────────────────────────────────────────────────
+
+export interface TeamMember {
+  id: string
+  full_name: string | null
+  role: 'admin' | 'staff'
+  job_role: string | null
+  responsibilities: string | null
+}
+
+export function useTeam() {
+  return useQuery({
+    queryKey: ['team'],
+    queryFn: async (): Promise<TeamMember[]> => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, role, job_role, responsibilities')
+        .order('full_name')
+      if (error) throw error
+      return data as TeamMember[]
+    },
+  })
+}
+
+export function useUpdateTeamMember() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string
+      patch: Partial<{ full_name: string; job_role: string | null; responsibilities: string | null }>
+    }) => {
+      const { error } = await supabase.from('profiles').update(patch).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['team'] })
+      void queryClient.invalidateQueries({ queryKey: ['profiles'] })
+    },
   })
 }
