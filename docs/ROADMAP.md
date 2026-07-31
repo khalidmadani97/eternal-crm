@@ -558,3 +558,15 @@ both. Closing a lead Won moves it to the Jobs workspace automatically
 (verified: stage → won stamps won_at and switches workspace membership);
 "New lead" on Pipeline starts at new, "New job" on Jobs starts at won for
 repeat clients that skip the pipeline. /board redirects to /pipeline.
+
+---
+
+## Slice 28 — Clickable cards/rows; agent on gpt-4o-mini
+**Status:** done (2026-07-31) — whole board cards and whole list rows
+navigate to the job (drag still works; the inline assignee select stops
+propagation); Daily Brief runs live on gpt-4o-mini in ~6s (kimi-k2.6 needs
+temperature=1 and thinks too long for an interactive brief — the explicit
+temperature was removed so either provider works; switch back anytime via
+AI_API_BASE/AI_MODEL). Contract generation verified working at the API — the
+"not generating" symptom was the long-lived dev server's broken HMR graph
+after many branch switches; server restarted (now on :5173).

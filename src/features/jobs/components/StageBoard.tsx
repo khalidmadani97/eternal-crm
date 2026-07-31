@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { formatCurrency, formatDate } from '../../../lib/format'
 import {
   installDate,
@@ -154,9 +154,11 @@ function BoardCard({
   onDragEnd: () => void
 }) {
   const install = installDate(job)
+  const navigate = useNavigate()
   return (
     <div
       draggable
+      onClick={() => void navigate(`/jobs/${job.id}`)}
       onDragStart={(e) => {
         // Safari refuses to start a drag without data; keep it text/plain.
         e.dataTransfer.setData('text/plain', job.id)
@@ -164,7 +166,7 @@ function BoardCard({
         onDragStart()
       }}
       onDragEnd={onDragEnd}
-      className={`cursor-grab rounded border border-stone-200 bg-white p-3 shadow-sm ${
+      className={`cursor-pointer rounded border border-stone-200 bg-white p-3 shadow-sm transition-shadow hover:border-amber-300 hover:shadow ${
         dragging ? 'opacity-40' : ''
       }`}
     >

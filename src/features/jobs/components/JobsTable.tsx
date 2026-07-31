@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useProfiles } from '../../auth/api'
 import { formatAgo, formatCurrency, formatDate } from '../../../lib/format'
 import { installDate, useJobs, useUpdateJob } from '../api'
@@ -22,6 +22,7 @@ export function JobsTable({
   const jobs = allJobs?.filter((j) => stages.includes(j.stage))
   const { data: profiles } = useProfiles()
   const updateJob = useUpdateJob()
+  const navigate = useNavigate()
   const [stageFilter, setStageFilter] = useState<JobStage | 'all'>('all')
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
@@ -155,7 +156,11 @@ export function JobsTable({
             </thead>
             <tbody>
               {visible.map((j) => (
-                <tr key={j.id} className="border-b border-stone-100 last:border-0 hover:bg-stone-50">
+                <tr
+                  key={j.id}
+                  onClick={() => void navigate(`/jobs/${j.id}`)}
+                  className="cursor-pointer border-b border-stone-100 last:border-0 hover:bg-stone-50"
+                >
                   <td className="px-4 py-3 font-medium">
                     <Link to={`/jobs/${j.id}`} className="text-stone-900 hover:text-amber-700 hover:underline">
                       {j.job_number}
@@ -181,6 +186,7 @@ export function JobsTable({
                   <td className="px-4 py-3">
                     <select
                       value={j.assignee?.id ?? ''}
+                      onClick={(e) => e.stopPropagation()}
                       onChange={(e) =>
                         updateJob.mutate({ id: j.id, patch: { assigned_to: e.target.value || null } })
                       }
