@@ -580,3 +580,13 @@ the brief personalizes to the caller (header shows who it's for), categorizes
 items, and routes cross-role signals by author. Live-verified end to end:
 salesperson's porcelain-mitre uncertainty became the production manager's
 P1 with correct attribution.
+
+---
+
+## Slice 30 — AI credits
+**Status:** done (2026-07-31, DECISIONS 030) — live-verified end to end:
+a real brief logged with token counts (1901 in / 713 out on gpt-4o-mini),
+the meter travels in every response ("N credits left" on the brief panel),
+dropping the cap produced a real 429 with a helpful message, and an admin
++25 grant unblocked immediately. Per-person usage bars + allowance editing
++ one-click grants in Settings → AI usage.
