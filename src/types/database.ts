@@ -1787,6 +1787,7 @@ export type Database = {
           business_id: string
           completed_at: string | null
           created_at: string
+          description: string | null
           due_date: string | null
           estimated_minutes: number | null
           id: string
@@ -1799,6 +1800,7 @@ export type Database = {
           business_id?: string
           completed_at?: string | null
           created_at?: string
+          description?: string | null
           due_date?: string | null
           estimated_minutes?: number | null
           id?: string
@@ -1811,6 +1813,7 @@ export type Database = {
           business_id?: string
           completed_at?: string | null
           created_at?: string
+          description?: string | null
           due_date?: string | null
           estimated_minutes?: number | null
           id?: string

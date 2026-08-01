@@ -6,6 +6,7 @@ import { useJobs } from '../../jobs/api'
 import { formatDate } from '../../../lib/format'
 import { useAllTasks, useCreateTask, useDeleteTask, useUpdateTask } from '../api'
 import type { TaskRow } from '../api'
+import { TaskDetailDialog } from '../components/TaskDetailDialog'
 
 type StatusFilter = 'open' | 'done' | 'all'
 
@@ -103,6 +104,7 @@ export function TasksPage() {
 function TaskLine({ task, today }: { task: TaskRow; today: string }) {
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
+  const [openDetail, setOpenDetail] = useState(false)
   const { data: profiles } = useProfiles()
   const overdue = !task.completed_at && !!task.due_date && task.due_date < today
 
@@ -122,9 +124,19 @@ function TaskLine({ task, today }: { task: TaskRow; today: string }) {
         />
       </td>
       <td className="px-2 py-2.5">
-        <span className={task.completed_at ? 'text-stone-400 line-through' : 'text-stone-900'}>
+        <button
+          onClick={() => setOpenDetail(true)}
+          className={`text-left hover:text-amber-700 hover:underline ${
+            task.completed_at ? 'text-stone-400 line-through' : 'text-stone-900'
+          }`}
+        >
           {task.title}
-        </span>
+        </button>
+        {task.description && (
+          <span className="ml-1.5 text-xs text-stone-400" title={task.description}>
+            📝
+          </span>
+        )}
         {task.estimated_minutes && (
           <span className="ml-2 rounded bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-500">
             {task.estimated_minutes}m
@@ -165,6 +177,7 @@ function TaskLine({ task, today }: { task: TaskRow; today: string }) {
         >
           ×
         </button>
+        {openDetail && <TaskDetailDialog task={task} onClose={() => setOpenDetail(false)} />}
       </td>
     </tr>
   )
