@@ -4,6 +4,7 @@ import { useAuth } from '../features/auth/AuthProvider'
 import { useMyMembership, switchBusiness } from '../features/settings/api'
 import { CommandPalette } from './CommandPalette'
 import { Lobby } from './Lobby'
+import { SaraChat } from './SaraChat'
 import { PushToggle } from './PushToggle'
 
 const NAV_ITEMS = [
@@ -81,6 +82,7 @@ export function AppShell() {
         <main className="flex-1 p-6">
           <Outlet />
         </main>
+        <SaraChat />
       </div>
     </div>
   )

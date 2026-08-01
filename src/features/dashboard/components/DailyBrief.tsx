@@ -63,7 +63,7 @@ export function DailyBrief() {
     <section className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 p-4">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-800">
-          ✨ Daily brief
+          ✨ Sara's daily brief
           {generate.data?.for?.job_role && (
             <span className="ml-2 normal-case tracking-normal text-amber-700/70">
               for {generate.data.for.name} · {generate.data.for.job_role}
@@ -81,21 +81,21 @@ export function DailyBrief() {
             disabled={generate.isPending}
             className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
           >
-            {generate.isPending ? 'Reading everything…' : generate.data ? 'Refresh' : 'Plan my day'}
+            {generate.isPending ? 'Sara is reading everything…' : generate.data ? 'Refresh' : 'Sara, plan my day'}
           </button>
         </span>
       </div>
       {generate.isError && (
         <p className="text-sm text-red-600">
           {generate.error.message.includes('configured')
-            ? 'The AI agent needs AI_API_KEY (Kimi/Moonshot or any OpenAI-compatible key) in the function secrets.'
+            ? 'Sara needs AI_API_KEY (Kimi/Moonshot or any OpenAI-compatible key) in the function secrets.'
             : generate.error.message}
         </p>
       )}
       {!generate.data && !generate.isPending && !generate.isError && (
         <p className="text-sm text-stone-500">
-          One click reads every lead, note, transcript, install, and overdue invoice — and hands
-          you the day's priorities.
+          Sara reads every lead, note, transcript, install, and overdue invoice — then hands you
+          the day's priorities. Ask her follow-ups from the ✨ chat, bottom right.
         </p>
       )}
       {generate.data && (

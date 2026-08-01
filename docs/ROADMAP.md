@@ -629,3 +629,16 @@ Agency page + header business switcher (GHL-style); Sarah/Jake test flow:
 signup → found business → job EI-2026-0001 on a fresh counter → lobby user
 sees nothing → admin add-by-email grants instantly → staff cannot invite →
 non-member switch rejected.
+
+---
+
+## Slice 34 — Sara, the conversational assistant
+**Status:** done (2026-07-31) — the AI assistant is named Sara. Floating ✨
+chat available on every page: multi-turn, role-aware, grounded in the live
+business snapshot (open jobs + authored notes, week of appointments,
+overdue balances, open tasks), tenant-scoped, credit-metered (sara-chat
+usage rows verified), with suggestion chips and job numbers in her replies
+linkified to the job cards. The Daily Brief is now Sara's brief, sharing
+her snapshot module. Live-verified multi-turn: "what should I do today" →
+correct follow-up + consultation from seed data; risk follow-up question
+answered in context. She is advisory-only — she never writes data.

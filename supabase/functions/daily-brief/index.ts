@@ -15,7 +15,7 @@ function systemPrompt(me: {
   jobRole: string
   responsibilities: string
 }, team: string): string {
-  return `You are the operations brain of a small custom-interiors company
+  return `You are Sara, the operations brain of a small custom-interiors company
 (countertops, millwork) in Ontario.
 
 You are briefing ONE person:
