@@ -653,3 +653,17 @@ the chat empty state); one-time greeting bubble invites new users to say
 hi (localStorage-dismissed). Lives on the floating button, the chat
 header, the thinking indicator, and the Daily Brief title. Needs a
 human eye for the cuteness check.
+
+---
+
+## Slice 36 — Sara schedules tasks, conservatively
+**Status:** done (2026-07-31) — Sara's first write ability: create_task via
+tool-calling. Double-guarded: the prompt feeds her everyone's 7-day task
+load and orders the fewest tasks possible / realistic dates / spread the
+week / suggest delegation when someone's loaded; the server caps 3 per
+message, validates assignees against active business members, clamps due
+dates (today…+60d), resolves job numbers within the tenant, and attributes
+business_id explicitly. Chat shows "✓ Task on calendar" chips and
+invalidates task/calendar caches. Live-verified: one correct task created
+with the job resolved from conversational context; a 10-task over-schedule
+request was refused with a load-based explanation (0 created).

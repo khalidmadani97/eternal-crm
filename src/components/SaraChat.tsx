@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useJobs } from '../features/jobs/api'
 import { SaraBot } from './SaraBot'
@@ -10,9 +10,17 @@ import type { SaraMood } from './SaraBot'
 // reads the live snapshot server-side; the client just holds the
 // conversation. Job numbers in her replies become links.
 
+interface CreatedTask {
+  title: string
+  due_date: string
+  assignee: string
+  job_number: string | null
+}
+
 interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
+  createdTasks?: CreatedTask[]
 }
 
 const SUGGESTIONS = [
@@ -31,6 +39,7 @@ export function SaraChat() {
   const [creditsLeft, setCreditsLeft] = useState<number | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const { data: jobs } = useJobs()
+  const queryClient = useQueryClient()
 
   const send = useMutation({
     mutationFn: async (history: ChatMessage[]) => {
@@ -45,11 +54,18 @@ export function SaraChat() {
         }
         throw error
       }
-      return data as { reply: string; usage?: { used: number; cap: number } }
+      return data as { reply: string; createdTasks?: CreatedTask[]; usage?: { used: number; cap: number } }
     },
     onSuccess: (data) => {
-      setMessages((m) => [...m, { role: 'assistant', content: data.reply }])
+      setMessages((m) => [
+        ...m,
+        { role: 'assistant', content: data.reply, createdTasks: data.createdTasks },
+      ])
       if (data.usage) setCreditsLeft(data.usage.cap - data.usage.used)
+      if (data.createdTasks?.length) {
+        void queryClient.invalidateQueries({ queryKey: ['tasks'] })
+        void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      }
       setJustAnswered(true)
       setTimeout(() => setJustAnswered(false), 2500)
     },
@@ -175,14 +191,28 @@ export function SaraChat() {
               </div>
             )}
             {messages.map((m, i) => (
-              <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex'}>
-                <div
-                  className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                    m.role === 'user' ? 'bg-violet-600 text-white' : 'bg-stone-100 text-stone-800'
-                  }`}
-                >
-                  {m.role === 'assistant' ? renderContent(m.content) : m.content}
+              <div key={i}>
+                <div className={m.role === 'user' ? 'flex justify-end' : 'flex'}>
+                  <div
+                    className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                      m.role === 'user' ? 'bg-violet-600 text-white' : 'bg-stone-100 text-stone-800'
+                    }`}
+                  >
+                    {m.role === 'assistant' ? renderContent(m.content) : m.content}
+                  </div>
                 </div>
+                {m.createdTasks?.map((t, ti) => (
+                  <Link
+                    key={ti}
+                    to="/tasks"
+                    onClick={() => setOpen(false)}
+                    className="mt-1.5 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800 hover:bg-emerald-100"
+                  >
+                    ✓ Task on calendar: <span className="font-medium">{t.title}</span> · {t.due_date} ·{' '}
+                    {t.assignee}
+                    {t.job_number ? ` · ${t.job_number}` : ''}
+                  </Link>
+                ))}
               </div>
             ))}
             {send.isPending && (

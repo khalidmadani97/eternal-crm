@@ -152,6 +152,17 @@ export async function buildSnapshot(sb: SupabaseClient, businessId: string | nul
       balance: Number(inv.total) - Number(inv.amount_paid),
     })),
     open_tasks: tasksRes.data ?? [],
+    // Who is already loaded this week — so new tasks get placed sparingly.
+    task_load_next_7_days: Object.fromEntries(
+      ((tasksRes.data ?? []) as { assignee: { full_name: string | null } | null }[]).reduce(
+        (m, t) => {
+          const who = t.assignee?.full_name ?? 'unassigned'
+          m.set(who, (m.get(who) ?? 0) + 1)
+          return m
+        },
+        new Map<string, number>(),
+      ),
+    ),
   }
 }
 
