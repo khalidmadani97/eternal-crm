@@ -642,3 +642,14 @@ linkified to the job cards. The Daily Brief is now Sara's brief, sharing
 her snapshot module. Live-verified multi-turn: "what should I do today" →
 correct follow-up + consultation from seed data; risk follow-up question
 answered in context. She is advisory-only — she never writes data.
+
+---
+
+## Slice 35 — Sara's face
+**Status:** done (2026-07-31) — hand-drawn SVG bot mascot, zero
+dependencies: bobbing/blinking with a glowing antenna when idle, darting
+eyes while she reads the books, beaming + waving when she answers (and in
+the chat empty state); one-time greeting bubble invites new users to say
+hi (localStorage-dismissed). Lives on the floating button, the chat
+header, the thinking indicator, and the Daily Brief title. Needs a
+human eye for the cuteness check.
