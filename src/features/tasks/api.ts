@@ -5,6 +5,7 @@ export interface TaskRow {
   id: string
   title: string
   due_date: string | null
+  estimated_minutes: number | null
   completed_at: string | null
   created_at: string
   assignee: { id: string; full_name: string | null } | null
@@ -12,7 +13,7 @@ export interface TaskRow {
 }
 
 const TASK_SELECT = `
-  id, title, due_date, completed_at, created_at,
+  id, title, due_date, estimated_minutes, completed_at, created_at,
   assignee:profiles ( id, full_name ),
   job:jobs ( id, job_number, title )
 ` as const

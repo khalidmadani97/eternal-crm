@@ -667,3 +667,20 @@ business_id explicitly. Chat shows "✓ Task on calendar" chips and
 invalidates task/calendar caches. Live-verified: one correct task created
 with the job resolved from conversational context; a 10-task over-schedule
 request was refused with a load-based explanation (0 created).
+
+---
+
+## Slice 37 — Time-boxed tasks, hero dashboard, session self-heal
+**Status:** done (2026-08-01) — tasks carry estimated_minutes (5–480 for
+humans; Sara is clamped 5–120, default 15, prompted never to pad — a call
+is 10-15 min); minutes show on task rows and Sara's confirmation chips.
+Live-verified: she refused to duplicate an existing follow-up task AND
+refused to overload a day that already had an install, instead of blindly
+booking a padded block. Dashboard: gradient hero where Sara greets you by
+first name with a time-of-day hello and a one-line day summary (appts /
+overdue / tasks due), plus glass stat tiles — no AI credits spent on page
+load. Auth self-heal: a locally stored session that the server no longer
+recognizes (e.g. after a dev db reset) is validated once on load and
+cleared to the login page instead of erroring app-wide; root cause of
+today's "not authenticated" (auth/db container migration mismatch) fixed
+by stack restart.

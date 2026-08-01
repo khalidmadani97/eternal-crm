@@ -17,7 +17,7 @@ const TOOLS = [
     function: {
       name: 'create_task',
       description:
-        'Create ONE task on the company calendar. Use only when the user asks for it or clearly agrees. Be conservative with people\'s time: the fewest tasks possible, realistic due dates, and never pile onto someone already loaded that day/week (see task_load_next_7_days).',
+        'Create ONE task on the company calendar. Use only when the user asks for it or clearly agrees. Be conservative with people\'s time: the fewest tasks possible, realistic due dates, never pile onto someone already loaded (see task_load_next_7_days), and time-box TIGHTLY via estimated_minutes — a follow-up call is 10-15 min, a quote review 20-30, a site visit 60. Never pad.',
       parameters: {
         type: 'object',
         properties: {
@@ -28,6 +28,10 @@ const TOOLS = [
             description: 'Team member full name from the directory; omit to assign the person you are talking to',
           },
           job_number: { type: 'string', description: 'Related job number (EI-…) if any' },
+          estimated_minutes: {
+            type: 'integer',
+            description: 'Tight time budget in minutes (5-120). Default 15. Do not pad.',
+          },
         },
         required: ['title', 'due_date'],
       },
@@ -40,13 +44,20 @@ interface CreatedTask {
   due_date: string
   assignee: string
   job_number: string | null
+  estimated_minutes: number
 }
 
 async function executeCreateTask(
   sb: SupabaseClient,
   businessId: string,
   callerUserId: string,
-  args: { title?: string; due_date?: string; assignee_name?: string; job_number?: string },
+  args: {
+    title?: string
+    due_date?: string
+    assignee_name?: string
+    job_number?: string
+    estimated_minutes?: number
+  },
 ): Promise<{ ok: boolean; result: string; created?: CreatedTask }> {
   const title = (args.title ?? '').trim()
   if (!title) return { ok: false, result: 'title is required' }
@@ -89,18 +100,22 @@ async function executeCreateTask(
     }
   }
 
+  // Time is precious: clamp to a tight window, default 15 minutes.
+  const minutes = Math.min(120, Math.max(5, Math.round(Number(args.estimated_minutes) || 15)))
+
   const { error } = await sb.from('tasks').insert({
     business_id: businessId,
     title,
     due_date: due,
     assigned_to: assignedTo,
     job_id: jobId,
+    estimated_minutes: minutes,
   })
   if (error) return { ok: false, result: error.message }
   return {
     ok: true,
-    result: `created: "${title}" due ${due} for ${assigneeName}${jobNumber ? ` on ${jobNumber}` : ''}`,
-    created: { title, due_date: due, assignee: assigneeName, job_number: jobNumber },
+    result: `created: "${title}" due ${due} (${minutes} min) for ${assigneeName}${jobNumber ? ` on ${jobNumber}` : ''}`,
+    created: { title, due_date: due, assignee: assigneeName, job_number: jobNumber, estimated_minutes: minutes },
   }
 }
 
@@ -163,7 +178,8 @@ lane and route other-lane items to the right teammate by name. Be concise.
 You have ONE ability beyond talking: create_task puts a task on the
 calendar. Use it ONLY when the user asks or clearly agrees. BE CONSERVATIVE
 WITH PEOPLE'S TIME: create the fewest tasks that cover the need (usually
-one), pick realistic due dates, spread work across the week, and check
+one), pick realistic due dates, spread work across the week, time-box every task tightly
+(estimated_minutes — never pad; most tasks are 15 minutes), and check
 task_load_next_7_days before adding to someone's plate — if they're loaded,
 suggest another day or another teammate instead. Never create more than
 ${MAX_TASKS_PER_MESSAGE} tasks in one go. After creating, confirm plainly

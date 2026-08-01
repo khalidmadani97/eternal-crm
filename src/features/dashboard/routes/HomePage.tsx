@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useAuth } from '../../auth/AuthProvider'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../../lib/supabase'
 import { formatCurrency, formatDate } from '../../../lib/format'
@@ -7,6 +8,8 @@ import { usePipelineByStage } from '../../reports/api'
 import { StageBadge } from '../../jobs/components/StageBadge'
 import type { JobStage } from '../../jobs/api'
 import { DailyBrief } from '../components/DailyBrief'
+import { SaraBot } from '../../../components/SaraBot'
+import { useTeam } from '../../settings/api'
 
 // The morning screen: what needs attention today, without hunting for it.
 
@@ -83,12 +86,23 @@ function useStaleJobs() {
   })
 }
 
+function timeOfDay(): string {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
 export function HomePage() {
   const now = new Date()
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const dayEnd = new Date(dayStart)
   dayEnd.setDate(dayEnd.getDate() + 1)
   const today = useAppointments(dayStart.toISOString(), dayEnd.toISOString())
+  const { session } = useAuth()
+  const { data: team } = useTeam()
+  const firstName = (team?.find((m) => m.id === session?.user.id)?.full_name ?? '')
+    .split(' ')[0]
   const overdue = useOverdueInvoices()
   const tasks = useDueTasks()
   const stale = useStaleJobs()
@@ -102,23 +116,46 @@ export function HomePage() {
     0,
   )
 
+  const apptsToday = today.data?.length ?? 0
+  const overdueCount = overdue.data?.length ?? 0
+  const tasksDueToday =
+    tasks.data?.filter((t) => t.due_date === now.toISOString().slice(0, 10)).length ?? 0
+
   return (
     <div>
-      <h1 className="mb-1 text-xl font-semibold text-stone-900">
-        {now.toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })}
-      </h1>
-      <p className="mb-4 text-sm text-stone-500">
-        Open pipeline{' '}
-        <span className="font-semibold text-stone-800">{formatCurrency(openPipeline ?? 0)}</span>
-        {overdueTotal !== undefined && overdueTotal > 0 && (
-          <>
-            {' · '}
-            <span className="font-semibold text-red-700">
-              {formatCurrency(overdueTotal)} overdue
-            </span>
-          </>
-        )}
-      </p>
+      {/* Hero — Sara greets you personally */}
+      <div className="mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-stone-900 via-stone-900 to-violet-950 p-6 text-white shadow-lg">
+        <div className="flex flex-wrap items-center gap-5">
+          <div className="shrink-0 rounded-full bg-white/95 p-1 shadow-lg ring-2 ring-violet-400/60">
+            <SaraBot size={72} mood="happy" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xl font-semibold">
+              {timeOfDay()}
+              {firstName ? `, ${firstName}` : ''}! <span className="align-middle">👋</span>
+            </p>
+            <p className="mt-0.5 text-sm text-stone-300">
+              {now.toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })} —{' '}
+              {apptsToday > 0
+                ? `${apptsToday} appointment${apptsToday === 1 ? '' : 's'} today`
+                : 'nothing on the calendar today'}
+              {overdueCount > 0 && `, ${overdueCount} overdue invoice${overdueCount === 1 ? '' : 's'}`}
+              {tasksDueToday > 0 && `, ${tasksDueToday} task${tasksDueToday === 1 ? '' : 's'} due`}
+              . Ask me to plan your day below, or ping me anytime from the bubble. — Sara
+            </p>
+          </div>
+          <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4">
+            <HeroStat label="Pipeline" value={formatCurrency(openPipeline ?? 0)} />
+            <HeroStat
+              label="Overdue"
+              value={formatCurrency(overdueTotal ?? 0)}
+              alarm={(overdueTotal ?? 0) > 0}
+            />
+            <HeroStat label="Today" value={`${apptsToday} appt${apptsToday === 1 ? '' : 's'}`} />
+            <HeroStat label="Tasks due" value={String(tasksDueToday)} />
+          </div>
+        </div>
+      </div>
 
       <DailyBrief />
 
@@ -241,6 +278,17 @@ export function HomePage() {
           </ul>
         </section>
       </div>
+    </div>
+  )
+}
+
+function HeroStat({ label, value, alarm }: { label: string; value: string; alarm?: boolean }) {
+  return (
+    <div className="rounded-xl bg-white/10 px-3 py-2 backdrop-blur">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">{label}</p>
+      <p className={`text-sm font-bold tabular-nums ${alarm ? 'text-red-300' : 'text-white'}`}>
+        {value}
+      </p>
     </div>
   )
 }

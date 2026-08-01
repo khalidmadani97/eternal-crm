@@ -125,6 +125,11 @@ function TaskLine({ task, today }: { task: TaskRow; today: string }) {
         <span className={task.completed_at ? 'text-stone-400 line-through' : 'text-stone-900'}>
           {task.title}
         </span>
+        {task.estimated_minutes && (
+          <span className="ml-2 rounded bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-500">
+            {task.estimated_minutes}m
+          </span>
+        )}
         {task.job && (
           <Link to={`/jobs/${task.job.id}`} className="ml-2 text-xs text-amber-700 hover:underline">
             {task.job.job_number}

@@ -1788,6 +1788,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           due_date: string | null
+          estimated_minutes: number | null
           id: string
           job_id: string | null
           title: string
@@ -1799,6 +1800,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           due_date?: string | null
+          estimated_minutes?: number | null
           id?: string
           job_id?: string | null
           title: string
@@ -1810,6 +1812,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           due_date?: string | null
+          estimated_minutes?: number | null
           id?: string
           job_id?: string | null
           title?: string
@@ -1874,6 +1877,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      my_business_ids: { Args: never; Returns: string[] }
       next_document_number: { Args: { p_prefix: string }; Returns: string }
       recompute_invoice_paid: {
         Args: { p_invoice_id: string }

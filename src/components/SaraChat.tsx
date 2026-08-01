@@ -15,6 +15,7 @@ interface CreatedTask {
   due_date: string
   assignee: string
   job_number: string | null
+  estimated_minutes?: number
 }
 
 interface ChatMessage {
@@ -208,8 +209,8 @@ export function SaraChat() {
                     onClick={() => setOpen(false)}
                     className="mt-1.5 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800 hover:bg-emerald-100"
                   >
-                    ✓ Task on calendar: <span className="font-medium">{t.title}</span> · {t.due_date} ·{' '}
-                    {t.assignee}
+                    ✓ Task on calendar: <span className="font-medium">{t.title}</span> · {t.due_date}
+                    {t.estimated_minutes ? ` · ${t.estimated_minutes} min` : ''} · {t.assignee}
                     {t.job_number ? ` · ${t.job_number}` : ''}
                   </Link>
                 ))}
