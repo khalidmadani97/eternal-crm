@@ -16,7 +16,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
+      // A locally stored session can outlive its server user (e.g. after a
+      // local db reset). Validate once; if the server rejects it, clear it
+      // so the app lands on login instead of erroring everywhere.
+      if (data.session) {
+        const { error } = await supabase.auth.getUser()
+        if (error) {
+          await supabase.auth.signOut()
+          setSession(null)
+          setLoading(false)
+          return
+        }
+      }
       setSession(data.session)
       setLoading(false)
     })
