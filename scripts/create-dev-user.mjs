@@ -34,3 +34,30 @@ if (res.ok) {
   console.error('Could not create dev user:', data)
   process.exit(1)
 }
+
+
+// Platform-admin flag + default-business membership (idempotent).
+const headers = {
+  apikey: LOCAL_SERVICE_KEY,
+  Authorization: `Bearer ${LOCAL_SERVICE_KEY}`,
+  'Content-Type': 'application/json',
+  Prefer: 'resolution=merge-duplicates',
+}
+await fetch(`${LOCAL_URL}/rest/v1/profiles?id=eq.00000000-0000-4000-a000-00000000cafe`, {
+  method: 'PATCH',
+  headers,
+  body: JSON.stringify({
+    platform_admin: true,
+    active_business_id: '00000000-0000-4000-9000-000000000001',
+  }),
+})
+await fetch(`${LOCAL_URL}/rest/v1/business_members?on_conflict=business_id,user_id`, {
+  method: 'POST',
+  headers,
+  body: JSON.stringify({
+    business_id: '00000000-0000-4000-9000-000000000001',
+    user_id: '00000000-0000-4000-a000-00000000cafe',
+    role: 'admin',
+  }),
+})
+console.log('Dev user is platform admin on the default business.')

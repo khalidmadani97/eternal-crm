@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../AuthProvider'
 
@@ -76,6 +76,12 @@ export function LoginPage() {
           >
             {isSubmitting ? 'Signing in…' : 'Sign in'}
           </button>
+          <p className="text-center text-sm text-stone-500">
+            New here?{' '}
+            <Link to="/signup" className="text-amber-700 hover:underline">
+              Create an account
+            </Link>
+          </p>
         </form>
       </div>
     </div>

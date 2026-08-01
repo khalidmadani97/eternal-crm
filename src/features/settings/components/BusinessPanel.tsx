@@ -43,8 +43,10 @@ export function BusinessPanel() {
       return
     }
     setValidationError(null)
+    if (!settings) return
     update.mutate(
       {
+        business_id: settings.business_id,
         name: form.name.trim(),
         tagline: form.tagline.trim() || null,
         phone,

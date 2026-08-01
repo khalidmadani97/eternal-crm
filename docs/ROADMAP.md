@@ -617,3 +617,15 @@ the private bucket with a working signed download, Google Drive copy
 gracefully skipped until GDRIVE_* secrets exist. P&L panel and
 Business/Integrations/Security tabs admin-only in UI on top of the DB
 enforcement.
+
+---
+
+## Slice 33 — Multi-tenant accounts, signup, agency view
+**Status:** done (2026-07-31, DECISIONS 032) — public signup (create a
+business and become its admin, or wait in the lobby until an admin adds
+your email in Settings → Team); complete tenant isolation verified live
+both ways with a second business (data, profiles, counters); platform-admin
+Agency page + header business switcher (GHL-style); Sarah/Jake test flow:
+signup → found business → job EI-2026-0001 on a fresh counter → lobby user
+sees nothing → admin add-by-email grants instantly → staff cannot invite →
+non-member switch rejected.

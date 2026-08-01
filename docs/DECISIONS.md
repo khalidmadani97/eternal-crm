@@ -579,3 +579,32 @@ Drive when GDRIVE_CLIENT_ID/SECRET/REFRESH_TOKEN/FOLDER_ID are configured
 **Consequence** — A leaked staff login cannot read the P&L, self-promote, or
 export data. Backups restore via the import path or straight SQL. Off-site
 copies depend on the GDRIVE_* secrets being set.
+
+---
+
+## 032 — Multi-tenant accounts via a restrictive isolation layer
+2026-07 · accepted (supersedes the "no multi-tenancy" out-of-scope entry at
+the owner's direction — the product is heading GHL-shaped)
+
+**Context** — Open signup, business workspaces with admin-controlled
+membership, and a platform-admin view over every business.
+
+**Decision** — `businesses` + `business_members`; every tenant table gains
+`business_id` (default `current_business()`, BEFORE-INSERT trigger deriving
+from parent rows / active business / sole business) and ONE RESTRICTIVE RLS
+policy (`business_id = current_business()`) layered over the untouched,
+verified permission matrix. Service role stays exempt (webhooks attribute
+via parent rows). Numbering, stage settings, option lists, and business
+settings are per business; `register_business()` seeds a new workspace;
+`add_member_by_email()` (business-admin only) grants access;
+`set_active_business()` switches; `platform_admin` profiles see all
+businesses (Agency page + header switcher). Membership-reading policies use
+a SECURITY DEFINER `my_business_ids()` to avoid RLS self-recursion.
+Profiles are visible only to co-members.
+
+**Consequence** — App code needed almost no query changes. Verified live
+with two tenants: complete two-way isolation (jobs/contacts/profiles),
+fresh per-business number sequences, lobby → add-by-email flow, staff
+cannot invite, non-members cannot switch in, platform admin can. Per-tenant
+Twilio/Meta webhook routing is future work (currently sole-business
+fallback).

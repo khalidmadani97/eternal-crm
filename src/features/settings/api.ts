@@ -137,6 +137,7 @@ export function useUpdateTeamMember() {
 // ── Business settings (Slice 31) ─────────────────────────────────────────────
 
 export interface BusinessSettings {
+  business_id: string
   name: string
   tagline: string | null
   phone: string | null
@@ -152,9 +153,9 @@ export function useBusinessSettings() {
     queryFn: async (): Promise<BusinessSettings> => {
       const { data, error } = await supabase
         .from('business_settings')
-        .select('name, tagline, phone, email, address, hst_number, default_tax_rate')
-        .eq('id', true)
-        .single()
+        .select('business_id, name, tagline, phone, email, address, hst_number, default_tax_rate')
+        .single() // RLS scopes to the active business
+
       if (error) throw error
       return data as BusinessSettings
     },
@@ -165,8 +166,12 @@ export function useBusinessSettings() {
 export function useUpdateBusinessSettings() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (patch: Partial<BusinessSettings>) => {
-      const { error } = await supabase.from('business_settings').update(patch).eq('id', true)
+    mutationFn: async (patch: Partial<BusinessSettings> & { business_id: string }) => {
+      const { business_id, ...rest } = patch
+      const { error } = await supabase
+        .from('business_settings')
+        .update(rest)
+        .eq('business_id', business_id)
       if (error) throw error
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['business-settings'] }),
@@ -193,4 +198,62 @@ export function useIntegrationStatus() {
     },
     staleTime: 5 * 60_000,
   })
+}
+
+
+// ── Multi-tenant (Slice 33) ──────────────────────────────────────────────────
+
+export interface MyMembership {
+  activeBusinessId: string | null
+  platformAdmin: boolean
+  businesses: { id: string; name: string }[]
+}
+
+export function useMyMembership() {
+  return useQuery({
+    queryKey: ['my-membership'],
+    queryFn: async (): Promise<MyMembership> => {
+      const [profileRes, bizRes] = await Promise.all([
+        supabase.from('profiles').select('active_business_id, platform_admin').single(),
+        supabase.from('businesses').select('id, name').order('name'),
+      ])
+      if (profileRes.error) throw profileRes.error
+      if (bizRes.error) throw bizRes.error
+      return {
+        activeBusinessId: profileRes.data.active_business_id,
+        platformAdmin: profileRes.data.platform_admin,
+        businesses: bizRes.data,
+      }
+    },
+  })
+}
+
+export function useRegisterBusiness() {
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const { data, error } = await supabase.rpc('register_business', { p_name: name })
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export function useAddMember() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ email, role }: { email: string; role: 'admin' | 'staff' }) => {
+      const { error } = await supabase.rpc('add_member_by_email', { p_email: email, p_role: role })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['team'] })
+      void queryClient.invalidateQueries({ queryKey: ['profiles'] })
+    },
+  })
+}
+
+export async function switchBusiness(businessId: string) {
+  const { error } = await supabase.rpc('set_active_business', { p_business: businessId })
+  if (error) throw error
+  window.location.assign('/home') // full reload: every cache is tenant-scoped
 }
