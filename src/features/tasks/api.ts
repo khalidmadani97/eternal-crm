@@ -6,6 +6,7 @@ export interface TaskRow {
   title: string
   due_date: string | null
   estimated_minutes: number | null
+  description: string | null
   completed_at: string | null
   created_at: string
   assignee: { id: string; full_name: string | null } | null
@@ -13,7 +14,7 @@ export interface TaskRow {
 }
 
 const TASK_SELECT = `
-  id, title, due_date, estimated_minutes, completed_at, created_at,
+  id, title, description, due_date, estimated_minutes, completed_at, created_at,
   assignee:profiles ( id, full_name ),
   job:jobs ( id, job_number, title )
 ` as const
@@ -78,9 +79,12 @@ export function useUpdateTask() {
       id: string
       patch: Partial<{
         title: string
+        description: string | null
         completed_at: string | null
         assigned_to: string | null
         due_date: string | null
+        estimated_minutes: number | null
+        job_id: string | null
       }>
     }) => {
       const { error } = await supabase.from('tasks').update(patch).eq('id', id)

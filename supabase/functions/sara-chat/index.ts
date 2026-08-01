@@ -32,6 +32,10 @@ const TOOLS = [
             type: 'integer',
             description: 'Tight time budget in minutes (5-120). Default 15. Do not pad.',
           },
+          description: {
+            type: 'string',
+            description: 'Optional 1-3 sentence instructions: context, what good looks like, key numbers',
+          },
         },
         required: ['title', 'due_date'],
       },
@@ -57,6 +61,7 @@ async function executeCreateTask(
     assignee_name?: string
     job_number?: string
     estimated_minutes?: number
+    description?: string
   },
 ): Promise<{ ok: boolean; result: string; created?: CreatedTask }> {
   const title = (args.title ?? '').trim()
@@ -110,6 +115,7 @@ async function executeCreateTask(
     assigned_to: assignedTo,
     job_id: jobId,
     estimated_minutes: minutes,
+    description: args.description?.trim().slice(0, 600) || null,
   })
   if (error) return { ok: false, result: error.message }
   return {

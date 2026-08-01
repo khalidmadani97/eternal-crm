@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { formatDate } from '../../../lib/format'
 import { useAddTask, useJobTasks, useToggleTask } from '../api'
+import { useAllTasks } from '../../tasks/api'
+import { TaskDetailDialog } from '../../tasks/components/TaskDetailDialog'
 
 export function JobTasks({ jobId }: { jobId: string }) {
   const { data: tasks, isPending, isError, error } = useJobTasks(jobId)
@@ -8,6 +10,9 @@ export function JobTasks({ jobId }: { jobId: string }) {
   const toggleTask = useToggleTask(jobId)
   const [title, setTitle] = useState('')
   const [dueDate, setDueDate] = useState('')
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null)
+  const { data: allTasks } = useAllTasks()
+  const openTask = allTasks?.find((t) => t.id === openTaskId)
 
   const submit = async () => {
     if (!title.trim()) return
@@ -58,15 +63,21 @@ export function JobTasks({ jobId }: { jobId: string }) {
               onChange={(e) => toggleTask.mutate({ id: t.id, done: e.target.checked })}
               className="h-4 w-4 accent-amber-600"
             />
-            <span className={t.completed_at ? 'text-stone-400 line-through' : 'text-stone-800'}>
+            <button
+              onClick={() => setOpenTaskId(t.id)}
+              className={`text-left hover:text-amber-700 hover:underline ${
+                t.completed_at ? 'text-stone-400 line-through' : 'text-stone-800'
+              }`}
+            >
               {t.title}
-            </span>
+            </button>
             {t.due_date && (
               <span className="ml-auto text-xs text-stone-400">{formatDate(t.due_date)}</span>
             )}
           </li>
         ))}
       </ul>
+      {openTask && <TaskDetailDialog task={openTask} onClose={() => setOpenTaskId(null)} />}
     </section>
   )
 }

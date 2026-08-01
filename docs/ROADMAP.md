@@ -684,3 +684,12 @@ recognizes (e.g. after a dev db reset) is validated once on load and
 cleared to the login page instead of erroring app-wide; root cause of
 today's "not authenticated" (auth/db container migration mismatch) fixed
 by stack restart.
+
+---
+
+## Slice 38 — Openable, fully editable tasks
+**Status:** done (2026-08-01) — tasks open into a detail dialog from the
+Tasks page and job cards: notes/instructions (new description column,
+📝 indicator on rows), due date, assignee, time budget, linked job,
+complete toggle, delete. Sara now writes 1-3 sentence instructions into
+tasks she creates. Edit paths verified via REST.
