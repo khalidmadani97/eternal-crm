@@ -85,7 +85,7 @@ export function SaraChat() {
     return parts.map((part, i) => {
       const job = jobs?.find((j) => j.job_number === part)
       return job ? (
-        <Link key={i} to={`/jobs/${job.id}`} className="font-medium text-amber-300 underline hover:text-amber-200" onClick={() => setOpen(false)}>
+        <Link key={i} to={`/jobs/${job.id}`} className="font-medium text-violet-700 underline hover:text-violet-500" onClick={() => setOpen(false)}>
           {part}
         </Link>
       ) : (
@@ -99,9 +99,9 @@ export function SaraChat() {
   return (
     <>
       {greeting && !open && (
-        <div className="sara-bubble fixed bottom-24 right-5 z-30 w-56 rounded-2xl rounded-br-sm border border-amber-200 bg-white p-3 shadow-xl">
+        <div className="sara-bubble fixed bottom-24 right-5 z-30 w-56 rounded-2xl rounded-br-sm border border-violet-200 bg-white p-3 shadow-xl">
           <p className="text-sm text-stone-700">
-            Hi, I'm <span className="font-semibold text-amber-700">Sara</span>! 👋 Ask me what you
+            Hi, I'm <span className="font-semibold text-violet-700">Sara</span>! 👋 Ask me what you
             should do today — I know every job, note, and invoice.
           </p>
           <div className="mt-2 flex justify-end gap-2">
@@ -113,7 +113,7 @@ export function SaraChat() {
                 dismissGreeting()
                 setOpen(true)
               }}
-              className="rounded-full bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700"
+              className="rounded-full bg-violet-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-violet-700"
             >
               Say hi
             </button>
@@ -127,7 +127,7 @@ export function SaraChat() {
         }}
         title="Ask Sara"
         aria-label="Ask Sara"
-        className="sara-bob fixed bottom-5 right-5 z-30 rounded-full bg-white shadow-lg ring-2 ring-amber-400/60 transition-transform hover:scale-110"
+        className="sara-bob fixed bottom-5 right-5 z-30 rounded-full bg-white shadow-lg ring-2 ring-violet-400/70 transition-transform hover:scale-110"
       >
         <SaraBot size={56} mood={mood} />
       </button>
@@ -136,11 +136,11 @@ export function SaraChat() {
         <div className="fixed bottom-20 right-5 z-30 flex h-[32rem] w-96 max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl">
           <div className="flex items-center justify-between bg-stone-900 px-4 py-3">
             <div className="flex items-center gap-2.5">
-              <span className="rounded-full bg-stone-800 ring-1 ring-amber-500/40">
+              <span className="rounded-full bg-white/90 ring-1 ring-violet-400/60">
                 <SaraBot size={36} mood={mood} />
               </span>
               <div>
-              <p className="text-sm font-semibold text-amber-400">Sara</p>
+              <p className="text-sm font-semibold text-violet-300">Sara</p>
               <p className="text-[11px] text-stone-400">
                 Knows every lead, job, note, and invoice
                 {creditsLeft !== null && ` · ${creditsLeft} credits left`}
@@ -166,7 +166,7 @@ export function SaraChat() {
                     <button
                       key={s}
                       onClick={() => ask(s)}
-                      className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs text-amber-800 hover:bg-amber-100"
+                      className="rounded-full border border-violet-300 bg-violet-50 px-2.5 py-1 text-xs text-violet-800 hover:bg-violet-100"
                     >
                       {s}
                     </button>
@@ -178,7 +178,7 @@ export function SaraChat() {
               <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex'}>
                 <div
                   className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                    m.role === 'user' ? 'bg-amber-600 text-white' : 'bg-stone-900 text-stone-100'
+                    m.role === 'user' ? 'bg-violet-600 text-white' : 'bg-stone-100 text-stone-800'
                   }`}
                 >
                   {m.role === 'assistant' ? renderContent(m.content) : m.content}
