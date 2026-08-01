@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
+import { useMyMembership, switchBusiness } from '../features/settings/api'
 import { CommandPalette } from './CommandPalette'
+import { Lobby } from './Lobby'
 import { PushToggle } from './PushToggle'
 
 const NAV_ITEMS = [
@@ -20,6 +22,12 @@ const NAV_ITEMS = [
 
 export function AppShell() {
   const { session, signOut } = useAuth()
+  const { data: membership, isPending: membershipPending } = useMyMembership()
+
+  // No business yet → the lobby, nothing else.
+  if (!membershipPending && membership && !membership.activeBusinessId) {
+    return <Lobby />
+  }
 
   return (
     <div className="flex min-h-screen bg-stone-100">
@@ -48,9 +56,27 @@ export function AppShell() {
       </aside>
       <div className="flex flex-1 flex-col">
         <header className="flex items-center justify-end gap-4 border-b border-stone-200 bg-white px-6 py-3">
+          {membership && membership.platformAdmin && membership.businesses.length > 1 ? (
+            <select
+              value={membership.activeBusinessId ?? ''}
+              onChange={(e) => void switchBusiness(e.target.value)}
+              className="mr-auto rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-sm font-medium text-amber-900"
+              aria-label="Switch business"
+            >
+              {membership.businesses.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="mr-auto text-sm font-medium text-stone-500">
+              {membership?.businesses.find((b) => b.id === membership.activeBusinessId)?.name ?? ''}
+            </span>
+          )}
           <CommandPalette />
           <PushToggle />
-          <AvatarMenu email={session?.user.email ?? ''} onSignOut={() => void signOut()} />
+          <AvatarMenu email={session?.user.email ?? ''} platformAdmin={membership?.platformAdmin ?? false} onSignOut={() => void signOut()} />
         </header>
         <main className="flex-1 p-6">
           <Outlet />
@@ -61,7 +87,7 @@ export function AppShell() {
 }
 
 
-function AvatarMenu({ email, onSignOut }: { email: string; onSignOut: () => void }) {
+function AvatarMenu({ email, platformAdmin, onSignOut }: { email: string; platformAdmin: boolean; onSignOut: () => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const initials = email.slice(0, 2).toUpperCase()
@@ -100,6 +126,15 @@ function AvatarMenu({ email, onSignOut }: { email: string; onSignOut: () => void
           >
             Settings
           </Link>
+          {platformAdmin && (
+            <Link
+              to="/agency"
+              onClick={() => setOpen(false)}
+              className="block px-3 py-2 text-sm text-amber-700 hover:bg-amber-50"
+            >
+              Agency view
+            </Link>
+          )}
           <button
             onClick={onSignOut}
             className="block w-full px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-50"

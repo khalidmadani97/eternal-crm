@@ -3,6 +3,7 @@ import { AppShell } from './components/AppShell'
 import { AuthProvider } from './features/auth/AuthProvider'
 import { ProtectedRoute } from './features/auth/ProtectedRoute'
 import { LoginPage } from './features/auth/routes/LoginPage'
+import { SignupPage } from './features/auth/routes/SignupPage'
 import { JobDetailPage } from './features/jobs/routes/JobDetailPage'
 import { JobsPage } from './features/jobs/routes/JobsPage'
 import { PipelinePage } from './features/jobs/routes/PipelinePage'
@@ -19,6 +20,7 @@ import { QuotePrintPage } from './features/quotes/routes/QuotePrintPage'
 import { InboxPage } from './features/comms/routes/InboxPage'
 import { HomePage } from './features/dashboard/routes/HomePage'
 import { ReportsPage } from './features/reports/routes/ReportsPage'
+import { AgencyPage } from './features/settings/routes/AgencyPage'
 import { ProfilePage } from './features/settings/routes/ProfilePage'
 import { SettingsPage } from './features/settings/routes/SettingsPage'
 import { TasksPage } from './features/tasks/routes/TasksPage'
@@ -31,6 +33,7 @@ export function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
           <Route element={<ProtectedRoute />}>
             {/* Mobile field view — deliberately outside the desktop shell. */}
             <Route path="/field" element={<FieldPage />} />
@@ -54,6 +57,7 @@ export function App() {
               <Route path="/tasks" element={<TasksPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/agency" element={<AgencyPage />} />
               <Route path="/invoices" element={<InvoicesListPage />} />
               <Route path="/invoices/:id" element={<InvoiceEditorPage />} />
               <Route path="/contracts" element={<ContractsListPage />} />
