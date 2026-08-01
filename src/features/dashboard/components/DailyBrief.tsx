@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { useProfiles } from '../../auth/api'
 import { supabase } from '../../../lib/supabase'
 import { useCreateTask } from '../../tasks/api'
+import { SaraBot } from '../../../components/SaraBot'
 
 // The AI agent's morning briefing (Slice 24, DECISIONS 027): reads leads,
 // stages, notes/transcripts, last-contact recency, installs, overdue
@@ -62,8 +63,8 @@ export function DailyBrief() {
   return (
     <section className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 p-4">
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-800">
-          ✨ Sara's daily brief
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-amber-800">
+          <SaraBot size={30} mood={generate.isPending ? 'thinking' : 'idle'} /> Sara's daily brief
           {generate.data?.for?.job_role && (
             <span className="ml-2 normal-case tracking-normal text-amber-700/70">
               for {generate.data.for.name} · {generate.data.for.job_role}

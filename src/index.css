@@ -1,1 +1,37 @@
 @import "tailwindcss";
+
+/* ── Sara bot (Slice 35) ─────────────────────────────────────────────────── */
+@keyframes sara-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes sara-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.08); }
+}
+@keyframes sara-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.75); }
+}
+@keyframes sara-look {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2.5px); }
+  75% { transform: translateX(2.5px); }
+}
+@keyframes sara-wave {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-24deg); }
+  50% { transform: rotate(10deg); }
+  75% { transform: rotate(-18deg); }
+}
+@keyframes sara-bubble-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.sara-bob { animation: sara-bob 3s ease-in-out infinite; }
+.sara-blink { animation: sara-blink 4.2s ease-in-out infinite; transform-origin: center; }
+.sara-pulse { animation: sara-pulse 1.6s ease-in-out infinite; transform-origin: center; }
+.sara-think .sara-eyes { animation: sara-look 1.1s ease-in-out infinite; }
+.sara-think .sara-dot { animation: sara-pulse 0.5s ease-in-out infinite; }
+.sara-wave-arm { animation: sara-wave 1.4s ease-in-out infinite; transform-origin: 82% 78%; }
+.sara-bubble { animation: sara-bubble-in 0.25s ease-out; }

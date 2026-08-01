@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useJobs } from '../features/jobs/api'
+import { SaraBot } from './SaraBot'
+import type { SaraMood } from './SaraBot'
 
 // Sara's chat (Slice 34): floating assistant, everywhere in the app. She
 // reads the live snapshot server-side; the client just holds the
@@ -22,6 +24,8 @@ const SUGGESTIONS = [
 
 export function SaraChat() {
   const [open, setOpen] = useState(false)
+  const [greeting, setGreeting] = useState(false)
+  const [justAnswered, setJustAnswered] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [draft, setDraft] = useState('')
   const [creditsLeft, setCreditsLeft] = useState<number | null>(null)
@@ -46,8 +50,21 @@ export function SaraChat() {
     onSuccess: (data) => {
       setMessages((m) => [...m, { role: 'assistant', content: data.reply }])
       if (data.usage) setCreditsLeft(data.usage.cap - data.usage.used)
+      setJustAnswered(true)
+      setTimeout(() => setJustAnswered(false), 2500)
     },
   })
+
+  // A one-time hello so people discover her (per browser).
+  useEffect(() => {
+    if (localStorage.getItem('sara-greeted')) return
+    const timer = setTimeout(() => setGreeting(true), 2500)
+    return () => clearTimeout(timer)
+  }, [])
+  const dismissGreeting = () => {
+    setGreeting(false)
+    localStorage.setItem('sara-greeted', '1')
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'nearest' })
@@ -77,25 +94,58 @@ export function SaraChat() {
     })
   }
 
+  const mood: SaraMood = send.isPending ? 'thinking' : justAnswered || greeting || open ? 'happy' : 'idle'
+
   return (
     <>
+      {greeting && !open && (
+        <div className="sara-bubble fixed bottom-24 right-5 z-30 w-56 rounded-2xl rounded-br-sm border border-amber-200 bg-white p-3 shadow-xl">
+          <p className="text-sm text-stone-700">
+            Hi, I'm <span className="font-semibold text-amber-700">Sara</span>! 👋 Ask me what you
+            should do today — I know every job, note, and invoice.
+          </p>
+          <div className="mt-2 flex justify-end gap-2">
+            <button onClick={dismissGreeting} className="text-xs text-stone-400 hover:text-stone-600">
+              Later
+            </button>
+            <button
+              onClick={() => {
+                dismissGreeting()
+                setOpen(true)
+              }}
+              className="rounded-full bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700"
+            >
+              Say hi
+            </button>
+          </div>
+        </div>
+      )}
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          if (greeting) dismissGreeting()
+          setOpen((o) => !o)
+        }}
         title="Ask Sara"
-        className="fixed bottom-5 right-5 z-30 flex h-13 w-13 items-center justify-center rounded-full bg-stone-900 p-3.5 text-xl shadow-lg ring-1 ring-amber-500/40 transition-transform hover:scale-105"
+        aria-label="Ask Sara"
+        className="sara-bob fixed bottom-5 right-5 z-30 rounded-full bg-white shadow-lg ring-2 ring-amber-400/60 transition-transform hover:scale-110"
       >
-        ✨
+        <SaraBot size={56} mood={mood} />
       </button>
 
       {open && (
         <div className="fixed bottom-20 right-5 z-30 flex h-[32rem] w-96 max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl">
           <div className="flex items-center justify-between bg-stone-900 px-4 py-3">
-            <div>
+            <div className="flex items-center gap-2.5">
+              <span className="rounded-full bg-stone-800 ring-1 ring-amber-500/40">
+                <SaraBot size={36} mood={mood} />
+              </span>
+              <div>
               <p className="text-sm font-semibold text-amber-400">Sara</p>
               <p className="text-[11px] text-stone-400">
                 Knows every lead, job, note, and invoice
                 {creditsLeft !== null && ` · ${creditsLeft} credits left`}
               </p>
+              </div>
             </div>
             <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-white">
               ✕
@@ -105,7 +155,10 @@ export function SaraChat() {
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
             {messages.length === 0 && (
               <div>
-                <p className="mb-3 text-sm text-stone-600">
+                <div className="mb-2 flex justify-center">
+                  <SaraBot size={72} mood="happy" />
+                </div>
+                <p className="mb-3 text-center text-sm text-stone-600">
                   Hi! I'm Sara. Ask me anything about the business — or try one of these:
                 </p>
                 <div className="flex flex-wrap gap-1.5">
@@ -133,7 +186,9 @@ export function SaraChat() {
               </div>
             ))}
             {send.isPending && (
-              <p className="text-sm italic text-stone-400">Sara is looking at the books…</p>
+              <p className="flex items-center gap-2 text-sm italic text-stone-400">
+                <SaraBot size={26} mood="thinking" /> looking at the books…
+              </p>
             )}
             {send.isError && (
               <p className="text-sm text-red-600">
