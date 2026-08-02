@@ -803,3 +803,13 @@ mass-moved real leads — restored via activities audit log; the gate now
 makes that impossible. Also: sheet sync batched (timeout → <1s, duplicate
 rows in sheets handled), sara-chat hardened with tool try/catch + error
 envelope + toolTrace.
+
+---
+
+## Slice 47 — City/address split + custom extra fields
+**Status:** done (2026-08-02) — contacts and leads/jobs both carry city
+alongside address (contact form, job/lead details form, Lead info panel,
+contact card); and both get free-form "Extra info" label→value fields with
+"+ Add field" (gate codes, parking, preferred times…) shown on the lead
+info panel and contact card — no migrations needed to add a field. Write
+paths verified via REST.

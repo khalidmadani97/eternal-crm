@@ -75,6 +75,7 @@ export function ContactDetailPage() {
             <Row label="Phone" value={formatPhone(contact.phone)} />
             <Row label="Email" value={contact.email ?? '—'} />
             <Row label="Address" value={contact.address ?? '—'} />
+            <Row label="City" value={contact.city ?? '—'} />
             <Row
               label="Company"
               value={
@@ -108,6 +109,9 @@ export function ContactDetailPage() {
                 </span>
               }
             />
+            {Object.entries(contact.extra ?? {}).map(([k, v]) => (
+              <Row key={k} label={k} value={v} />
+            ))}
             <Row label="Notes" value={contact.notes ?? '—'} />
           </dl>
         </section>

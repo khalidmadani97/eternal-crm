@@ -9,6 +9,7 @@ import { CommsThread } from '../../comms/components/CommsThread'
 import { JobCosts } from '../../expenses/components/JobCosts'
 import { JobContracts } from '../../contracts/components/JobContracts'
 import { JobQuotes } from '../../quotes/components/JobQuotes'
+import { ExtraFieldsEditor } from '../../../components/ExtraFieldsEditor'
 import { LeadInfo } from '../../leads/components/LeadInfo'
 import { JobAppointments } from '../../schedule/components/JobAppointments'
 import { ActivityTimeline } from '../components/ActivityTimeline'
@@ -151,11 +152,13 @@ function JobDetailsForm({ job }: { job: JobDetail }) {
   const [form, setForm] = useState({
     title: job.title,
     site_address: job.site_address ?? '',
+    city: job.city ?? '',
     value_est: job.value_est?.toString() ?? '',
     value_final: job.value_final?.toString() ?? '',
     lead_source: job.lead_source ?? '',
     assigned_to: job.assignee?.id ?? '',
   })
+  const [extra, setExtra] = useState<Record<string, string>>(job.extra ?? {})
   const [saved, setSaved] = useState(false)
 
   const save = async () => {
@@ -168,6 +171,8 @@ function JobDetailsForm({ job }: { job: JobDetail }) {
       patch: {
         title: form.title.trim(),
         site_address: form.site_address.trim() || null,
+        city: form.city.trim() || null,
+        extra: Object.fromEntries(Object.entries(extra).filter(([, v]) => v.trim() !== '')),
         value_est: form.value_est ? Number(form.value_est) : null,
         value_final: form.value_final ? Number(form.value_final) : null,
         lead_source: form.lead_source.trim() || null,
@@ -204,6 +209,15 @@ function JobDetailsForm({ job }: { job: JobDetail }) {
           <input
             value={form.site_address}
             onChange={(e) => setForm({ ...form, site_address: e.target.value })}
+            className={inputClass}
+          />,
+        )}
+        {field(
+          'City',
+          <input
+            value={form.city}
+            onChange={(e) => setForm({ ...form, city: e.target.value })}
+            placeholder="Toronto"
             className={inputClass}
           />,
         )}
@@ -248,6 +262,10 @@ function JobDetailsForm({ job }: { job: JobDetail }) {
             ))}
           </select>,
         )}
+      </div>
+      <div className="mt-3">
+        <span className="mb-1 block text-sm font-medium text-stone-700">Extra info</span>
+        <ExtraFieldsEditor value={extra} onChange={setExtra} />
       </div>
       <div className="mt-3 flex items-center gap-3">
         <button

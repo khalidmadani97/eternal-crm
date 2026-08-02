@@ -114,6 +114,8 @@ export interface JobDetail {
   title: string
   stage: JobStage
   site_address: string | null
+  city: string | null
+  extra: Record<string, string>
   value_est: number | null
   value_final: number | null
   lead_source: string | null
@@ -131,7 +133,7 @@ export function useJob(id: string) {
       const { data, error } = await supabase
         .from('jobs')
         .select(
-          `id, job_number, title, stage, site_address, value_est, value_final,
+          `id, job_number, title, stage, site_address, city, extra, value_est, value_final,
            lead_source, lost_reason, created_at,
            contact:contacts ( id, full_name, phone ),
            company:companies ( id, name ),
@@ -150,6 +152,8 @@ export interface UpdateJobInput {
   patch: Partial<{
     title: string
     site_address: string | null
+    city: string | null
+    extra: Record<string, string>
     value_est: number | null
     value_final: number | null
     lead_source: string | null

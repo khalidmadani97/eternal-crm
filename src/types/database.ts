@@ -621,10 +621,12 @@ export type Database = {
           address: string | null
           auto_created: boolean
           business_id: string
+          city: string | null
           company_id: string | null
           created_at: string
           deleted_at: string | null
           email: string | null
+          extra: Json
           full_name: string
           id: string
           last_contact_detail: string | null
@@ -640,10 +642,12 @@ export type Database = {
           address?: string | null
           auto_created?: boolean
           business_id?: string
+          city?: string | null
           company_id?: string | null
           created_at?: string
           deleted_at?: string | null
           email?: string | null
+          extra?: Json
           full_name: string
           id?: string
           last_contact_detail?: string | null
@@ -659,10 +663,12 @@ export type Database = {
           address?: string | null
           auto_created?: boolean
           business_id?: string
+          city?: string | null
           company_id?: string | null
           created_at?: string
           deleted_at?: string | null
           email?: string | null
+          extra?: Json
           full_name?: string
           id?: string
           last_contact_detail?: string | null
@@ -1308,10 +1314,12 @@ export type Database = {
         Row: {
           assigned_to: string | null
           business_id: string
+          city: string | null
           company_id: string | null
           contact_id: string
           created_at: string
           deleted_at: string | null
+          extra: Json
           id: string
           job_number: string
           lead_source: string | null
@@ -1329,10 +1337,12 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           business_id?: string
+          city?: string | null
           company_id?: string | null
           contact_id: string
           created_at?: string
           deleted_at?: string | null
+          extra?: Json
           id?: string
           job_number: string
           lead_source?: string | null
@@ -1350,10 +1360,12 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           business_id?: string
+          city?: string | null
           company_id?: string | null
           contact_id?: string
           created_at?: string
           deleted_at?: string | null
+          extra?: Json
           id?: string
           job_number?: string
           lead_source?: string | null

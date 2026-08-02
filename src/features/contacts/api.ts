@@ -62,6 +62,8 @@ export interface ContactRow {
   phone: string | null
   email: string | null
   address: string | null
+  city: string | null
+  extra: Record<string, string>
   lead_source: string | null
   auto_created: boolean
   notes: string | null
@@ -78,7 +80,7 @@ export function useContacts(includeAutoCreated: boolean) {
       let query = supabase
         .from('contacts')
         .select(
-          'id, full_name, phone, email, address, lead_source, auto_created, notes, last_contacted_at, last_contact_method, last_contact_detail, company:companies ( id, name )',
+          'id, full_name, phone, email, address, city, extra, lead_source, auto_created, notes, last_contacted_at, last_contact_method, last_contact_detail, company:companies ( id, name )',
         )
         .is('deleted_at', null)
         .order('full_name')
@@ -110,7 +112,7 @@ export function useContact(id: string) {
       const { data, error } = await supabase
         .from('contacts')
         .select(
-          `id, full_name, phone, email, address, lead_source, auto_created, notes,
+          `id, full_name, phone, email, address, city, extra, lead_source, auto_created, notes,
            last_contacted_at, last_contact_method, last_contact_detail,
            company:companies ( id, name ),
            jobs ( id, job_number, title, stage, value_est, value_final, created_at, deleted_at )`,
@@ -130,6 +132,8 @@ export interface ContactInput {
   phone: string | null
   email: string | null
   address: string | null
+  city: string | null
+  extra: Record<string, string>
   lead_source: string | null
   company_id: string | null
   notes: string | null
