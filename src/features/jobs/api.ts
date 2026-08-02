@@ -375,6 +375,21 @@ export function useToggleTask(jobId: string) {
   })
 }
 
+/** Bulk soft-delete (delete matrix: jobs are never hard-deleted). */
+export function useBulkArchiveJobs() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from('jobs')
+        .update({ deleted_at: new Date().toISOString() })
+        .in('id', ids)
+      if (error) throw error
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+  })
+}
+
 // ── Board ────────────────────────────────────────────────────────────────────
 
 /** Stage move with an optimistic cache update and rollback — the board drags

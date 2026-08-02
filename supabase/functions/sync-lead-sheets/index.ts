@@ -75,6 +75,9 @@ interface ColumnMap {
   phone: number | null
   email: number | null
   message: number | null
+  /** Additional columns holding lead context (form questions, budgets,
+   *  timelines…) — all captured into the lead's notes. */
+  notes: number[]
   mapped_by: 'ai' | 'heuristic'
 }
 
@@ -83,13 +86,20 @@ function heuristicMap(headers: string[]): ColumnMap {
     const i = headers.findIndex((h) => patterns.some((p) => p.test(h.toLowerCase())))
     return i === -1 ? null : i
   }
-  return {
-    name: find([/full.?name/, /^name$/, /first.?name/, /contact/]),
-    phone: find([/phone/, /mobile/, /tel/, /number/]),
-    email: find([/e.?mail/]),
-    message: find([/message/, /notes?/, /comment/, /inquiry|enquiry/, /details?/, /describe|description/, /project/]),
-    mapped_by: 'heuristic',
-  }
+  const name = find([/full.?name/, /^name$/, /first.?name/, /contact/])
+  const phone = find([/phone/, /mobile/, /tel/, /number/])
+  const email = find([/e.?mail/])
+  const message = find([/message/, /notes?/, /comment/, /inquiry|enquiry/, /details?/, /describe|description/, /project/])
+  // Everything else that isn't obvious metadata is lead context.
+  const META = /time|date|^id$|campaign|ad.?(set|name|id)|form|platform|source|status|created/
+  const notes = headers
+    .map((h, i) => i)
+    .filter(
+      (i) =>
+        i !== name && i !== phone && i !== email && i !== message &&
+        headers[i].trim() !== '' && !META.test(headers[i].toLowerCase()),
+    )
+  return { name, phone, email, message, notes, mapped_by: 'heuristic' }
 }
 
 async function aiMap(headers: string[], samples: string[][]): Promise<ColumnMap | null> {
@@ -108,7 +118,7 @@ async function aiMap(headers: string[], samples: string[][]): Promise<ColumnMap 
           {
             role: 'system',
             content:
-              'You map lead-form spreadsheet columns. Given headers (0-indexed) and sample rows, return JSON {"name":i|null,"phone":i|null,"email":i|null,"message":i|null} — the column INDEX holding the lead\'s full name, phone, email, and free-text message/project description. Use the samples to disambiguate (e.g. a column of digits is the phone even if the header is cryptic). null when absent.',
+              'You map lead-form spreadsheet columns. Given headers (0-indexed) and sample rows, return JSON {"name":i|null,"phone":i|null,"email":i|null,"message":i|null,"notes":[i,...]} — indexes of the lead\'s full name, phone, email, main free-text message, AND "notes": every OTHER column that looks like lead context worth keeping (form questions, budget, timeline, service wanted, address…). EXCLUDE metadata (timestamps, ids, campaign/ad/form names, platform). Use the samples to disambiguate. null/[] when absent.',
           },
           { role: 'user', content: JSON.stringify({ headers, samples }) },
         ],
@@ -119,7 +129,10 @@ async function aiMap(headers: string[], samples: string[][]): Promise<ColumnMap 
     const m = JSON.parse(body.choices[0].message.content)
     const idx = (v: unknown) =>
       typeof v === 'number' && v >= 0 && v < headers.length ? v : null
-    return { name: idx(m.name), phone: idx(m.phone), email: idx(m.email), message: idx(m.message), mapped_by: 'ai' }
+    const notes = Array.isArray(m.notes)
+      ? [...new Set(m.notes.map(idx).filter((v: number | null): v is number => v !== null))]
+      : []
+    return { name: idx(m.name), phone: idx(m.phone), email: idx(m.email), message: idx(m.message), notes, mapped_by: 'ai' }
   } catch {
     return null
   }
@@ -152,7 +165,11 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
   const dataRows = rows.slice(1)
 
   let map = sheet.column_map
-  if (!map || (map.name === null && map.phone === null && map.email === null)) {
+  if (
+    !map ||
+    map.notes === undefined ||
+    (map.name === null && map.phone === null && map.email === null)
+  ) {
     map = (await aiMap(headers, dataRows.slice(0, 3))) ?? heuristicMap(headers)
     await sb.from('lead_sheets').update({ column_map: map }).eq('id', sheet.id)
   }
@@ -173,6 +190,13 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
     const rawPhone = cell(map.phone)
     const rawEmail = cell(map.email)
     const message = cell(map.message)
+    const noteParts: string[] = []
+    if (message) noteParts.push(message)
+    for (const i of map.notes ?? []) {
+      const value = cell(i)
+      if (value) noteParts.push(`${headers[i] || `col ${i}`}: ${value}`)
+    }
+    const noteBody = noteParts.join('\n')
     const raw_payload = Object.fromEntries(headers.map((h, i) => [h || `col_${i}`, cells[i] ?? '']))
 
     // Raw first — a parse problem must never lose the lead.
@@ -240,7 +264,7 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
         business_id: sheet.business_id,
         contact_id: contactId,
         job_number: jobNumber,
-        title: message ? message.slice(0, 80) : `${sheet.name} lead`,
+        title: (message || noteParts[0] || '').slice(0, 80) || `${sheet.name} lead`,
         stage: 'new',
         lead_source: sheet.provider,
       })
@@ -250,13 +274,13 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
       await sb.from('inbound_leads').update({ parse_error: jobError.message }).eq('id', lead.id)
       continue
     }
-    if (message) {
+    if (noteBody) {
       await sb.from('activities').insert({
         business_id: sheet.business_id,
         job_id: job.id,
         contact_id: contactId,
         kind: 'note',
-        body: `Lead form message: ${message.slice(0, 500)}`,
+        body: `Lead form details:\n${noteBody.slice(0, 1500)}`,
       })
     }
     await sb.from('inbound_leads')

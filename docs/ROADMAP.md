@@ -706,3 +706,16 @@ sources on the Pipeline connects Meta/Google-form Google Sheets: AI column
 mapping (verified against cryptic headers), raw-first ingestion, row-hash
 dedupe, E.164 normalization, contact match-or-create, form message as a
 note, auto-sync on open + every 3 min. All verified live end to end.
+
+---
+
+## Slice 40 — Bulk select/delete + full sheet notes
+**Status:** done (2026-08-02) — list views (Pipeline and Jobs) get row
+checkboxes, select-all, and a bulk Delete bar (soft-delete per the delete
+matrix — recoverable, never destroyed; confirm dialog says so). Sheet
+ingestion now captures EVERY note-like column: the AI classifies each
+column as lead context vs metadata; verified live — a 9-column Meta export
+produced map {name:2, phone:3, email:4, notes:[5,6,7,8]} excluding
+timestamp/form-id, and the lead's note reads "Lead form details:" with
+service/budget/timeline/how-heard each labeled by its question. Cached maps
+from before this slice auto-remap on next sync.
