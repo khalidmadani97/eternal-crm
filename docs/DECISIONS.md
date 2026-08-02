@@ -676,3 +676,28 @@ id-scoped per pipeline. Sheet-imported leads land in the default pipeline.
 **Consequence** — Six custom columns per PIPELINE now. Deleting a pipeline
 cascades its stage rows; its leads fall back to the default pipeline (null
 via ON DELETE SET NULL). Per-sheet pipeline targeting is future work.
+
+---
+
+## 036 — Sara's bulk actions are human-gated with undo
+2026-08 · accepted (hardened after a live incident)
+
+**Context** — Agentic bulk ops (move/assign leads) for admins. The first
+iteration used model-obeyed confirmation ("call with confirm=true only
+after approval") and the model immediately violated it in testing,
+mass-moving real leads (restored from the append-only activities log).
+Model-gated safety is no safety.
+
+**Decision** — The AI physically cannot execute: move_leads/assign_leads
+only insert a `pending_actions` row (patch + per-row undo state + confirm
+phrase like "MOVE 61", 15-min expiry). Execution happens solely through the
+sara-actions endpoint, which requires the human to TYPE the exact phrase in
+a UI card and press Execute — validated server-side along with admin role
+and same-business checks. Executed actions are undoable for 24h (stored
+per-row previous values), single-use, and logged to the timeline. Non-
+admins never see the tools. Tool traces are returned for transparency.
+
+**Consequence** — "Extreme things" require a human keyboard, twice. Undo
+covers remorse. The incident also proved the audit-trail restore path
+works. Perf fix bundled: sheet-sync dedupe is batched (196-row sheet:
+timeout → 0.9s).

@@ -789,3 +789,17 @@ pipeline flows to Jobs unchanged. Verified live: second pipeline seeded 11
 stage rows, per-pipeline label isolation ("Inquiry" in one, "New" in the
 other), lead created with pipeline attribution. Applied via migration up —
 real data intact.
+
+---
+
+## Slice 46 — Agentic Sara with a human gate + undo
+**Status:** done (2026-08-02, DECISIONS 036) — admins can ask Sara for bulk
+changes; she can only STAGE them. Confirmation card requires typing the
+exact phrase (e.g. "MOVE 2") + Execute; 24h one-click Undo; cancel/expiry;
+admin+business validated server-side. Full cycle live-verified: staging
+changed nothing, wrong phrase 400, execute moved 2, undo restored, replay
+409. Incident note: pre-gate design let the model self-confirm and it
+mass-moved real leads — restored via activities audit log; the gate now
+makes that impossible. Also: sheet sync batched (timeout → <1s, duplicate
+rows in sheets handled), sara-chat hardened with tool try/catch + error
+envelope + toolTrace.

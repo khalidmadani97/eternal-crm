@@ -18,10 +18,21 @@ interface CreatedTask {
   estimated_minutes?: number
 }
 
+interface StagedAction {
+  id: string
+  kind: string
+  summary: string
+  count: number
+  confirm_phrase: string
+  sample: string[]
+  state?: 'pending' | 'executed' | 'undone' | 'cancelled'
+}
+
 interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   createdTasks?: CreatedTask[]
+  stagedActions?: StagedAction[]
 }
 
 const SUGGESTIONS = [
@@ -55,12 +66,17 @@ export function SaraChat() {
         }
         throw error
       }
-      return data as { reply: string; createdTasks?: CreatedTask[]; usage?: { used: number; cap: number } }
+      return data as { reply: string; createdTasks?: CreatedTask[]; stagedActions?: StagedAction[]; usage?: { used: number; cap: number } }
     },
     onSuccess: (data) => {
       setMessages((m) => [
         ...m,
-        { role: 'assistant', content: data.reply, createdTasks: data.createdTasks },
+        {
+          role: 'assistant',
+          content: data.reply,
+          createdTasks: data.createdTasks,
+          stagedActions: data.stagedActions?.map((a) => ({ ...a, state: 'pending' as const })),
+        },
       ])
       if (data.usage) setCreditsLeft(data.usage.cap - data.usage.used)
       if (data.createdTasks?.length) {
@@ -202,6 +218,22 @@ export function SaraChat() {
                     {m.role === 'assistant' ? renderContent(m.content) : m.content}
                   </div>
                 </div>
+                {m.stagedActions?.map((a) => (
+                  <PendingActionCard
+                    key={a.id}
+                    action={a}
+                    onStateChange={(state) =>
+                      setMessages((msgs) =>
+                        msgs.map((msg) => ({
+                          ...msg,
+                          stagedActions: msg.stagedActions?.map((x) =>
+                            x.id === a.id ? { ...x, state } : x,
+                          ),
+                        })),
+                      )
+                    }
+                  />
+                ))}
                 {m.createdTasks?.map((t, ti) => (
                   <Link
                     key={ti}
@@ -254,5 +286,103 @@ export function SaraChat() {
         </div>
       )}
     </>
+  )
+}
+
+
+function PendingActionCard({
+  action,
+  onStateChange,
+}: {
+  action: StagedAction
+  onStateChange: (state: NonNullable<StagedAction['state']>) => void
+}) {
+  const [phrase, setPhrase] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const queryClient = useQueryClient()
+
+  const call = async (body: object) => {
+    setBusy(true)
+    setError(null)
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('sara-actions', { body })
+      if (fnError) {
+        const context = (fnError as { context?: Response }).context
+        const parsed = context ? await context.json().catch(() => null) : null
+        throw new Error(parsed?.error ?? fnError.message)
+      }
+      void queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      return data
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (action.state === 'cancelled')
+    return <p className="mt-1.5 text-xs text-stone-400">Action cancelled.</p>
+  if (action.state === 'undone')
+    return <p className="mt-1.5 text-xs text-stone-500">↩ Undone — everything restored.</p>
+
+  if (action.state === 'executed')
+    return (
+      <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+        ✓ Executed: {action.summary}
+        <button
+          onClick={() => {
+            call({ action: 'undo', id: action.id })
+              .then(() => onStateChange('undone'))
+              .catch((e) => setError(e.message))
+          }}
+          disabled={busy}
+          className="ml-auto rounded border border-emerald-300 px-2 py-0.5 font-medium hover:bg-emerald-100 disabled:opacity-50"
+        >
+          {busy ? '…' : '↩ Undo'}
+        </button>
+        {error && <span className="text-red-600">{error}</span>}
+      </div>
+    )
+
+  return (
+    <div className="mt-1.5 rounded-lg border-2 border-amber-300 bg-amber-50 p-3">
+      <p className="text-sm font-semibold text-amber-900">⚠ Sara wants to: {action.summary}</p>
+      <p className="mt-0.5 text-xs text-amber-800">
+        {action.count} lead{action.count === 1 ? '' : 's'} affected — e.g.{' '}
+        {action.sample.slice(0, 3).join(', ')}
+        {action.count > 3 ? ', …' : ''}. Nothing happens until you confirm; you can undo for 24h
+        after.
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <input
+          value={phrase}
+          onChange={(e) => setPhrase(e.target.value)}
+          placeholder={`Type ${action.confirm_phrase}`}
+          className="w-36 rounded border border-amber-300 bg-white px-2 py-1.5 text-sm focus:border-amber-500 focus:outline-none"
+        />
+        <button
+          onClick={() => {
+            call({ action: 'execute', id: action.id, phrase })
+              .then(() => onStateChange('executed'))
+              .catch((e) => setError(e.message))
+          }}
+          disabled={busy || phrase.trim().toUpperCase() !== action.confirm_phrase.toUpperCase()}
+          className="rounded bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-40"
+        >
+          {busy ? 'Working…' : 'Execute'}
+        </button>
+        <button
+          onClick={() => {
+            call({ action: 'cancel', id: action.id })
+              .then(() => onStateChange('cancelled'))
+              .catch((e) => setError(e.message))
+          }}
+          disabled={busy}
+          className="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-600 hover:bg-white disabled:opacity-50"
+        >
+          Cancel
+        </button>
+      </div>
+      {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
+    </div>
   )
 }

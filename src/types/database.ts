@@ -1653,6 +1653,69 @@ export type Database = {
           },
         ]
       }
+      pending_actions: {
+        Row: {
+          business_id: string
+          confirm_phrase: string
+          created_at: string
+          executed_at: string | null
+          expires_at: string
+          id: string
+          kind: string
+          patch: Json
+          requested_by: string
+          status: string
+          summary: string
+          targets: Json
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          confirm_phrase: string
+          created_at?: string
+          executed_at?: string | null
+          expires_at?: string
+          id?: string
+          kind: string
+          patch: Json
+          requested_by: string
+          status?: string
+          summary: string
+          targets: Json
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          confirm_phrase?: string
+          created_at?: string
+          executed_at?: string | null
+          expires_at?: string
+          id?: string
+          kind?: string
+          patch?: Json
+          requested_by?: string
+          status?: string
+          summary?: string
+          targets?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_actions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_actions_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pipelines: {
         Row: {
           business_id: string
