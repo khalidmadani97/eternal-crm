@@ -719,3 +719,24 @@ produced map {name:2, phone:3, email:4, notes:[5,6,7,8]} excluding
 timestamp/form-id, and the lead's note reads "Lead form details:" with
 service/budget/timeline/how-heard each labeled by its question. Cached maps
 from before this slice auto-remap on next sync.
+
+---
+
+## Slice 41 — Lead card info/notes, sheet stages, per-board columns, owner filters, lead emails
+**Status:** done (2026-08-02) — REAL DATA IS NOW LIVE IN THE LOCAL DB: the
+owner connected their actual "Meta campaign 1" sheet (196 leads). Lead card
+shows a Lead info panel (contact/source/arrival + every form answer from
+the raw inbound record) with Notes directly beneath; sheet leads title by
+CUSTOMER NAME and land in the stage their sheet says (AI maps sheet status
+values to this business's stages; cached per sheet); "Re-map" per sheet
+re-derives titles/stages for leads imported before a mapping improvement —
+ran against the real sheet: 196/196 updated, stages distributed
+lost 84 / new 74 / contacted 40 (AI translated "Qualified/In progress"→
+contacted, "Missing info/Not qualified"→lost). Customize-stages is now
+per-board (pipeline edits pipeline columns, jobs edits production; "+ Add
+column" assigns to the current board; won→Jobs handoff unchanged). Owner
+filters: board gains All/Mine/Unassigned/person; lists gain "Mine". New-
+lead email digest via Resend (DECISIONS 034; needs RESEND_API_KEY).
+NOTE: `npm run db:reset` NOW DESTROYS REAL BUSINESS DATA — do not run it
+casually; the guard scripts remain local-only but the local DB is no longer
+disposable.

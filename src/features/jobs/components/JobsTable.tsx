@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../auth/AuthProvider'
 import { useProfiles } from '../../auth/api'
 import { formatAgo, formatCurrency, formatDate } from '../../../lib/format'
 import { installDate, useBulkArchiveJobs, useJobs, useUpdateJob } from '../api'
@@ -23,6 +24,7 @@ export function JobsTable({
   const { data: allJobs, isPending, isError, error, refetch } = useJobs()
   const jobs = allJobs?.filter((j) => stages.includes(j.stage))
   const { data: profiles } = useProfiles()
+  const { session } = useAuth()
   const updateJob = useUpdateJob()
   const bulkArchive = useBulkArchiveJobs()
   const navigate = useNavigate()
@@ -53,7 +55,13 @@ export function JobsTable({
     const filtered = jobs.filter((j) => {
       if (stageFilter !== 'all' && j.stage !== stageFilter) return false
       if (assigneeFilter === 'none' && j.assignee) return false
-      if (assigneeFilter !== 'all' && assigneeFilter !== 'none' && j.assignee?.id !== assigneeFilter)
+      if (assigneeFilter === 'mine' && j.assignee?.id !== session?.user.id) return false
+      if (
+        assigneeFilter !== 'all' &&
+        assigneeFilter !== 'none' &&
+        assigneeFilter !== 'mine' &&
+        j.assignee?.id !== assigneeFilter
+      )
         return false
       if (sourceFilter !== 'all' && j.lead_source !== sourceFilter) return false
       if (term) {
@@ -100,7 +108,8 @@ export function JobsTable({
           onChange={(e) => setAssigneeFilter(e.target.value)}
           className="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
         >
-          <option value="all">All assignees</option>
+          <option value="all">All owners</option>
+          <option value="mine">Mine</option>
           <option value="none">Unassigned</option>
           {profiles?.map((p) => (
             <option key={p.id} value={p.id}>

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../auth/AuthProvider'
+import { useProfiles } from '../../auth/api'
 import { formatCurrency, formatDate } from '../../../lib/format'
 import {
   installDate,
@@ -13,9 +15,12 @@ import type { JobListRow, JobStage, StageSetting } from '../api'
 import { LostReasonDialog } from './LostReasonDialog'
 import { STAGE_LABELS } from './StageBadge'
 
-export function StageBoard({ stages, detailPath = '/jobs' }: { stages: JobStage[]; detailPath?: string }) {
+export function StageBoard({ stages, detailPath = '/jobs', phase = 'production' }: { stages: JobStage[]; detailPath?: string; phase?: 'pipeline' | 'production' }) {
   const { data: jobs, isPending, isError, error, refetch } = useJobs()
   const { data: stageSettings } = useStageSettings()
+  const { data: profiles } = useProfiles()
+  const { session } = useAuth()
+  const [assigneeFilter, setAssigneeFilter] = useState('all')
   const moveStage = useMoveJobStage()
   const [dragId, setDragId] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState<JobStage | null>(null)
@@ -30,7 +35,14 @@ export function StageBoard({ stages, detailPath = '/jobs' }: { stages: JobStage[
     .filter((s) => !s.hidden || jobs?.some((j) => j.stage === s.stage))
     .map((s) => ({ stage: s.stage, label: s.label }))
 
-  const scoped = jobs?.filter((j) => stages.includes(j.stage))
+  const scoped = jobs
+    ?.filter((j) => stages.includes(j.stage))
+    .filter((j) => {
+      if (assigneeFilter === 'all') return true
+      if (assigneeFilter === 'mine') return j.assignee?.id === session?.user.id
+      if (assigneeFilter === 'none') return !j.assignee
+      return j.assignee?.id === assigneeFilter
+    })
 
   const drop = (stage: JobStage) => {
     setDragOver(null)
@@ -63,6 +75,21 @@ export function StageBoard({ stages, detailPath = '/jobs' }: { stages: JobStage[
     <div className="flex h-full flex-col">
       <div className="mb-3 flex items-center justify-end">
         <div className="flex items-center gap-3">
+          <select
+            value={assigneeFilter}
+            onChange={(e) => setAssigneeFilter(e.target.value)}
+            className="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
+            aria-label="Filter by owner"
+          >
+            <option value="all">All owners</option>
+            <option value="mine">Mine</option>
+            <option value="none">Unassigned</option>
+            {profiles?.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.full_name ?? 'Unnamed'}
+              </option>
+            ))}
+          </select>
           {moveStage.isError && (
             <span className="text-sm text-red-600">
               Move failed — the card has been put back. {moveStage.error.message}
@@ -81,7 +108,7 @@ export function StageBoard({ stages, detailPath = '/jobs' }: { stages: JobStage[
       )}
       <div className="flex flex-1 gap-3 overflow-x-auto pb-4">
         {columns.map(({ stage, label }) => {
-          const inStage = jobs.filter((j) => j.stage === stage)
+          const inStage = (scoped ?? []).filter((j) => j.stage === stage)
           const total = inStage.reduce(
             (sum, j) => sum + (Number(j.value_final ?? j.value_est) || 0),
             0,
@@ -128,7 +155,7 @@ export function StageBoard({ stages, detailPath = '/jobs' }: { stages: JobStage[
         })}
       </div>
       {customizing && stageSettings && (
-        <CustomizeStagesDialog settings={stageSettings} onClose={() => setCustomizing(false)} />
+        <CustomizeStagesDialog settings={stageSettings} phase={phase} onClose={() => setCustomizing(false)} />
       )}
       {pendingLost && (
         <LostReasonDialog
@@ -197,9 +224,11 @@ function BoardCard({
 
 function CustomizeStagesDialog({
   settings,
+  phase,
   onClose,
 }: {
   settings: StageSetting[]
+  phase: 'pipeline' | 'production'
   onClose: () => void
 }) {
   const save = useSaveStageSettings()
@@ -221,13 +250,16 @@ function CustomizeStagesDialog({
   return (
     <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="mb-1 text-lg font-semibold text-stone-900">Customize stages</h2>
+        <h2 className="mb-1 text-lg font-semibold text-stone-900">Customize {phase === "pipeline" ? "Pipeline" : "Jobs"} stages</h2>
         <p className="mb-4 text-xs text-stone-500">
           Rename, reorder, or hide columns. Hidden stages still appear while they hold jobs, so
           nothing ever disappears. Won/Lost keep their special behaviour whatever you call them.
         </p>
         <ul className="space-y-1.5">
-          {rows.filter((r) => !(r.stage.startsWith('custom_') && r.hidden)).map((row) => {
+          {rows
+            .filter((r) => !(r.stage.startsWith('custom_') && r.hidden))
+            .filter((r) => r.phase === phase)
+            .map((row) => {
             const i = rows.indexOf(row)
             return (
             <li key={row.stage} className="flex items-center gap-2">
@@ -256,25 +288,6 @@ function CustomizeStagesDialog({
                 }
                 className="flex-1 rounded border border-stone-300 px-2 py-1.5 text-sm focus:border-amber-600 focus:outline-none"
               />
-              {row.stage.startsWith('custom_') && (
-                <select
-                  value={row.phase}
-                  onChange={(e) =>
-                    setRows(
-                      rows.map((r) =>
-                        r.stage === row.stage
-                          ? { ...r, phase: e.target.value as 'pipeline' | 'production' }
-                          : r,
-                      ),
-                    )
-                  }
-                  className="rounded border border-stone-300 px-1 py-1 text-xs text-stone-600"
-                  aria-label="Which board this column belongs to"
-                >
-                  <option value="pipeline">Pipeline</option>
-                  <option value="production">Jobs</option>
-                </select>
-              )}
               <label className="flex items-center gap-1 text-xs text-stone-500">
                 <input
                   type="checkbox"
@@ -299,7 +312,9 @@ function CustomizeStagesDialog({
               if (!name?.trim()) return
               setRows(
                 rows.map((r) =>
-                  r.stage === next.stage ? { ...r, hidden: false, label: name.trim() } : r,
+                  r.stage === next.stage
+                    ? { ...r, hidden: false, label: name.trim(), phase }
+                    : r,
                 ),
               )
             }}

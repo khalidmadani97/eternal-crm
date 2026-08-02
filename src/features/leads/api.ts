@@ -85,3 +85,16 @@ export function useSyncLeadSheets() {
     },
   })
 }
+
+
+export function useRemapLeadSheet() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (sheetId: string): Promise<{ updated: number }> =>
+      (await invokeSync({ action: 'remap', sheetId })) as { updated: number },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      void queryClient.invalidateQueries({ queryKey: ['lead-sheets'] })
+    },
+  })
+}
