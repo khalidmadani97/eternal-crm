@@ -752,3 +752,14 @@ yet); the platform admin joins as admin WITHOUT their own active workspace
 switching. Verified live: seeding, unchanged active business, unknown-email
 error; guard is is_platform_admin(). Applied with `supabase migration up`
 — no reset (real data preserved).
+
+---
+
+## Slice 43 — Contract on the invoice
+**Status:** done (2026-08-02) — invoices carry an optional contract
+reference: a Contract row on the invoice editor (draft AND issued — it's
+metadata, deliberately outside the immutability whitelist, verified live:
+attach to a sent invoice succeeded while a total edit stayed blocked)
+selects from the job's contracts, one-click signed-PDF view, and the
+printed invoice footers "Signed contract on file (date, signer)". Applied
+via migration up, no reset.

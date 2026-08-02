@@ -42,6 +42,13 @@ export interface Invoice {
   total: number
   amount_paid: number
   stripe_payment_link: string | null
+  contract: {
+    id: string
+    status: string
+    signed_at: string | null
+    signer_name: string | null
+    signed_pdf_path: string | null
+  } | null
   sent_at: string | null
   paid_at: string | null
   voided_at: string | null
@@ -60,6 +67,7 @@ export interface Invoice {
 const INVOICE_SELECT = `
   id, job_id, quote_id, invoice_number, status, issue_date, due_date,
   subtotal, tax_rate, tax_amount, total, amount_paid, stripe_payment_link,
+  contract:contracts ( id, status, signed_at, signer_name, signed_pdf_path ),
   sent_at, paid_at, voided_at, created_at,
   line_items:invoice_line_items ( id, position, description, quantity, unit, unit_price ),
   payments ( id, kind, method, amount, received_at, reference ),
@@ -274,4 +282,21 @@ export function invoicesToCsv(invoices: Invoice[]): string {
       .join(','),
   )
   return [header.join(','), ...rows].join('\n')
+}
+
+
+/** Attach/detach the job's contract — allowed on issued invoices too
+ *  (metadata, not financial content). */
+export function useAttachContract() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ invoiceId, contractId }: { invoiceId: string; contractId: string | null }) => {
+      const { error } = await supabase
+        .from('invoices')
+        .update({ contract_id: contractId })
+        .eq('id', invoiceId)
+      if (error) throw error
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['invoices'] }),
+  })
 }

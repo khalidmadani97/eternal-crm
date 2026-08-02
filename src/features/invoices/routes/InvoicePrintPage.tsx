@@ -166,6 +166,12 @@ export function InvoicePrintPage() {
         <p className="font-medium">
           {biz.name} · HST # {biz.hstNumber}
         </p>
+        {invoice.contract?.status === 'signed' && (
+          <p className="mt-1">
+            Signed contract on file{invoice.contract.signed_at ? ` (${formatDate(invoice.contract.signed_at)}` : ''}
+            {invoice.contract.signer_name ? `, ${invoice.contract.signer_name})` : invoice.contract.signed_at ? ')' : ''} — governs this work.
+          </p>
+        )}
         <p className="mt-1">
           Payment by e-transfer to {biz.email}, cheque, or the card link on this invoice.
         </p>
