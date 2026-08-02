@@ -777,3 +777,15 @@ returned with a copy button so the flow works before email is set up.
 Live-verified full loop: invite → link → signup+accept → member sees the
 business (212 jobs) → token reuse rejected. Fix along the way: ON CONFLICT
 needs a plain unique constraint, not an expression index.
+
+---
+
+## Slice 45 — New-lead button + multiple pipelines
+**Status:** done (2026-08-02, DECISIONS 035) — "+ New lead" on the Pipeline
+header (both views, lands in the open pipeline); pipeline TABS with
+"+ New pipeline" (admin — seeds its own stage set); boards, lists,
+customize-stages, and add-column are all per-pipeline; Won from any
+pipeline flows to Jobs unchanged. Verified live: second pipeline seeded 11
+stage rows, per-pipeline label isolation ("Inquiry" in one, "New" in the
+other), lead created with pipeline attribution. Applied via migration up —
+real data intact.

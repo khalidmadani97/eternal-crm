@@ -15,9 +15,10 @@ interface Props {
   onClose: () => void
   /** Pipeline creates leads at 'new'; the Jobs workspace starts at 'won'. */
   initialStage?: JobStage
+  pipelineId?: string | null
 }
 
-export function NewJobDialog({ onClose, initialStage = 'new' }: Props) {
+export function NewJobDialog({ onClose, initialStage = 'new', pipelineId = null }: Props) {
   const createJob = useCreateJob()
   const {
     register,
@@ -33,6 +34,7 @@ export function NewJobDialog({ onClose, initialStage = 'new' }: Props) {
     await createJob.mutateAsync({
       contact_id: values.contact_id,
       stage: initialStage,
+      pipeline_id: pipelineId,
       title: values.title,
       site_address: values.site_address || null,
       value_est: values.value_est ? Number(values.value_est) : null,

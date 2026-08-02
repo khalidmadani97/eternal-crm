@@ -15,7 +15,19 @@ import type { JobListRow, JobStage, StageSetting } from '../api'
 import { LostReasonDialog } from './LostReasonDialog'
 import { STAGE_LABELS } from './StageBadge'
 
-export function StageBoard({ stages, detailPath = '/jobs', phase = 'production' }: { stages: JobStage[]; detailPath?: string; phase?: 'pipeline' | 'production' }) {
+export function StageBoard({
+  stages,
+  detailPath = '/jobs',
+  phase = 'production',
+  pipelineId = null,
+  isDefaultPipeline = true,
+}: {
+  stages: JobStage[]
+  detailPath?: string
+  phase?: 'pipeline' | 'production'
+  pipelineId?: string | null
+  isDefaultPipeline?: boolean
+}) {
   const { data: jobs, isPending, isError, error, refetch } = useJobs()
   const { data: stageSettings } = useStageSettings()
   const { data: profiles } = useProfiles()
@@ -37,6 +49,11 @@ export function StageBoard({ stages, detailPath = '/jobs', phase = 'production' 
 
   const scoped = jobs
     ?.filter((j) => stages.includes(j.stage))
+    .filter((j) => {
+      if (phase === 'production' || !pipelineId) return true
+      // Legacy/sheet leads without a pipeline live in the default pipeline.
+      return j.pipeline_id === pipelineId || (isDefaultPipeline && j.pipeline_id === null)
+    })
     .filter((j) => {
       if (assigneeFilter === 'all') return true
       if (assigneeFilter === 'mine') return j.assignee?.id === session?.user.id
@@ -155,7 +172,7 @@ export function StageBoard({ stages, detailPath = '/jobs', phase = 'production' 
         })}
       </div>
       {customizing && stageSettings && (
-        <CustomizeStagesDialog settings={stageSettings} phase={phase} onClose={() => setCustomizing(false)} />
+        <CustomizeStagesDialog settings={stageSettings} phase={phase} pipelineId={pipelineId} onClose={() => setCustomizing(false)} />
       )}
       {pendingLost && (
         <LostReasonDialog
@@ -225,14 +242,22 @@ function BoardCard({
 function CustomizeStagesDialog({
   settings,
   phase,
+  pipelineId,
   onClose,
 }: {
   settings: StageSetting[]
   phase: 'pipeline' | 'production'
+  pipelineId?: string | null
   onClose: () => void
 }) {
   const save = useSaveStageSettings()
-  const [rows, setRows] = useState<StageSetting[]>(settings.map((s) => ({ ...s })))
+  const [rows, setRows] = useState<StageSetting[]>(
+    settings
+      .filter((s) =>
+        phase === 'production' ? s.pipeline_id === null : !pipelineId || s.pipeline_id === pipelineId,
+      )
+      .map((s) => ({ ...s })),
+  )
 
   const move = (index: number, dir: -1 | 1) => {
     const target = index + dir
