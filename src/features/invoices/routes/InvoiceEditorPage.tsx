@@ -13,6 +13,7 @@ import {
   useVoidInvoice,
 } from '../api'
 import type { Invoice, InvoiceLineItem, PaymentKind, PaymentMethod } from '../api'
+import { InvoiceContract } from '../components/InvoiceContract'
 import { INVOICE_STATUS_BADGES } from './InvoicesListPage'
 
 export function InvoiceEditorPage() {
@@ -177,6 +178,9 @@ function DraftEditor({ invoice }: { invoice: Invoice }) {
           </label>
           <Totals subtotal={totals.subtotal} taxRate={invoice.tax_rate} taxAmount={totals.tax_amount} total={totals.total} />
         </div>
+        <div className="mt-3 border-t border-stone-100 pt-3">
+          <InvoiceContract invoice={invoice} />
+        </div>
       </div>
 
       <div className="mt-4 flex items-center gap-3">
@@ -253,6 +257,9 @@ function IssuedView({ invoice }: { invoice: Invoice }) {
             total={invoice.total}
             amountPaid={invoice.amount_paid}
           />
+        </div>
+        <div className="mt-4 border-t border-stone-100 pt-3">
+          <InvoiceContract invoice={invoice} />
         </div>
         {invoice.status !== 'void' && (
           <div className="mt-4 flex items-center gap-3 border-t border-stone-100 pt-3">
