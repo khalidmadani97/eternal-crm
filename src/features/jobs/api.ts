@@ -423,6 +423,7 @@ export interface StageSetting {
   label: string
   position: number
   hidden: boolean
+  phase: 'pipeline' | 'production'
 }
 
 export function useStageSettings() {
@@ -431,7 +432,7 @@ export function useStageSettings() {
     queryFn: async (): Promise<StageSetting[]> => {
       const { data, error } = await supabase
         .from('stage_settings')
-        .select('stage, label, position, hidden')
+        .select('stage, label, position, hidden, phase')
         .order('position')
       if (error) throw error
       return data as StageSetting[]
@@ -447,7 +448,7 @@ export function useSaveStageSettings() {
       for (const s of settings) {
         const { error } = await supabase
           .from('stage_settings')
-          .update({ label: s.label, position: s.position, hidden: s.hidden })
+          .update({ label: s.label, position: s.position, hidden: s.hidden, phase: s.phase })
           .eq('stage', s.stage)
         if (error) throw error
       }
@@ -462,3 +463,15 @@ export function useSaveStageSettings() {
 
 export const PIPELINE_STAGES: JobStage[] = ['new', 'contacted', 'quoted', 'follow_up', 'won', 'lost']
 export const PRODUCTION_STAGES: JobStage[] = ['won', 'templated', 'fabrication', 'scheduled', 'installed', 'closed']
+
+/** Settings-driven stage list for a workspace. Pipeline always ends with
+ *  Won/Lost terminals; production always includes Won as the intake. Custom
+ *  columns appear in whichever phase their setting assigns. */
+export function useWorkspaceStages(phase: 'pipeline' | 'production'): JobStage[] {
+  const { data: settings } = useStageSettings()
+  if (!settings) return phase === 'pipeline' ? PIPELINE_STAGES : PRODUCTION_STAGES
+  const ordered = settings
+    .filter((s) => s.phase === phase && s.stage !== 'won' && s.stage !== 'lost')
+    .map((s) => s.stage)
+  return phase === 'pipeline' ? [...ordered, 'won', 'lost'] : ['won', ...ordered.filter((s) => s !== 'won')]
+}

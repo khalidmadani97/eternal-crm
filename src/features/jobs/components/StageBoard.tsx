@@ -13,7 +13,7 @@ import type { JobListRow, JobStage, StageSetting } from '../api'
 import { LostReasonDialog } from './LostReasonDialog'
 import { STAGE_LABELS } from './StageBadge'
 
-export function StageBoard({ stages }: { stages: JobStage[] }) {
+export function StageBoard({ stages, detailPath = '/jobs' }: { stages: JobStage[]; detailPath?: string }) {
   const { data: jobs, isPending, isError, error, refetch } = useJobs()
   const { data: stageSettings } = useStageSettings()
   const moveStage = useMoveJobStage()
@@ -117,6 +117,7 @@ export function StageBoard({ stages }: { stages: JobStage[] }) {
                     key={job.id}
                     job={job}
                     dragging={dragId === job.id}
+                    detailPath={detailPath}
                     onDragStart={() => setDragId(job.id)}
                     onDragEnd={() => setDragId(null)}
                   />
@@ -145,11 +146,13 @@ export function StageBoard({ stages }: { stages: JobStage[] }) {
 function BoardCard({
   job,
   dragging,
+  detailPath,
   onDragStart,
   onDragEnd,
 }: {
   job: JobListRow
   dragging: boolean
+  detailPath: string
   onDragStart: () => void
   onDragEnd: () => void
 }) {
@@ -158,7 +161,7 @@ function BoardCard({
   return (
     <div
       draggable
-      onClick={() => void navigate(`/jobs/${job.id}`)}
+      onClick={() => void navigate(`${detailPath}/${job.id}`)}
       onDragStart={(e) => {
         // Safari refuses to start a drag without data; keep it text/plain.
         e.dataTransfer.setData('text/plain', job.id)
@@ -172,7 +175,7 @@ function BoardCard({
     >
       <div className="flex items-baseline justify-between gap-2">
         <Link
-          to={`/jobs/${job.id}`}
+          to={`${detailPath}/${job.id}`}
           draggable={false}
           className="text-xs font-semibold text-stone-500 hover:text-amber-700 hover:underline"
         >
@@ -224,7 +227,9 @@ function CustomizeStagesDialog({
           nothing ever disappears. Won/Lost keep their special behaviour whatever you call them.
         </p>
         <ul className="space-y-1.5">
-          {rows.map((row, i) => (
+          {rows.filter((r) => !(r.stage.startsWith('custom_') && r.hidden)).map((row) => {
+            const i = rows.indexOf(row)
+            return (
             <li key={row.stage} className="flex items-center gap-2">
               <div className="flex flex-col">
                 <button
@@ -251,6 +256,25 @@ function CustomizeStagesDialog({
                 }
                 className="flex-1 rounded border border-stone-300 px-2 py-1.5 text-sm focus:border-amber-600 focus:outline-none"
               />
+              {row.stage.startsWith('custom_') && (
+                <select
+                  value={row.phase}
+                  onChange={(e) =>
+                    setRows(
+                      rows.map((r) =>
+                        r.stage === row.stage
+                          ? { ...r, phase: e.target.value as 'pipeline' | 'production' }
+                          : r,
+                      ),
+                    )
+                  }
+                  className="rounded border border-stone-300 px-1 py-1 text-xs text-stone-600"
+                  aria-label="Which board this column belongs to"
+                >
+                  <option value="pipeline">Pipeline</option>
+                  <option value="production">Jobs</option>
+                </select>
+              )}
               <label className="flex items-center gap-1 text-xs text-stone-500">
                 <input
                   type="checkbox"
@@ -263,8 +287,27 @@ function CustomizeStagesDialog({
                 hide
               </label>
             </li>
-          ))}
+            )
+          })}
         </ul>
+        {rows.some((r) => r.stage.startsWith('custom_') && r.hidden) && (
+          <button
+            onClick={() => {
+              const next = rows.find((r) => r.stage.startsWith('custom_') && r.hidden)
+              if (!next) return
+              const name = window.prompt('Name for the new column:', '')
+              if (!name?.trim()) return
+              setRows(
+                rows.map((r) =>
+                  r.stage === next.stage ? { ...r, hidden: false, label: name.trim() } : r,
+                ),
+              )
+            }}
+            className="mt-3 w-full rounded border border-dashed border-stone-300 px-3 py-1.5 text-sm text-stone-500 hover:border-stone-400 hover:text-stone-700"
+          >
+            + Add column ({rows.filter((r) => r.stage.startsWith('custom_') && r.hidden).length} left)
+          </button>
+        )}
         {save.isError && <p className="mt-2 text-sm text-red-600">{save.error.message}</p>}
         <div className="mt-4 flex justify-end gap-3">
           <button

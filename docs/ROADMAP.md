@@ -693,3 +693,16 @@ Tasks page and job cards: notes/instructions (new description column,
 📝 indicator on rows), due date, assignee, time budget, linked job,
 complete toggle, delete. Sara now writes 1-3 sentence instructions into
 tasks she creates. Edit paths verified via REST.
+
+---
+
+## Slice 39 — Lead cards, custom columns, live lead sheets
+**Status:** done (2026-08-02, DECISIONS 033) — pipeline opens leads at
+/leads/:id (own card: ← Pipeline, pipeline-stage selector, notes timeline +
+comms + quotes + tasks; costing stays jobs-only); Jobs still opens
+/jobs/:id. "+ Add column" in Customize stages unhides one of six spare
+stages with a custom name and a Pipeline/Jobs placement selector. ⚡ Lead
+sources on the Pipeline connects Meta/Google-form Google Sheets: AI column
+mapping (verified against cryptic headers), raw-first ingestion, row-hash
+dedupe, E.164 normalization, contact match-or-create, form message as a
+note, auto-sync on open + every 3 min. All verified live end to end.

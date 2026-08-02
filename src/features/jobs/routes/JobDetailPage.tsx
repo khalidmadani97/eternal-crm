@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { OptionSelect } from '../../../components/OptionSelect'
 import { useProfiles } from '../../auth/api'
 import { formatCurrency } from '../../../lib/format'
-import { JOB_STAGES, useJob, useUpdateJob } from '../api'
+import { useJob, useUpdateJob, useWorkspaceStages } from '../api'
 import type { JobDetail, JobStage } from '../api'
 import { CommsThread } from '../../comms/components/CommsThread'
 import { JobCosts } from '../../expenses/components/JobCosts'
@@ -14,9 +14,9 @@ import { ActivityTimeline } from '../components/ActivityTimeline'
 import { JobFiles } from '../components/JobFiles'
 import { JobTasks } from '../components/JobTasks'
 import { LostReasonDialog } from '../components/LostReasonDialog'
-import { StageBadge, STAGE_LABELS } from '../components/StageBadge'
+import { StageBadge, useStageLabels } from '../components/StageBadge'
 
-export function JobDetailPage() {
+export function JobDetailPage({ mode = 'job' }: { mode?: 'lead' | 'job' }) {
   const { id } = useParams<{ id: string }>()
   const { data: job, isPending, isError, error, refetch } = useJob(id!)
 
@@ -36,10 +36,13 @@ export function JobDetailPage() {
 
   return (
     <div>
-      <Link to="/jobs" className="text-sm text-stone-500 hover:text-stone-800">
-        ← Jobs
+      <Link
+        to={mode === 'lead' ? '/pipeline' : '/jobs'}
+        className="text-sm text-stone-500 hover:text-stone-800"
+      >
+        {mode === 'lead' ? '← Pipeline' : '← Jobs'}
       </Link>
-      <JobHeader job={job} />
+      <JobHeader job={job} mode={mode} />
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_20rem]">
         <div className="space-y-4">
           <JobDetailsForm job={job} />
@@ -56,7 +59,7 @@ export function JobDetailPage() {
         <div className="space-y-4">
           <JobAppointments jobId={job.id} />
           <JobQuotes jobId={job.id} />
-          <JobCosts jobId={job.id} />
+          {mode === 'job' && <JobCosts jobId={job.id} />}
           <JobContracts job={job} />
           <JobTasks jobId={job.id} />
           <JobFiles jobId={job.id} />
@@ -66,8 +69,14 @@ export function JobDetailPage() {
   )
 }
 
-function JobHeader({ job }: { job: JobDetail }) {
+function JobHeader({ job, mode }: { job: JobDetail; mode: 'lead' | 'job' }) {
   const updateJob = useUpdateJob()
+  const workspaceStages = useWorkspaceStages(mode === 'lead' ? 'pipeline' : 'production')
+  // Always include the current stage so an out-of-phase value still renders.
+  const STAGE_LABELS = useStageLabels()
+  const stageOptions = workspaceStages.includes(job.stage)
+    ? workspaceStages
+    : [job.stage, ...workspaceStages]
   const [pendingLost, setPendingLost] = useState(false)
 
   const changeStage = (stage: JobStage) => {
@@ -90,7 +99,7 @@ function JobHeader({ job }: { job: JobDetail }) {
         onChange={(e) => changeStage(e.target.value as JobStage)}
         className="rounded border border-stone-300 bg-white px-2 py-1 text-sm"
       >
-        {JOB_STAGES.map((s) => (
+        {stageOptions.map((s) => (
           <option key={s} value={s}>
             {STAGE_LABELS[s]}
           </option>
