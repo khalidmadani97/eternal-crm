@@ -255,15 +255,24 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
 
   let imported = 0
   const newLeads: { name: string; title: string; stage: string }[] = []
-  for (const cells of dataRows) {
-    const key = `${sheet.id}:${await rowHash(cells)}`
-    const { data: existing } = await sb
+  // Batch dedupe: one lookup for all keys instead of one query per row —
+  // keeps big sheets far inside the function wall-clock limit.
+  const keys = await Promise.all(dataRows.map(async (cells) => `${sheet.id}:${await rowHash(cells)}`))
+  const existingKeys = new Set<string>()
+  for (let i = 0; i < keys.length; i += 200) {
+    const { data: existingRows } = await sb
       .from('inbound_leads')
-      .select('id')
+      .select('dedupe_key')
       .eq('business_id', sheet.business_id)
-      .eq('dedupe_key', key)
-      .maybeSingle()
-    if (existing) continue
+      .in('dedupe_key', keys.slice(i, i + 200))
+    for (const r of existingRows ?? []) existingKeys.add(r.dedupe_key as string)
+  }
+  for (let rowIndex = 0; rowIndex < dataRows.length; rowIndex++) {
+    const cells = dataRows[rowIndex]
+    const key = keys[rowIndex]
+    // existing in DB, or an identical duplicate row earlier in this sheet
+    if (existingKeys.has(key)) continue
+    existingKeys.add(key)
 
     const cell = (i: number | null) => (i !== null && cells[i] !== undefined ? cells[i].trim() : '')
     const rawName = cell(map.name)
@@ -296,7 +305,10 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
       })
       .select('id')
       .single()
-    if (leadError) throw new Error(leadError.message)
+    if (leadError) {
+      if (leadError.code === '23505') continue // raced/duplicate — already have it
+      throw new Error(leadError.message)
+    }
 
     // Convert: match contact by phone/email inside the business, else create.
     const phone = rawPhone ? normalizePhone(rawPhone) : null
@@ -412,12 +424,20 @@ async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
   await sb.from('lead_sheets').update({ column_map: map }).eq('id', sheet.id)
 
   let updated = 0
-  for (const cells of rows.slice(1)) {
-    const key = `${sheet.id}:${await rowHash(cells)}`
-    const { data: lead } = await sb
-      .from('inbound_leads').select('id, job_id')
-      .eq('business_id', sheet.business_id).eq('dedupe_key', key).maybeSingle()
-    if (!lead?.job_id) continue
+  const dataRows2 = rows.slice(1)
+  const keys2 = await Promise.all(dataRows2.map(async (cells) => `${sheet.id}:${await rowHash(cells)}`))
+  const leadByKey = new Map<string, string>()
+  for (let i = 0; i < keys2.length; i += 200) {
+    const { data: leadRows } = await sb
+      .from('inbound_leads').select('dedupe_key, job_id')
+      .eq('business_id', sheet.business_id).in('dedupe_key', keys2.slice(i, i + 200))
+    for (const r of leadRows ?? []) if (r.job_id) leadByKey.set(r.dedupe_key as string, r.job_id as string)
+  }
+  for (let rowIndex = 0; rowIndex < dataRows2.length; rowIndex++) {
+    const cells = dataRows2[rowIndex]
+    const jobId = leadByKey.get(keys2[rowIndex])
+    if (!jobId) continue
+    const lead = { job_id: jobId }
     const cell = (i: number | null) => (i !== null && cells[i] !== undefined ? cells[i].trim() : '')
     const rawName = cell(map.name)
     const rawStage = map.stage !== null ? cell(map.stage).toLowerCase() : ''
