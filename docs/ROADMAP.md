@@ -740,3 +740,15 @@ lead email digest via Resend (DECISIONS 034; needs RESEND_API_KEY).
 NOTE: `npm run db:reset` NOW DESTROYS REAL BUSINESS DATA — do not run it
 casually; the guard scripts remain local-only but the local DB is no longer
 disposable.
+
+---
+
+## Slice 42 — Agency: add clients
+**Status:** done (2026-08-02) — "+ Add client" on the Agency view (platform
+admins only): creates a fully seeded client workspace (17 stages, default
+lists, settings row) via create_client_business(); optionally names the
+client's first admin by email (helpful error when the account doesn't exist
+yet); the platform admin joins as admin WITHOUT their own active workspace
+switching. Verified live: seeding, unchanged active business, unknown-email
+error; guard is is_platform_admin(). Applied with `supabase migration up`
+— no reset (real data preserved).
