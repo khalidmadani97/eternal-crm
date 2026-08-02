@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useProfiles } from '../../auth/api'
 import { formatAgo, formatCurrency, formatDate } from '../../../lib/format'
-import { installDate, useJobs, useUpdateJob } from '../api'
+import { installDate, useBulkArchiveJobs, useJobs, useUpdateJob } from '../api'
 import type { JobListRow, JobStage } from '../api'
 import { NewJobDialog } from './NewJobDialog'
 import { StageBadge, STAGE_LABELS } from './StageBadge'
@@ -24,7 +24,16 @@ export function JobsTable({
   const jobs = allJobs?.filter((j) => stages.includes(j.stage))
   const { data: profiles } = useProfiles()
   const updateJob = useUpdateJob()
+  const bulkArchive = useBulkArchiveJobs()
   const navigate = useNavigate()
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const toggleSelected = (id: string) =>
+    setSelected((s) => {
+      const next = new Set(s)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   const [stageFilter, setStageFilter] = useState<JobStage | 'all'>('all')
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
@@ -140,11 +149,51 @@ export function JobsTable({
         </p>
       )}
 
+      {selected.size > 0 && (
+        <div className="mb-2 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2">
+          <span className="text-sm font-medium text-amber-900">{selected.size} selected</span>
+          <button
+            onClick={() => {
+              if (
+                window.confirm(
+                  `Delete ${selected.size} ${selected.size === 1 ? 'record' : 'records'}? They are archived (recoverable), never destroyed.`,
+                )
+              )
+                bulkArchive.mutate([...selected], { onSuccess: () => setSelected(new Set()) })
+            }}
+            disabled={bulkArchive.isPending}
+            className="rounded bg-red-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-50"
+          >
+            {bulkArchive.isPending ? 'Deleting…' : 'Delete selected'}
+          </button>
+          <button
+            onClick={() => setSelected(new Set())}
+            className="text-sm text-stone-500 hover:text-stone-800"
+          >
+            Clear
+          </button>
+          {bulkArchive.isError && (
+            <span className="text-sm text-red-600">{bulkArchive.error.message}</span>
+          )}
+        </div>
+      )}
+
       {visible.length > 0 && (
         <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wide text-stone-500">
+                <th className="w-10 px-3 py-3">
+                  <input
+                    type="checkbox"
+                    checked={visible.length > 0 && visible.every((j) => selected.has(j.id))}
+                    onChange={(e) =>
+                      setSelected(e.target.checked ? new Set(visible.map((j) => j.id)) : new Set())
+                    }
+                    className="h-4 w-4 accent-amber-600"
+                    aria-label="Select all"
+                  />
+                </th>
                 <th className="px-4 py-3">Job #</th>
                 <th className="px-4 py-3">Title</th>
                 <th className="px-4 py-3">Contact</th>
@@ -163,6 +212,15 @@ export function JobsTable({
                   onClick={() => void navigate(`${detailPath}/${j.id}`)}
                   className="cursor-pointer border-b border-stone-100 last:border-0 hover:bg-stone-50"
                 >
+                  <td className="w-10 px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(j.id)}
+                      onChange={() => toggleSelected(j.id)}
+                      className="h-4 w-4 accent-amber-600"
+                      aria-label={`Select ${j.job_number}`}
+                    />
+                  </td>
                   <td className="px-4 py-3 font-medium">
                     <Link to={`${detailPath}/${j.id}`} className="text-stone-900 hover:text-amber-700 hover:underline">
                       {j.job_number}
