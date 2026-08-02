@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PRODUCTION_STAGES } from '../api'
+import { useWorkspaceStages } from '../api'
 import { JobsTable } from '../components/JobsTable'
 import { StageBoard } from '../components/StageBoard'
 import { ViewToggle } from './PipelinePage'
@@ -8,6 +8,7 @@ import { ViewToggle } from './PipelinePage'
  *  a board. */
 export function JobsPage() {
   const [view, setView] = useState<'board' | 'list'>('list')
+  const stages = useWorkspaceStages('production')
   return (
     <div className="flex h-full flex-col">
       <div className="mb-2 flex items-center gap-3">
@@ -15,9 +16,9 @@ export function JobsPage() {
         <ViewToggle view={view} onChange={setView} />
       </div>
       {view === 'board' ? (
-        <StageBoard stages={PRODUCTION_STAGES} />
+        <StageBoard stages={stages} />
       ) : (
-        <JobsTable stages={PRODUCTION_STAGES} newJobStage="won" newJobLabel="New job" />
+        <JobsTable stages={stages} newJobStage="won" newJobLabel="New job" />
       )}
     </div>
   )

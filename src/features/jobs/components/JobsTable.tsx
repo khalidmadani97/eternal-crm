@@ -13,10 +13,12 @@ export function JobsTable({
   stages,
   newJobStage,
   newJobLabel,
+  detailPath = '/jobs',
 }: {
   stages: JobStage[]
   newJobStage: JobStage
   newJobLabel: string
+  detailPath?: string
 }) {
   const { data: allJobs, isPending, isError, error, refetch } = useJobs()
   const jobs = allJobs?.filter((j) => stages.includes(j.stage))
@@ -158,16 +160,16 @@ export function JobsTable({
               {visible.map((j) => (
                 <tr
                   key={j.id}
-                  onClick={() => void navigate(`/jobs/${j.id}`)}
+                  onClick={() => void navigate(`${detailPath}/${j.id}`)}
                   className="cursor-pointer border-b border-stone-100 last:border-0 hover:bg-stone-50"
                 >
                   <td className="px-4 py-3 font-medium">
-                    <Link to={`/jobs/${j.id}`} className="text-stone-900 hover:text-amber-700 hover:underline">
+                    <Link to={`${detailPath}/${j.id}`} className="text-stone-900 hover:text-amber-700 hover:underline">
                       {j.job_number}
                     </Link>
                   </td>
                   <td className="px-4 py-3">
-                    <Link to={`/jobs/${j.id}`} className="hover:text-amber-700">
+                    <Link to={`${detailPath}/${j.id}`} className="hover:text-amber-700">
                       {j.title}
                     </Link>
                   </td>

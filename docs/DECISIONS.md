@@ -608,3 +608,34 @@ fresh per-business number sequences, lobby → add-by-email flow, staff
 cannot invite, non-members cannot switch in, platform admin can. Per-tenant
 Twilio/Meta webhook routing is future work (currently sole-business
 fallback).
+
+---
+
+## 033 — Custom board columns via spare enum values; live lead sheets
+2026-08 · accepted
+
+**Context** — Users want to add pipeline columns without a developer, and
+Meta Lead Ads / Google Forms leads live in Google Sheets that should feed
+the pipeline continuously.
+
+**Decision** — job_stage gains custom_1…custom_6; stage_settings gains
+`phase` (pipeline|production) and the customize dialog's "+ Add column"
+unhides+renames the next spare (six per business; system stages keep their
+semantics — won/lost stamping untouched). Lead detail is a separate route:
+pipeline opens /leads/:id (lead-flavoured card — pipeline stages, notes,
+comms, no costing), production opens /jobs/:id. Lead sheets: `lead_sheets`
+rows point at link-shared Google Sheets; the sync-lead-sheets function
+converts the URL to CSV export form, maps columns ONCE via the AI (cached;
+regex heuristics as fallback), stores the raw row in inbound_leads first,
+dedupes on a per-sheet row hash, normalizes phones, matches-or-creates the
+contact, and creates the lead at stage `new` with the form message as a
+note. "Live" = auto-sync on pipeline open + every 3 minutes while open
+(production cron can call the same function).
+
+**Consequence** — Six custom columns is the ceiling before a real
+custom-stage table is needed. Sheets must be link-viewable; a private sheet
+fails loudly with instructions. Verified end to end: AI mapped deliberately
+cryptic Meta-export headers (q1_full/contact_num/mail), 2 leads imported
+with E.164 phones + notes, re-sync imported 0 (dedupe), an appended sheet
+row was picked up as exactly 1 new lead, and a custom column accepted a
+real lead.

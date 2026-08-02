@@ -1019,6 +1019,7 @@ export type Database = {
           contact_id: string | null
           converted_at: string | null
           created_at: string
+          dedupe_key: string | null
           discarded_at: string | null
           id: string
           job_id: string | null
@@ -1037,6 +1038,7 @@ export type Database = {
           contact_id?: string | null
           converted_at?: string | null
           created_at?: string
+          dedupe_key?: string | null
           discarded_at?: string | null
           id?: string
           job_id?: string | null
@@ -1055,6 +1057,7 @@ export type Database = {
           contact_id?: string | null
           converted_at?: string | null
           created_at?: string
+          dedupe_key?: string | null
           discarded_at?: string | null
           id?: string
           job_id?: string | null
@@ -1325,6 +1328,59 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_sheets: {
+        Row: {
+          active: boolean
+          business_id: string
+          column_map: Json | null
+          created_at: string
+          id: string
+          last_error: string | null
+          last_synced_at: string | null
+          name: string
+          provider: Database["public"]["Enums"]["lead_provider"]
+          rows_imported: number
+          sheet_url: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          business_id?: string
+          column_map?: Json | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_synced_at?: string | null
+          name: string
+          provider?: Database["public"]["Enums"]["lead_provider"]
+          rows_imported?: number
+          sheet_url: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          business_id?: string
+          column_map?: Json | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_synced_at?: string | null
+          name?: string
+          provider?: Database["public"]["Enums"]["lead_provider"]
+          rows_imported?: number
+          sheet_url?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_sheets_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]
@@ -1747,6 +1803,7 @@ export type Database = {
           hidden: boolean
           id: string
           label: string
+          phase: string
           position: number
           stage: Database["public"]["Enums"]["job_stage"]
           updated_at: string
@@ -1757,6 +1814,7 @@ export type Database = {
           hidden?: boolean
           id?: string
           label: string
+          phase?: string
           position: number
           stage: Database["public"]["Enums"]["job_stage"]
           updated_at?: string
@@ -1767,6 +1825,7 @@ export type Database = {
           hidden?: boolean
           id?: string
           label?: string
+          phase?: string
           position?: number
           stage?: Database["public"]["Enums"]["job_stage"]
           updated_at?: string
@@ -1882,6 +1941,10 @@ export type Database = {
       }
       my_business_ids: { Args: never; Returns: string[] }
       next_document_number: { Args: { p_prefix: string }; Returns: string }
+      next_document_number_for: {
+        Args: { p_business: string; p_prefix: string }
+        Returns: string
+      }
       recompute_invoice_paid: {
         Args: { p_invoice_id: string }
         Returns: undefined
@@ -2009,6 +2072,12 @@ export type Database = {
         | "installed"
         | "closed"
         | "lost"
+        | "custom_1"
+        | "custom_2"
+        | "custom_3"
+        | "custom_4"
+        | "custom_5"
+        | "custom_6"
       lead_provider:
         | "website"
         | "meta"
@@ -2213,6 +2282,12 @@ export const Constants = {
         "installed",
         "closed",
         "lost",
+        "custom_1",
+        "custom_2",
+        "custom_3",
+        "custom_4",
+        "custom_5",
+        "custom_6",
       ],
       lead_provider: [
         "website",

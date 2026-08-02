@@ -13,6 +13,12 @@ const STAGE_STYLES: Record<JobStage, string> = {
   installed: 'bg-lime-100 text-lime-800',
   closed: 'bg-stone-200 text-stone-700',
   lost: 'bg-red-100 text-red-800',
+  custom_1: 'bg-cyan-100 text-cyan-800',
+  custom_2: 'bg-pink-100 text-pink-800',
+  custom_3: 'bg-violet-100 text-violet-800',
+  custom_4: 'bg-yellow-100 text-yellow-800',
+  custom_5: 'bg-slate-200 text-slate-700',
+  custom_6: 'bg-rose-100 text-rose-800',
 }
 
 export const STAGE_LABELS: Record<JobStage, string> = {
@@ -27,6 +33,12 @@ export const STAGE_LABELS: Record<JobStage, string> = {
   installed: 'Installed',
   closed: 'Closed',
   lost: 'Lost',
+  custom_1: 'Custom 1',
+  custom_2: 'Custom 2',
+  custom_3: 'Custom 3',
+  custom_4: 'Custom 4',
+  custom_5: 'Custom 5',
+  custom_6: 'Custom 6',
 }
 
 /** Custom labels from stage_settings, falling back to the defaults while

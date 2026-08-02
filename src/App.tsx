@@ -45,6 +45,7 @@ export function App() {
               <Route path="/home" element={<HomePage />} />
               <Route path="/jobs" element={<JobsPage />} />
               <Route path="/jobs/:id" element={<JobDetailPage />} />
+              <Route path="/leads/:id" element={<JobDetailPage mode="lead" />} />
               <Route path="/quotes/:id" element={<QuoteEditorPage />} />
               <Route path="/pipeline" element={<PipelinePage />} />
               <Route path="/board" element={<Navigate to="/pipeline" replace />} />
