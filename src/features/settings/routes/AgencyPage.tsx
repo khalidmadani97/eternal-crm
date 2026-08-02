@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../../lib/supabase'
 import { formatDateTime } from '../../../lib/format'
-import { switchBusiness, useMyMembership } from '../api'
+import { switchBusiness, useInviteMember, useMyMembership } from '../api'
 
 /** Platform-admin agency view (Slice 33, GHL-style): every business on the
  *  platform, with one-click entry. Ordinary users never see this. */
@@ -11,14 +11,21 @@ export function AgencyPage() {
   const queryClient = useQueryClient()
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState({ name: '', adminEmail: '' })
+  const invite = useInviteMember()
   const createClient = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.rpc('create_client_business', {
+      const { data: businessId, error } = await supabase.rpc('create_client_business', {
         p_name: form.name.trim(),
-        p_admin_email: form.adminEmail.trim() || undefined,
       })
       if (error) throw error
-      return data
+      if (form.adminEmail.trim()) {
+        await invite.mutateAsync({
+          email: form.adminEmail.trim(),
+          role: 'admin',
+          businessId: businessId as string,
+        })
+      }
+      return businessId
     },
     onSuccess: () => {
       setAdding(false)
@@ -101,8 +108,8 @@ export function AgencyPage() {
             <h2 className="mb-1 text-lg font-semibold text-stone-900">Add a client business</h2>
             <p className="mb-4 text-xs text-stone-500">
               A fresh workspace with default stages and lists. You join as admin (without leaving
-              your current workspace); optionally name their first admin — they must have signed up
-              already.
+              your current workspace); optionally add their first admin by email — existing accounts
+              are added instantly, new people get a signup link.
             </p>
             <div className="space-y-3">
               <label className="block text-sm">
@@ -129,6 +136,17 @@ export function AgencyPage() {
             </div>
             {createClient.isError && (
               <p className="mt-2 text-sm text-red-600">{createClient.error.message}</p>
+            )}
+            {invite.isSuccess && invite.data.invited && !invite.data.emailed && invite.data.link && (
+              <p className="mt-2 flex items-center gap-2 rounded bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                Invite created — email them this link:
+                <button
+                  onClick={() => void navigator.clipboard.writeText(invite.data.link!)}
+                  className="rounded border border-emerald-300 px-2 py-0.5 text-xs font-medium hover:bg-emerald-100"
+                >
+                  Copy link
+                </button>
+              </p>
             )}
             <div className="mt-4 flex justify-end gap-3">
               <button

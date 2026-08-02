@@ -257,3 +257,40 @@ export async function switchBusiness(businessId: string) {
   if (error) throw error
   window.location.assign('/home') // full reload: every cache is tenant-scoped
 }
+
+
+export interface InviteResult {
+  added?: boolean
+  invited?: boolean
+  emailed?: boolean
+  link?: string
+  business?: string
+}
+
+export function useInviteMember() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      email: string
+      role: 'admin' | 'staff'
+      businessId?: string
+    }): Promise<InviteResult> => {
+      const { data, error } = await supabase.functions.invoke('invite', {
+        body: { action: 'send', ...input },
+      })
+      if (error) {
+        const context = (error as { context?: Response }).context
+        if (context) {
+          const parsed = await context.json().catch(() => null)
+          if (parsed?.error) throw new Error(parsed.error)
+        }
+        throw error
+      }
+      return data as InviteResult
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['team'] })
+      void queryClient.invalidateQueries({ queryKey: ['profiles'] })
+    },
+  })
+}

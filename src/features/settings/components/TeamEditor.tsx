@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { OptionSelect } from '../../../components/OptionSelect'
-import { useAddMember, useTeam, useUpdateTeamMember } from '../api'
+import { useInviteMember, useTeam, useUpdateTeamMember } from '../api'
 import type { TeamMember } from '../api'
 
 /** Team roles & responsibilities (Slice 29). The responsibilities text is
@@ -9,7 +9,7 @@ import type { TeamMember } from '../api'
  *  edit their own row (RLS enforces both). */
 export function TeamEditor() {
   const { data: team, isPending, isError, error } = useTeam()
-  const addMember = useAddMember()
+  const addMember = useInviteMember()
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<'admin' | 'staff'>('staff')
 
@@ -26,7 +26,7 @@ export function TeamEditor() {
         <input
           value={inviteEmail}
           onChange={(e) => setInviteEmail(e.target.value)}
-          placeholder="teammate@email.com — they must sign up first"
+          placeholder="teammate@email.com — new people get a signup link"
           className="min-w-56 flex-1 rounded border border-stone-300 px-2 py-1.5 text-sm focus:border-amber-600 focus:outline-none"
         />
         <select
@@ -47,10 +47,27 @@ export function TeamEditor() {
           disabled={addMember.isPending || !inviteEmail.trim()}
           className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
         >
-          {addMember.isPending ? 'Adding…' : 'Add to business'}
+          {addMember.isPending ? 'Sending…' : 'Add / invite'}
         </button>
         {addMember.isError && <span className="text-sm text-red-600">{addMember.error.message}</span>}
-        {addMember.isSuccess && <span className="text-sm text-emerald-700">Added ✓</span>}
+        {addMember.isSuccess && addMember.data.added && (
+          <span className="text-sm text-emerald-700">Added ✓ (they already had an account)</span>
+        )}
+        {addMember.isSuccess && addMember.data.invited && (
+          <span className="flex w-full items-center gap-2 text-sm text-emerald-700">
+            {addMember.data.emailed
+              ? 'Invite emailed ✓'
+              : 'Invite created — email not configured, send them this link:'}
+            {!addMember.data.emailed && addMember.data.link && (
+              <button
+                onClick={() => void navigator.clipboard.writeText(addMember.data.link!)}
+                className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-xs font-medium hover:bg-emerald-100"
+              >
+                Copy invite link
+              </button>
+            )}
+          </span>
+        )}
       </div>
       <div className="space-y-3">
         {team?.map((member) => <MemberRow key={member.id} member={member} />)}
