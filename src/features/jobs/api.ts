@@ -19,7 +19,7 @@ export const JOB_STAGES: JobStage[] = [
 ]
 
 const JOB_LIST_SELECT = `
-  id, job_number, title, stage, value_est, value_final, lead_source,
+  id, job_number, title, stage, pipeline_id, value_est, value_final, lead_source,
   site_address, created_at,
   contact:contacts ( id, full_name, last_contacted_at, last_contact_method ),
   company:companies ( id, name ),
@@ -32,6 +32,7 @@ export interface JobListRow {
   job_number: string
   title: string
   stage: JobStage
+  pipeline_id: string | null
   value_est: number | null
   value_final: number | null
   lead_source: string | null
@@ -75,6 +76,7 @@ export function useJobs() {
 export interface NewJobInput {
   contact_id: string
   stage?: JobStage
+  pipeline_id?: string | null
   title: string
   site_address: string | null
   value_est: number | null
@@ -434,11 +436,13 @@ export function useMoveJobStage() {
 // Enum keys are fixed; label, column order, and visibility are customizable.
 
 export interface StageSetting {
+  id: string
   stage: JobStage
   label: string
   position: number
   hidden: boolean
   phase: 'pipeline' | 'production'
+  pipeline_id: string | null
 }
 
 export function useStageSettings() {
@@ -447,7 +451,7 @@ export function useStageSettings() {
     queryFn: async (): Promise<StageSetting[]> => {
       const { data, error } = await supabase
         .from('stage_settings')
-        .select('stage, label, position, hidden, phase')
+        .select('id, stage, label, position, hidden, phase, pipeline_id')
         .order('position')
       if (error) throw error
       return data as StageSetting[]
@@ -464,7 +468,7 @@ export function useSaveStageSettings() {
         const { error } = await supabase
           .from('stage_settings')
           .update({ label: s.label, position: s.position, hidden: s.hidden, phase: s.phase })
-          .eq('stage', s.stage)
+          .eq('id', s.id)
         if (error) throw error
       }
     },
@@ -482,11 +486,55 @@ export const PRODUCTION_STAGES: JobStage[] = ['won', 'templated', 'fabrication',
 /** Settings-driven stage list for a workspace. Pipeline always ends with
  *  Won/Lost terminals; production always includes Won as the intake. Custom
  *  columns appear in whichever phase their setting assigns. */
-export function useWorkspaceStages(phase: 'pipeline' | 'production'): JobStage[] {
+export function useWorkspaceStages(
+  phase: 'pipeline' | 'production',
+  pipelineId?: string | null,
+): JobStage[] {
   const { data: settings } = useStageSettings()
   if (!settings) return phase === 'pipeline' ? PIPELINE_STAGES : PRODUCTION_STAGES
   const ordered = settings
     .filter((s) => s.phase === phase && s.stage !== 'won' && s.stage !== 'lost')
+    .filter((s) => phase === 'production' || !pipelineId || s.pipeline_id === pipelineId)
+    .sort((a, b) => a.position - b.position)
     .map((s) => s.stage)
-  return phase === 'pipeline' ? [...ordered, 'won', 'lost'] : ['won', ...ordered.filter((s) => s !== 'won')]
+  const unique = [...new Set(ordered)]
+  return phase === 'pipeline' ? [...unique, 'won', 'lost'] : ['won', ...unique.filter((s) => s !== 'won')]
+}
+
+// ── Pipelines (Slice 45) ─────────────────────────────────────────────────────
+
+export interface Pipeline {
+  id: string
+  name: string
+  position: number
+}
+
+export function usePipelines() {
+  return useQuery({
+    queryKey: ['pipelines'],
+    queryFn: async (): Promise<Pipeline[]> => {
+      const { data, error } = await supabase
+        .from('pipelines')
+        .select('id, name, position')
+        .order('position')
+      if (error) throw error
+      return data as Pipeline[]
+    },
+    staleTime: 60_000,
+  })
+}
+
+export function useCreatePipeline() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const { data, error } = await supabase.rpc('create_pipeline', { p_name: name })
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['pipelines'] })
+      void queryClient.invalidateQueries({ queryKey: ['stage-settings'] })
+    },
+  })
 }

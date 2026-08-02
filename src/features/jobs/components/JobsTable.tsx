@@ -15,14 +15,23 @@ export function JobsTable({
   newJobStage,
   newJobLabel,
   detailPath = '/jobs',
+  pipelineId = null,
+  isDefaultPipeline = true,
 }: {
   stages: JobStage[]
   newJobStage: JobStage
   newJobLabel: string
   detailPath?: string
+  pipelineId?: string | null
+  isDefaultPipeline?: boolean
 }) {
   const { data: allJobs, isPending, isError, error, refetch } = useJobs()
-  const jobs = allJobs?.filter((j) => stages.includes(j.stage))
+  const jobs = allJobs
+    ?.filter((j) => stages.includes(j.stage))
+    .filter(
+      (j) =>
+        !pipelineId || j.pipeline_id === pipelineId || (isDefaultPipeline && j.pipeline_id === null),
+    )
   const { data: profiles } = useProfiles()
   const { session } = useAuth()
   const updateJob = useUpdateJob()
@@ -277,7 +286,7 @@ export function JobsTable({
         </div>
       )}
 
-      {showNewJob && <NewJobDialog initialStage={newJobStage} onClose={() => setShowNewJob(false)} />}
+      {showNewJob && <NewJobDialog initialStage={newJobStage} pipelineId={pipelineId} onClose={() => setShowNewJob(false)} />}
     </div>
   )
 }

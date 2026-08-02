@@ -1317,6 +1317,7 @@ export type Database = {
           lead_source: string | null
           lost_at: string | null
           lost_reason: string | null
+          pipeline_id: string | null
           site_address: string | null
           stage: Database["public"]["Enums"]["job_stage"]
           title: string
@@ -1337,6 +1338,7 @@ export type Database = {
           lead_source?: string | null
           lost_at?: string | null
           lost_reason?: string | null
+          pipeline_id?: string | null
           site_address?: string | null
           stage?: Database["public"]["Enums"]["job_stage"]
           title: string
@@ -1357,6 +1359,7 @@ export type Database = {
           lead_source?: string | null
           lost_at?: string | null
           lost_reason?: string | null
+          pipeline_id?: string | null
           site_address?: string | null
           stage?: Database["public"]["Enums"]["job_stage"]
           title?: string
@@ -1392,6 +1395,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
             referencedColumns: ["id"]
           },
         ]
@@ -1643,6 +1653,41 @@ export type Database = {
           },
         ]
       }
+      pipelines: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          name: string
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          name: string
+          position?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipelines_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active_business_id: string | null
@@ -1868,6 +1913,7 @@ export type Database = {
           id: string
           label: string
           phase: string
+          pipeline_id: string | null
           position: number
           stage: Database["public"]["Enums"]["job_stage"]
           updated_at: string
@@ -1879,6 +1925,7 @@ export type Database = {
           id?: string
           label: string
           phase?: string
+          pipeline_id?: string | null
           position: number
           stage: Database["public"]["Enums"]["job_stage"]
           updated_at?: string
@@ -1890,6 +1937,7 @@ export type Database = {
           id?: string
           label?: string
           phase?: string
+          pipeline_id?: string | null
           position?: number
           stage?: Database["public"]["Enums"]["job_stage"]
           updated_at?: string
@@ -1900,6 +1948,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stage_settings_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
             referencedColumns: ["id"]
           },
         ]
@@ -1992,6 +2047,7 @@ export type Database = {
         Args: { p_job_id: string; p_tax_rate?: number }
         Returns: string
       }
+      create_pipeline: { Args: { p_name: string }; Returns: string }
       current_business: { Args: never; Returns: string }
       delete_file: { Args: { p_file_id: string }; Returns: undefined }
       is_admin: { Args: never; Returns: boolean }
@@ -2068,6 +2124,10 @@ export type Database = {
       register_business: { Args: { p_name: string }; Returns: string }
       seed_business_defaults: {
         Args: { p_name: string; v_business: string }
+        Returns: undefined
+      }
+      seed_pipeline_stages: {
+        Args: { v_business: string; v_pipeline: string }
         Returns: undefined
       }
       set_active_business: { Args: { p_business: string }; Returns: undefined }

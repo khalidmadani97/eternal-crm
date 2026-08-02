@@ -656,3 +656,23 @@ configurable.
 
 **Consequence** — One external service (free tier: 100 emails/day, plenty
 for digests). Client-facing email remains out of scope.
+
+---
+
+## 035 — Multiple pipelines via per-pipeline stage rows
+2026-08 · accepted
+
+**Context** — GHL-style multiple pipelines, each with its own columns,
+while production stays one workspace and won-handoff keeps working.
+
+**Decision** — `pipelines` table (per business, seeded "Sales Pipeline");
+stage_settings rows gain pipeline_id (null = production rows), so each
+pipeline owns its labels/positions/visibility over the SHARED enum keys —
+triggers, won/lost stamping, and reporting untouched. jobs.pipeline_id
+(null = default pipeline, covering legacy/sheet leads). "+ New pipeline"
+(admin) seeds its stage rows; the customize dialog and stage saves are
+id-scoped per pipeline. Sheet-imported leads land in the default pipeline.
+
+**Consequence** — Six custom columns per PIPELINE now. Deleting a pipeline
+cascades its stage rows; its leads fall back to the default pipeline (null
+via ON DELETE SET NULL). Per-sheet pipeline targeting is future work.
