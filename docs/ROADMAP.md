@@ -763,3 +763,17 @@ attach to a sent invoice succeeded while a total edit stayed blocked)
 selects from the job's contracts, one-click signed-PDF view, and the
 printed invoice footers "Signed contract on file (date, signer)". Applied
 via migration up, no reset.
+
+---
+
+## Slice 44 — Email invites
+**Status:** done (2026-08-02) — adding a person by email (Settings → Team,
+or the client-admin field in Agency → Add client) now works for people who
+haven't signed up: existing accounts are added instantly; new people get a
+single-use 14-day invite link that completes signup INTO the right business
+with the right role (signup page hides the create/join choice when a token
+is present). Emailed via Resend when configured; the link is ALWAYS
+returned with a copy button so the flow works before email is set up.
+Live-verified full loop: invite → link → signup+accept → member sees the
+business (212 jobs) → token reuse rejected. Fix along the way: ON CONFLICT
+needs a plain unique constraint, not an expression index.

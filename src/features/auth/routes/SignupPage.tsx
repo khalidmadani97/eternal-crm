@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
 
 /** Public signup (Slice 33). Anyone can create an account; they either
@@ -7,6 +7,8 @@ import { supabase } from '../../../lib/supabase'
  *  business admin adds their email. */
 export function SignupPage() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const inviteToken = params.get('invite')
   const [form, setForm] = useState({ name: '', email: '', password: '', businessName: '' })
   const [mode, setMode] = useState<'create' | 'join'>('create')
   const [error, setError] = useState<string | null>(null)
@@ -18,7 +20,7 @@ export function SignupPage() {
       setError('Name, email, and a 12+ character password (letters and numbers) are required.')
       return
     }
-    if (mode === 'create' && !form.businessName.trim()) {
+    if (!inviteToken && mode === 'create' && !form.businessName.trim()) {
       setError('Enter your business name (or choose “join an existing business”).')
       return
     }
@@ -30,7 +32,16 @@ export function SignupPage() {
         options: { data: { full_name: form.name.trim() } },
       })
       if (signUpError) throw signUpError
-      if (mode === 'create') {
+      if (inviteToken) {
+        const { error: acceptError } = await supabase.functions.invoke('invite', {
+          body: { action: 'accept', token: inviteToken },
+        })
+        if (acceptError) {
+          const context = (acceptError as { context?: Response }).context
+          const parsed = context ? await context.json().catch(() => null) : null
+          throw new Error(parsed?.error ?? 'This invite could not be applied — ask for a fresh link.')
+        }
+      } else if (mode === 'create') {
         const { error: bizError } = await supabase.rpc('register_business', {
           p_name: form.businessName.trim(),
         })
@@ -51,7 +62,9 @@ export function SignupPage() {
     <div className="flex min-h-screen items-center justify-center bg-stone-100">
       <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow">
         <h1 className="mb-1 text-xl font-semibold text-stone-900">Create your account</h1>
-        <p className="mb-6 text-sm text-stone-500">Eternal CRM</p>
+        <p className="mb-6 text-sm text-stone-500">
+          {inviteToken ? "You've been invited — finish signing up to join your team." : 'Eternal CRM'}
+        </p>
         <div className="space-y-4">
           <label className="block text-sm">
             <span className="mb-1 block font-medium text-stone-700">Your name</span>
@@ -67,6 +80,7 @@ export function SignupPage() {
             <span className="mt-1 block text-xs text-stone-400">12+ characters with letters and numbers.</span>
           </label>
 
+          {!inviteToken && (
           <div className="flex rounded border border-stone-300 text-sm">
             <button
               onClick={() => setMode('create')}
@@ -81,7 +95,8 @@ export function SignupPage() {
               Join existing
             </button>
           </div>
-          {mode === 'create' ? (
+          )}
+          {!inviteToken && (mode === 'create' ? (
             <label className="block text-sm">
               <span className="mb-1 block font-medium text-stone-700">Business name</span>
               <input
@@ -98,7 +113,7 @@ export function SignupPage() {
               <span className="font-medium">Settings → Team</span>. You'll get access the moment
               they do.
             </p>
-          )}
+          ))}
 
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button
