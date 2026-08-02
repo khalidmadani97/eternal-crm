@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../../lib/supabase'
 import { formatDateTime } from '../../../lib/format'
 import { switchBusiness, useMyMembership } from '../api'
@@ -7,6 +8,25 @@ import { switchBusiness, useMyMembership } from '../api'
  *  platform, with one-click entry. Ordinary users never see this. */
 export function AgencyPage() {
   const { data: membership } = useMyMembership()
+  const queryClient = useQueryClient()
+  const [adding, setAdding] = useState(false)
+  const [form, setForm] = useState({ name: '', adminEmail: '' })
+  const createClient = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc('create_client_business', {
+        p_name: form.name.trim(),
+        p_admin_email: form.adminEmail.trim() || undefined,
+      })
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      setAdding(false)
+      setForm({ name: '', adminEmail: '' })
+      void queryClient.invalidateQueries({ queryKey: ['agency-businesses'] })
+      void queryClient.invalidateQueries({ queryKey: ['my-membership'] })
+    },
+  })
   const { data: businesses, isPending, isError, error } = useQuery({
     queryKey: ['agency-businesses'],
     queryFn: async () => {
@@ -29,7 +49,15 @@ export function AgencyPage() {
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-semibold text-stone-900">Agency</h1>
+      <div className="mb-1 flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-stone-900">Agency</h1>
+        <button
+          onClick={() => setAdding(true)}
+          className="rounded bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"
+        >
+          + Add client
+        </button>
+      </div>
       <p className="mb-4 text-sm text-stone-500">
         Every business on the platform. Entering one scopes the whole app to its data.
       </p>
@@ -67,6 +95,59 @@ export function AgencyPage() {
           )
         })}
       </div>
+      {adding && (
+        <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h2 className="mb-1 text-lg font-semibold text-stone-900">Add a client business</h2>
+            <p className="mb-4 text-xs text-stone-500">
+              A fresh workspace with default stages and lists. You join as admin (without leaving
+              your current workspace); optionally name their first admin — they must have signed up
+              already.
+            </p>
+            <div className="space-y-3">
+              <label className="block text-sm">
+                <span className="mb-1 block font-medium text-stone-700">Business name</span>
+                <input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Granite Bros Ltd."
+                  className="w-full rounded border border-stone-300 px-3 py-2 text-sm focus:border-amber-600 focus:outline-none"
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="mb-1 block font-medium text-stone-700">
+                  Client admin email <span className="font-normal text-stone-400">(optional)</span>
+                </span>
+                <input
+                  type="email"
+                  value={form.adminEmail}
+                  onChange={(e) => setForm({ ...form, adminEmail: e.target.value })}
+                  placeholder="owner@granitebros.ca"
+                  className="w-full rounded border border-stone-300 px-3 py-2 text-sm focus:border-amber-600 focus:outline-none"
+                />
+              </label>
+            </div>
+            {createClient.isError && (
+              <p className="mt-2 text-sm text-red-600">{createClient.error.message}</p>
+            )}
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                onClick={() => setAdding(false)}
+                className="rounded border border-stone-300 px-4 py-2 text-sm text-stone-700 hover:bg-stone-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => createClient.mutate()}
+                disabled={createClient.isPending || !form.name.trim()}
+                className="rounded bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
+              >
+                {createClient.isPending ? 'Creating…' : 'Create client'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

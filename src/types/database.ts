@@ -1920,6 +1920,10 @@ export type Database = {
         Args: { p_quote_id: string }
         Returns: string
       }
+      create_client_business: {
+        Args: { p_admin_email?: string; p_name: string }
+        Returns: string
+      }
       create_invoice: {
         Args: { p_job_id: string; p_tax_rate?: number }
         Returns: string
@@ -1998,6 +2002,10 @@ export type Database = {
         Returns: string
       }
       register_business: { Args: { p_name: string }; Returns: string }
+      seed_business_defaults: {
+        Args: { p_name: string; v_business: string }
+        Returns: undefined
+      }
       set_active_business: { Args: { p_business: string }; Returns: undefined }
       touch_last_contacted: {
         Args: {
