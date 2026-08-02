@@ -57,6 +57,14 @@ export function LeadInfo({ job }: { job: JobDetail }) {
           <dd className="tabular-nums text-stone-800">{formatPhone(job.contact?.phone)}</dd>
         </div>
         <div>
+          <dt className="text-xs uppercase tracking-wide text-stone-400">City</dt>
+          <dd className="text-stone-800">{job.city ?? '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs uppercase tracking-wide text-stone-400">Address</dt>
+          <dd className="text-stone-800">{job.site_address ?? '—'}</dd>
+        </div>
+        <div>
           <dt className="text-xs uppercase tracking-wide text-stone-400">Source</dt>
           <dd className="text-stone-800">
             {job.lead_source ?? '—'}
@@ -75,6 +83,21 @@ export function LeadInfo({ job }: { job: JobDetail }) {
         </div>
       </dl>
 
+      {Object.keys(job.extra ?? {}).length > 0 && (
+        <div className="mt-3 border-t border-stone-100 pt-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">
+            Extra info
+          </p>
+          <dl className="space-y-1.5 text-sm">
+            {Object.entries(job.extra).map(([k, v]) => (
+              <div key={k} className="grid grid-cols-[minmax(6rem,40%)_1fr] gap-2">
+                <dt className="truncate text-stone-500">{k}</dt>
+                <dd className="text-stone-800">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
       {isPending && <p className="mt-3 text-sm text-stone-500">Checking lead origin…</p>}
       {isError && <p className="mt-3 text-sm text-red-600">Could not load origin. {error.message}</p>}
 

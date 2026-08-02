@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ExtraFieldsEditor } from '../../../components/ExtraFieldsEditor'
 import { OptionSelect } from '../../../components/OptionSelect'
 import { useCompanies } from '../../companies/api'
 import { normalizePhone } from '../../../lib/format'
@@ -20,10 +21,12 @@ export function ContactForm({ initial, submitting, submitLabel, error, onSubmit,
     phone: initial?.phone ?? '',
     email: initial?.email ?? '',
     address: initial?.address ?? '',
+    city: initial?.city ?? '',
     lead_source: initial?.lead_source ?? '',
     company_id: initial?.company?.id ?? '',
     notes: initial?.notes ?? '',
   })
+  const [extra, setExtra] = useState<Record<string, string>>(initial?.extra ?? {})
   const [validationError, setValidationError] = useState<string | null>(null)
 
   const submit = () => {
@@ -42,6 +45,8 @@ export function ContactForm({ initial, submitting, submitLabel, error, onSubmit,
       phone,
       email: form.email.trim() || null,
       address: form.address.trim() || null,
+      city: form.city.trim() || null,
+      extra: Object.fromEntries(Object.entries(extra).filter(([, v]) => v.trim() !== '')),
       lead_source: form.lead_source.trim() || null,
       company_id: form.company_id || null,
       notes: form.notes.trim() || null,
@@ -68,9 +73,13 @@ export function ContactForm({ initial, submitting, submitLabel, error, onSubmit,
           <span className="mb-1 block font-medium text-stone-700">Email</span>
           <input type="email" value={form.email} onChange={set('email')} className={inputClass} />
         </label>
-        <label className="block text-sm sm:col-span-2">
+        <label className="block text-sm">
           <span className="mb-1 block font-medium text-stone-700">Address</span>
           <input value={form.address} onChange={set('address')} className={inputClass} />
+        </label>
+        <label className="block text-sm">
+          <span className="mb-1 block font-medium text-stone-700">City</span>
+          <input value={form.city} onChange={set('city')} placeholder="Toronto" className={inputClass} />
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-stone-700">Company</span>
@@ -91,6 +100,10 @@ export function ContactForm({ initial, submitting, submitLabel, error, onSubmit,
             onChange={(v) => setForm({ ...form, lead_source: v })}
           />
         </label>
+        <div className="text-sm sm:col-span-2">
+          <span className="mb-1 block font-medium text-stone-700">Extra info</span>
+          <ExtraFieldsEditor value={extra} onChange={setExtra} />
+        </div>
         <label className="block text-sm sm:col-span-2">
           <span className="mb-1 block font-medium text-stone-700">Notes</span>
           <textarea value={form.notes} onChange={set('notes')} rows={2} className={inputClass} />
