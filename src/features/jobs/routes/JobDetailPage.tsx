@@ -10,6 +10,7 @@ import { JobCosts } from '../../expenses/components/JobCosts'
 import { JobContracts } from '../../contracts/components/JobContracts'
 import { JobQuotes } from '../../quotes/components/JobQuotes'
 import { ExtraFieldsEditor } from '../../../components/ExtraFieldsEditor'
+import { LeadGrading } from '../../leads/components/LeadGrading'
 import { LeadInfo } from '../../leads/components/LeadInfo'
 import { JobAppointments } from '../../schedule/components/JobAppointments'
 import { ActivityTimeline } from '../components/ActivityTimeline'
@@ -48,6 +49,7 @@ export function JobDetailPage({ mode = 'job' }: { mode?: 'lead' | 'job' }) {
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_20rem]">
         <div className="space-y-4">
           {mode === 'lead' && <LeadInfo job={job} />}
+          {mode === 'lead' && <LeadGrading job={job} />}
           {mode === 'lead' && <ActivityTimeline jobId={job.id} title="Notes" />}
           {mode === 'job' && <JobDetailsForm job={job} />}
           {job.contact && (

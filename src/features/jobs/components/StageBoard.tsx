@@ -10,6 +10,8 @@ import {
   useMoveJobStage,
   useSaveStageSettings,
   useStageSettings,
+  CLOSE_GRADE_STYLES,
+  marginSigns,
 } from '../api'
 import type { JobListRow, JobStage, StageSetting } from '../api'
 import { LostReasonDialog } from './LostReasonDialog'
@@ -213,9 +215,11 @@ function BoardCard({
         onDragStart()
       }}
       onDragEnd={onDragEnd}
-      className={`cursor-pointer rounded border border-stone-200 bg-white p-3 shadow-sm transition-shadow hover:border-amber-300 hover:shadow ${
-        dragging ? 'opacity-40' : ''
-      }`}
+      className={`cursor-pointer rounded border p-3 shadow-sm transition-shadow hover:shadow ${
+        job.close_grade
+          ? CLOSE_GRADE_STYLES[job.close_grade]
+          : 'border-stone-200 bg-white hover:border-amber-300'
+      } ${dragging ? 'opacity-40' : ''}`}
     >
       <div className="flex items-baseline justify-between gap-2">
         <Link
@@ -226,6 +230,11 @@ function BoardCard({
           {job.job_number}
         </Link>
         <span className="text-sm font-medium tabular-nums text-stone-900">
+          {job.margin_grade && (
+            <span className="mr-1 font-bold text-amber-600" title={`Margin potential ${job.margin_grade}/5`}>
+              {marginSigns(job.margin_grade)}
+            </span>
+          )}
           {formatCurrency(job.value_final ?? job.value_est)}
         </span>
       </div>
