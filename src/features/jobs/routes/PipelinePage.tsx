@@ -44,7 +44,7 @@ export function PipelinePage() {
         </button>
       </div>
       {view === 'board' ? (
-        <StageBoard stages={stages} detailPath="/leads" />
+        <StageBoard stages={stages} detailPath="/leads" phase="pipeline" />
       ) : (
         <JobsTable stages={stages} newJobStage="new" newJobLabel="New lead" detailPath="/leads" />
       )}

@@ -639,3 +639,20 @@ cryptic Meta-export headers (q1_full/contact_num/mail), 2 leads imported
 with E.164 phones + notes, re-sync imported 0 (dedupe), an appended sheet
 row was picked up as exactly 1 new lead, and a custom column accepted a
 real lead.
+
+---
+
+## 034 — Resend for new-lead email digests
+2026-08 · accepted
+
+**Context** — The team wants an email when new leads land. "Email from the
+app" stays out of scope for client-facing mail; this is an internal
+operational notification.
+
+**Decision** — The sheet-sync function sends ONE digest per sheet run (never
+per-lead) through Resend's REST API to every active member's email. No SDK —
+plain fetch. Silently skipped without RESEND_API_KEY; EMAIL_FROM/APP_URL
+configurable.
+
+**Consequence** — One external service (free tier: 100 emails/day, plenty
+for digests). Client-facing email remains out of scope.

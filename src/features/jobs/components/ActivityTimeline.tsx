@@ -16,7 +16,7 @@ const KIND_ICONS: Record<string, string> = {
   system: '⚙️',
 }
 
-export function ActivityTimeline({ jobId }: { jobId: string }) {
+export function ActivityTimeline({ jobId, title = 'Activity' }: { jobId: string; title?: string }) {
   const { session } = useAuth()
   const { data: activities, isPending, isError, error } = useActivities(jobId)
   const addNote = useAddNote(jobId)
@@ -24,7 +24,7 @@ export function ActivityTimeline({ jobId }: { jobId: string }) {
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-4">
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-stone-500">
-        Activity
+        {title}
       </h2>
       <div className="mb-4">
         <NoteComposer
