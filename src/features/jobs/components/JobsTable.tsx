@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { useProfiles } from '../../auth/api'
 import { formatAgo, formatCurrency, formatDate } from '../../../lib/format'
-import { installDate, useBulkArchiveJobs, useJobs, useUpdateJob } from '../api'
+import { CLOSE_GRADE_STYLES, installDate, marginSigns, useBulkArchiveJobs, useJobs, useUpdateJob } from '../api'
 import type { JobListRow, JobStage } from '../api'
 import { NewJobDialog } from './NewJobDialog'
 import { StageBadge, STAGE_LABELS } from './StageBadge'
@@ -252,7 +252,18 @@ export function JobsTable({
                   <td className="px-4 py-3">{j.contact?.full_name ?? '—'}</td>
                   <td className="px-4 py-3">{j.company?.name ?? '—'}</td>
                   <td className="px-4 py-3">
-                    <StageBadge stage={j.stage} />
+                    <span className="flex items-center gap-1.5">
+                      {j.close_grade && (
+                        <span
+                          className={`inline-block h-3 w-3 rounded-full border ${CLOSE_GRADE_STYLES[j.close_grade]}`}
+                          title={`Close probability ${j.close_grade}/5`}
+                        />
+                      )}
+                      <StageBadge stage={j.stage} />
+                      {j.margin_grade && (
+                        <span className="text-xs font-bold text-amber-600">{marginSigns(j.margin_grade)}</span>
+                      )}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">
                     {formatCurrency(j.value_final ?? j.value_est)}

@@ -1315,6 +1315,7 @@ export type Database = {
           assigned_to: string | null
           business_id: string
           city: string | null
+          close_grade: number | null
           company_id: string | null
           contact_id: string
           created_at: string
@@ -1325,6 +1326,7 @@ export type Database = {
           lead_source: string | null
           lost_at: string | null
           lost_reason: string | null
+          margin_grade: number | null
           pipeline_id: string | null
           site_address: string | null
           stage: Database["public"]["Enums"]["job_stage"]
@@ -1338,6 +1340,7 @@ export type Database = {
           assigned_to?: string | null
           business_id?: string
           city?: string | null
+          close_grade?: number | null
           company_id?: string | null
           contact_id: string
           created_at?: string
@@ -1348,6 +1351,7 @@ export type Database = {
           lead_source?: string | null
           lost_at?: string | null
           lost_reason?: string | null
+          margin_grade?: number | null
           pipeline_id?: string | null
           site_address?: string | null
           stage?: Database["public"]["Enums"]["job_stage"]
@@ -1361,6 +1365,7 @@ export type Database = {
           assigned_to?: string | null
           business_id?: string
           city?: string | null
+          close_grade?: number | null
           company_id?: string | null
           contact_id?: string
           created_at?: string
@@ -1371,6 +1376,7 @@ export type Database = {
           lead_source?: string | null
           lost_at?: string | null
           lost_reason?: string | null
+          margin_grade?: number | null
           pipeline_id?: string | null
           site_address?: string | null
           stage?: Database["public"]["Enums"]["job_stage"]

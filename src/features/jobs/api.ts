@@ -19,7 +19,7 @@ export const JOB_STAGES: JobStage[] = [
 ]
 
 const JOB_LIST_SELECT = `
-  id, job_number, title, stage, pipeline_id, value_est, value_final, lead_source,
+  id, job_number, title, stage, pipeline_id, close_grade, margin_grade, value_est, value_final, lead_source,
   site_address, created_at,
   contact:contacts ( id, full_name, last_contacted_at, last_contact_method ),
   company:companies ( id, name ),
@@ -33,6 +33,8 @@ export interface JobListRow {
   title: string
   stage: JobStage
   pipeline_id: string | null
+  close_grade: number | null
+  margin_grade: number | null
   value_est: number | null
   value_final: number | null
   lead_source: string | null
@@ -116,6 +118,8 @@ export interface JobDetail {
   site_address: string | null
   city: string | null
   extra: Record<string, string>
+  close_grade: number | null
+  margin_grade: number | null
   value_est: number | null
   value_final: number | null
   lead_source: string | null
@@ -133,7 +137,7 @@ export function useJob(id: string) {
       const { data, error } = await supabase
         .from('jobs')
         .select(
-          `id, job_number, title, stage, site_address, city, extra, value_est, value_final,
+          `id, job_number, title, stage, site_address, city, extra, close_grade, margin_grade, value_est, value_final,
            lead_source, lost_reason, created_at,
            contact:contacts ( id, full_name, phone ),
            company:companies ( id, name ),
@@ -154,6 +158,8 @@ export interface UpdateJobInput {
     site_address: string | null
     city: string | null
     extra: Record<string, string>
+    close_grade: number | null
+    margin_grade: number | null
     value_est: number | null
     value_final: number | null
     lead_source: string | null
@@ -541,4 +547,18 @@ export function useCreatePipeline() {
       void queryClient.invalidateQueries({ queryKey: ['stage-settings'] })
     },
   })
+}
+
+
+/** Card tint by close probability: 5 bright green → 1 red. */
+export const CLOSE_GRADE_STYLES: Record<number, string> = {
+  5: 'border-emerald-500 bg-emerald-100',
+  4: 'border-green-400 bg-green-50',
+  3: 'border-yellow-400 bg-yellow-50',
+  2: 'border-orange-400 bg-orange-50',
+  1: 'border-red-400 bg-red-50',
+}
+
+export function marginSigns(grade: number | null): string {
+  return grade ? '$'.repeat(Math.min(5, Math.max(1, grade))) : ''
 }

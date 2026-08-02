@@ -813,3 +813,14 @@ contact card); and both get free-form "Extra info" label→value fields with
 "+ Add field" (gate codes, parking, preferred times…) shown on the lead
 info panel and contact card — no migrations needed to add a field. Write
 paths verified via REST.
+
+---
+
+## Slice 48 — Lead grading: close probability + margin potential
+**Status:** done (2026-08-02) — Qualification panel on the lead card: close
+probability 1–5 (colored buttons, click again to clear) and margin
+potential $–$$$$$. Board cards tint by probability (bright green 5 → red 1;
+ungraded stays white) and show gold $ signs beside the value; list views
+show a colored dot + $s next to the stage. Grades feed Sara's snapshot
+(close_probability_grade / margin_grade) so briefs and chat can prioritize
+"grade-5 leads going quiet". DB checks 1..5 verified.

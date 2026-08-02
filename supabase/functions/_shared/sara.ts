@@ -45,7 +45,7 @@ export async function buildSnapshot(sb: SupabaseClient, businessId: string | nul
       sb
         .from('jobs')
         .select(
-          `id, job_number, title, stage, value_est, value_final, lead_source, created_at,
+          `id, job_number, title, stage, close_grade, margin_grade, value_est, value_final, lead_source, created_at,
            assignee:profiles ( full_name ),
            contact:contacts ( id, full_name, last_contacted_at, last_contact_method )`,
         )
@@ -89,6 +89,8 @@ export async function buildSnapshot(sb: SupabaseClient, businessId: string | nul
     job_number: string
     title: string
     stage: string
+    close_grade: number | null
+    margin_grade: number | null
     value_est: number | null
     value_final: number | null
     lead_source: string | null
@@ -136,6 +138,8 @@ export async function buildSnapshot(sb: SupabaseClient, businessId: string | nul
       job_number: j.job_number,
       title: j.title,
       stage: j.stage,
+      close_probability_grade: j.close_grade, // 5 = very likely to close, 1 = very unlikely
+      margin_grade: j.margin_grade,           // 5 = high margin, 1 = thin
       value: j.value_final ?? j.value_est,
       assigned_to: j.assignee?.full_name ?? null,
       age_days: Math.floor((Date.now() - new Date(j.created_at).getTime()) / 86400_000),
