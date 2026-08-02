@@ -162,7 +162,7 @@ async function aiMapStageValues(
           {
             role: 'system',
             content:
-              'Map raw spreadsheet stage/status values to CRM pipeline stage KEYS. Given the available stages (key + label) and raw values, return JSON {"<raw value>":"<stage key>", ...}. Match by meaning ("booked estimate" → a quoting/estimate stage, "closed"/"sold" → won, "dead"/"no answer x3" → lost). Omit values you cannot confidently map.',
+              'Map raw spreadsheet stage/status values to CRM pipeline stage KEYS. Given the available stages (key + label) and raw values, return JSON {"<raw value>":"<stage key>", ...}. Match by meaning ("booked estimate" → a quoting/estimate stage, "closed"/"sold" → won). BE CONSERVATIVE ABOUT LOST: map to a lost stage ONLY when the value unambiguously means the lead is dead ("lost", "dead", "not interested", "went elsewhere"). Ambiguous or stalled statuses ("missing info", "not qualified", "no answer", "cold") go to a follow-up-type stage instead — a lead marked lost disappears from the working pipeline. Omit values you cannot confidently map.',
           },
           { role: 'user', content: JSON.stringify({ stages, values }) },
         ],
