@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { useProfiles } from '../../auth/api'
@@ -40,6 +40,28 @@ export function StageBoard({
   const [dragOver, setDragOver] = useState<JobStage | null>(null)
   const [pendingLost, setPendingLost] = useState<string | null>(null)
   const [customizing, setCustomizing] = useState(false)
+  // Mobile: jump-bar chips track which column fills the screen (snap scroll).
+  const boardRef = useRef<HTMLDivElement>(null)
+  const [activeStage, setActiveStage] = useState<JobStage | null>(null)
+
+  const jumpTo = (stage: JobStage) => {
+    setActiveStage(stage)
+    boardRef.current
+      ?.querySelector(`[data-stage="${stage}"]`)
+      ?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
+  }
+  const trackScroll = () => {
+    const el = boardRef.current
+    if (!el) return
+    let best: { stage: JobStage; dist: number } | null = null
+    for (const child of el.children) {
+      const stage = (child as HTMLElement).dataset.stage as JobStage | undefined
+      if (!stage) continue
+      const dist = Math.abs((child as HTMLElement).offsetLeft - el.offsetLeft - el.scrollLeft)
+      if (!best || dist < best.dist) best = { stage, dist }
+    }
+    if (best) setActiveStage(best.stage)
+  }
 
   // Custom order + labels; hidden stages still show while occupied.
   const columns: { stage: JobStage; label: string }[] = (
@@ -125,7 +147,30 @@ export function StageBoard({
       {scoped && scoped.length === 0 && (
         <p className="py-12 text-center text-stone-500">Nothing here yet.</p>
       )}
-      <div className="flex flex-1 gap-2 overflow-x-auto pb-4 [-webkit-overflow-scrolling:touch] sm:gap-3">
+      {/* Mobile jump-bar: every stage at a glance, tap to slide there. */}
+      <div className="sticky top-0 z-10 -mx-3 mb-2 flex gap-1.5 overflow-x-auto bg-stone-100/95 px-3 py-1.5 backdrop-blur md:hidden">
+        {columns.map(({ stage, label }) => {
+          const count = (scoped ?? []).filter((j) => j.stage === stage).length
+          const active = stage === (activeStage ?? columns[0]?.stage)
+          return (
+            <button
+              key={stage}
+              onClick={() => jumpTo(stage)}
+              className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
+                active ? 'bg-stone-900 text-amber-400' : 'bg-white text-stone-600 shadow-sm'
+              }`}
+            >
+              {label}
+              <span className={active ? 'ml-1 text-amber-200/80' : 'ml-1 text-stone-400'}>{count}</span>
+            </button>
+          )
+        })}
+      </div>
+      <div
+        ref={boardRef}
+        onScroll={trackScroll}
+        className="flex flex-1 snap-x gap-2 overflow-x-auto pb-4 [-webkit-overflow-scrolling:touch] sm:gap-3 md:snap-none"
+      >
         {columns.map(({ stage, label }) => {
           const inStage = (scoped ?? []).filter((j) => j.stage === stage)
           const total = inStage.reduce(
@@ -135,6 +180,7 @@ export function StageBoard({
           return (
             <div
               key={stage}
+              data-stage={stage}
               onDragOver={(e) => {
                 e.preventDefault()
                 setDragOver(stage)
@@ -144,7 +190,7 @@ export function StageBoard({
                 e.preventDefault() // Firefox otherwise navigates to the drag data
                 drop(stage)
               }}
-              className={`flex w-56 shrink-0 flex-col rounded-lg border sm:w-60 ${
+              className={`flex w-56 shrink-0 snap-start flex-col rounded-lg border sm:w-60 ${
                 dragOver === stage ? 'border-amber-500 bg-amber-50' : 'border-stone-200 bg-stone-50'
               }`}
             >

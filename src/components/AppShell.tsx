@@ -95,8 +95,10 @@ export function AppShell() {
           ))}
         </nav>
       </aside>
-      <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-end gap-3 border-b border-stone-200 bg-white px-3 py-3 md:gap-4 md:px-6">
+      {/* min-w-0: wide boards must scroll inside their own container, never
+          stretch the page and carry the header off-screen. */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex items-center justify-end gap-3 border-b border-stone-200 bg-white px-3 py-3 md:gap-4 md:px-6">
           <button
             onClick={() => setMobileNavOpen(true)}
             className="rounded p-2 text-stone-600 hover:bg-stone-100 md:hidden"
