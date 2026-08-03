@@ -24,13 +24,12 @@ const NAV_ITEMS = [
 export function AppShell() {
   const { session, signOut } = useAuth()
   const { data: membership, isPending: membershipPending } = useMyMembership()
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   // No business yet → the lobby, nothing else.
   if (!membershipPending && membership && !membership.activeBusinessId) {
     return <Lobby />
   }
-
-  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   return (
     <div className="flex min-h-screen bg-stone-100">

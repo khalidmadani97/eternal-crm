@@ -10,6 +10,67 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Crash reporter: a blank screen must never be silent. Shows the error
+         on-screen so non-technical users can screenshot it. Removed once the
+         app has proven stable in the field. -->
+    <script>
+      ;(function () {
+        var shown = false
+        function esc(s) {
+          var p = document.createElement('p')
+          p.textContent = String(s == null ? '' : s)
+          return p.innerHTML
+        }
+        function show(title, detail) {
+          if (shown) return
+          shown = true
+          var d = document.createElement('div')
+          d.style.cssText =
+            'position:fixed;inset:12px;z-index:99999;background:#fff;border:3px solid #dc2626;border-radius:12px;padding:20px;font:14px/1.5 -apple-system,system-ui,sans-serif;color:#1c1917;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.3)'
+          d.innerHTML =
+            '<h2 style="margin:0 0 8px;color:#dc2626;font-size:17px">Eternal CRM hit a problem loading</h2>' +
+            '<p style="margin:0 0 12px">Screenshot this box and send it in.</p>' +
+            '<pre style="white-space:pre-wrap;word-break:break-word;background:#f5f5f4;padding:12px;border-radius:8px;margin:0 0 12px">' +
+            esc(title) + '\n\n' + esc(detail) +
+            '</pre>' +
+            '<button onclick="location.reload()" style="background:#1c1917;color:#fff;border:0;border-radius:8px;padding:8px 16px;font-size:14px">Reload</button>'
+          document.body.appendChild(d)
+        }
+        function env() {
+          return 'UA: ' + navigator.userAgent + '\nOnline: ' + navigator.onLine + '\nURL: ' + location.href
+        }
+        window.addEventListener(
+          'error',
+          function (e) {
+            var t = e.target
+            if (t && t !== window && (t.src || t.href)) {
+              show('A file failed to load', (t.tagName || '') + ': ' + (t.src || t.href) + '\n' + env())
+            } else {
+              show(
+                e.message || 'Script error',
+                (e.filename || '') + ':' + (e.lineno || '') + '\n' + ((e.error && e.error.stack) || '') + '\n' + env(),
+              )
+            }
+          },
+          true,
+        )
+        window.addEventListener('unhandledrejection', function (e) {
+          var root = document.getElementById('root')
+          if (root && root.childElementCount > 0) return // app is up; don't alarm over background noise
+          var r = e.reason || {}
+          show('Startup promise failed', (r.message || String(r)) + '\n' + (r.stack || '') + '\n' + env())
+        })
+        setTimeout(function () {
+          var root = document.getElementById('root')
+          if (root && root.childElementCount === 0) {
+            show(
+              'App did not start within 8 seconds',
+              'No error was thrown — the main script may be blocked or unreachable.\n' + env(),
+            )
+          }
+        }, 8000)
+      })()
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
