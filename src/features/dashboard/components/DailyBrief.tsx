@@ -101,9 +101,7 @@ export function DailyBrief() {
       )}
       {generate.data && (
         <div>
-          <p className="mb-3 whitespace-pre-wrap text-sm leading-relaxed text-stone-800">
-            {generate.data.brief.summary}
-          </p>
+          <SummaryText text={generate.data.brief.summary} />
           <ul className="space-y-2">
             {generate.data.brief.urgent.map((item, i) => (
               <UrgentRow key={`${item.contact_id}-${i}`} item={item} />
@@ -112,6 +110,36 @@ export function DailyBrief() {
         </div>
       )}
     </section>
+  )
+}
+
+/** The model returns the summary as one paragraph; on a phone that reads as a
+ *  wall of text. Break it into sentence pairs so it scans like short notes. */
+function SummaryText({ text }: { text: string }) {
+  const paragraphs = text
+    .split(/\n+/)
+    .filter((block) => block.trim())
+    .flatMap((block) => {
+      if (block.length <= 220) return [block.trim()]
+      const sentences = block.match(/[^.!?]+[.!?]+["')\]]*\s*|[^.!?]+$/g) ?? [block]
+      const grouped: string[] = []
+      for (let i = 0; i < sentences.length; i += 2) {
+        grouped.push(sentences.slice(i, i + 2).join('').trim())
+      }
+      return grouped
+    })
+
+  return (
+    <div className="mb-3 space-y-2">
+      {paragraphs.map((p, i) => (
+        <p
+          key={i}
+          className={`text-sm leading-relaxed ${i === 0 ? 'font-medium text-stone-900' : 'text-stone-700'}`}
+        >
+          {p}
+        </p>
+      ))}
+    </div>
   )
 }
 
@@ -163,36 +191,36 @@ function UrgentRow({ item }: { item: UrgentItem }) {
         ) : (
           <span className="text-sm font-semibold text-stone-900">{item.who}</span>
         )}
-        <div className="ml-auto flex items-center gap-1.5">
-          {added ? (
-            <span className="text-xs font-medium text-emerald-700">✓ Task on calendar</span>
-          ) : (
-            <>
-              <select
-                value={assignee}
-                onChange={(e) => setAssignee(e.target.value)}
-                className="rounded border border-stone-300 px-1.5 py-1 text-xs"
-                aria-label="Assign task to"
-              >
-                {profiles?.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.full_name ?? 'Unnamed'}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={addTask}
-                disabled={createTask.isPending}
-                className="rounded bg-amber-600 px-2 py-1 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
-              >
-                {createTask.isPending ? 'Adding…' : `+ Task ${item.due}`}
-              </button>
-            </>
-          )}
-        </div>
       </div>
-      <p className="mt-1 text-sm text-stone-700">{item.reason}</p>
-      <p className="text-sm font-medium text-stone-900">→ {item.action}</p>
+      <p className="mt-1.5 text-sm leading-relaxed text-stone-700">{item.reason}</p>
+      <p className="mt-1 text-sm font-medium leading-relaxed text-stone-900">→ {item.action}</p>
+      <div className="mt-2 flex items-center justify-end gap-1.5 border-t border-stone-100 pt-2">
+        {added ? (
+          <span className="text-xs font-medium text-emerald-700">✓ Task on calendar</span>
+        ) : (
+          <>
+            <select
+              value={assignee}
+              onChange={(e) => setAssignee(e.target.value)}
+              className="max-w-[45%] rounded border border-stone-300 px-1.5 py-1.5 text-xs"
+              aria-label="Assign task to"
+            >
+              {profiles?.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.full_name ?? 'Unnamed'}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={addTask}
+              disabled={createTask.isPending}
+              className="rounded bg-amber-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+            >
+              {createTask.isPending ? 'Adding…' : `+ Task ${item.due}`}
+            </button>
+          </>
+        )}
+      </div>
       {createTask.isError && <p className="text-xs text-red-600">{createTask.error.message}</p>}
     </li>
   )
