@@ -105,34 +105,98 @@ export async function buildSnapshot(sb: SupabaseClient, businessId: string | nul
   }[]
 
   const contactIds = [...new Set(jobs.map((j) => j.contact?.id).filter(Boolean))] as string[]
-  const { data: recentActivity } = await sb
-    .from('activities')
-    .select('contact_id, kind, body, created_at, author:profiles ( full_name )')
-    .in('contact_id', contactIds.length ? contactIds : ['00000000-0000-0000-0000-000000000000'])
-    .in('kind', ['note', 'sms', 'dm', 'call', 'email', 'meeting'])
-    .order('created_at', { ascending: false })
-    .limit(250)
+  const jobIds = jobs.map((j) => j.id)
 
-  const notesByContact = new Map<string, string[]>()
-  for (const a of (recentActivity ?? []) as {
+  // Notes live on the JOB (lead-card timeline) or the CONTACT (contact
+  // card / comms) — gather BOTH, chunked to stay inside URL limits.
+  interface Act {
+    job_id: string | null
     contact_id: string | null
     kind: string
     body: string | null
     created_at: string
     author: { full_name: string | null } | null
-  }[]) {
-    if (!a.contact_id || !a.body) continue
-    const list = notesByContact.get(a.contact_id) ?? []
-    if (list.length < 6) {
-      const author =
-        a.author?.full_name ?? (a.kind === 'sms' || a.kind === 'dm' ? 'client/system' : 'unknown')
-      list.push(`[${a.created_at.slice(0, 10)} ${a.kind} by ${author}] ${a.body.slice(0, 220)}`)
-      notesByContact.set(a.contact_id, list)
+  }
+  const allActivity: Act[] = []
+  const SELECT = 'job_id, contact_id, kind, body, created_at, author:profiles ( full_name )'
+  const KINDS = ['note', 'sms', 'dm', 'call', 'email', 'meeting']
+  for (let i = 0; i < jobIds.length; i += 150) {
+    const { data } = await sb
+      .from('activities').select(SELECT)
+      .in('job_id', jobIds.slice(i, i + 150)).in('kind', KINDS)
+      .order('created_at', { ascending: false }).limit(400)
+    allActivity.push(...((data ?? []) as unknown as Act[]))
+  }
+  for (let i = 0; i < contactIds.length; i += 150) {
+    const { data } = await sb
+      .from('activities').select(SELECT)
+      .in('contact_id', contactIds.slice(i, i + 150)).in('kind', KINDS)
+      .order('created_at', { ascending: false }).limit(400)
+    allActivity.push(...((data ?? []) as unknown as Act[]))
+  }
+  allActivity.sort((a, b) => b.created_at.localeCompare(a.created_at))
+
+  const format = (a: Act) => {
+    const author =
+      a.author?.full_name ?? (a.kind === 'sms' || a.kind === 'dm' ? 'client/system' : 'unknown')
+    return `[${a.created_at.slice(0, 10)} ${a.kind} by ${author}] ${a.body!.slice(0, 220)}`
+  }
+  const notesByJob = new Map<string, string[]>()
+  const notesByContact = new Map<string, string[]>()
+  const push = (map: Map<string, string[]>, key: string, a: Act, human: boolean) => {
+    const list = map.get(key) ?? []
+    // human-written notes always make the cut; comms fill the rest
+    if (human ? list.length < 10 : list.length < 6) {
+      const line = format(a)
+      if (!list.includes(line)) {
+        list.push(line)
+        map.set(key, list)
+      }
     }
   }
+  // pass 1: human notes first so a flood of texts can't crowd them out
+  for (const a of allActivity) {
+    if (!a.body) continue
+    if (a.kind !== 'note' && a.kind !== 'meeting') continue
+    if (a.job_id) push(notesByJob, a.job_id, a, true)
+    else if (a.contact_id) push(notesByContact, a.contact_id, a, true)
+  }
+  for (const a of allActivity) {
+    if (!a.body) continue
+    if (a.kind === 'note' || a.kind === 'meeting') continue
+    if (a.job_id) push(notesByJob, a.job_id, a, false)
+    else if (a.contact_id) push(notesByContact, a.contact_id, a, false)
+  }
+
+  // Human-written notes from the last 14 days — surfaced separately so an
+  // explicit instruction ("call these guys today") can never drown among
+  // hundreds of leads.
+  const cutoff14 = Date.now() - 14 * 86400_000
+  const jobByIdForNotes = new Map(jobs.map((j) => [j.id, j]))
+  const flagged_recent_notes = allActivity
+    .filter(
+      (a) =>
+        a.kind === 'note' &&
+        a.body &&
+        !a.body.startsWith('Lead form details') &&
+        a.author?.full_name &&
+        new Date(a.created_at).getTime() > cutoff14,
+    )
+    .slice(0, 30)
+    .map((a) => {
+      const job = a.job_id ? jobByIdForNotes.get(a.job_id) : undefined
+      return {
+        date: a.created_at.slice(0, 10),
+        author: a.author!.full_name,
+        about: job ? `${job.job_number} ${job.contact?.full_name ?? job.title}` : 'contact-level',
+        job_id: a.job_id,
+        note: a.body!.slice(0, 300),
+      }
+    })
 
   return {
     today,
+    flagged_recent_notes,
     open_jobs: jobs.map((j) => ({
       job_id: j.id,
       job_number: j.job_number,
@@ -148,7 +212,10 @@ export async function buildSnapshot(sb: SupabaseClient, businessId: string | nul
       days_since_contact: j.contact?.last_contacted_at
         ? Math.floor((Date.now() - new Date(j.contact.last_contacted_at).getTime()) / 86400_000)
         : null,
-      recent_notes: j.contact ? (notesByContact.get(j.contact.id) ?? []) : [],
+      recent_notes: [
+        ...(notesByJob.get(j.id) ?? []),
+        ...(j.contact ? (notesByContact.get(j.contact.id) ?? []) : []),
+      ].slice(0, 10),
     })),
     appointments_next_7_days: apptsRes.data ?? [],
     overdue_invoices: ((invoicesRes.data ?? []) as Record<string, unknown>[]).map((inv) => ({

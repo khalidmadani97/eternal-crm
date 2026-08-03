@@ -824,3 +824,20 @@ ungraded stays white) and show gold $ signs beside the value; list views
 show a colored dot + $s next to the stage. Grades feed Sara's snapshot
 (close_probability_grade / margin_grade) so briefs and chat can prioritize
 "grade-5 leads going quiet". DB checks 1..5 verified.
+
+---
+
+## Slice 49 — Sara reads every note + deletable notes
+**Status:** done (2026-08-03) — root cause of the missed "call these guys
+today" note: lead-card notes carry job_id but no contact_id, and the
+snapshot only gathered by contact. Fixed: notes gathered by BOTH job and
+contact (chunked), human notes prioritized over comms floods, and a
+flagged_recent_notes section (human notes, 14 days, form-imports excluded)
+feeds chat + brief with "treat as commitments" instructions — plus a
+DETERMINISTIC guarantee in the brief: any unaddressed human note from the
+last 3 days is injected as P1 mechanically, no model attention required
+(verified live: the note leads the chat answer and the brief P1). New notes
+also store contact_id. Deletable notes: ONLY kind=note (author or admin) —
+trigger + RLS; stage history, comms, and consent stay append-only
+(verified: own note 204, stage_change untouched). Daily-brief now uses the
+shared snapshot module.

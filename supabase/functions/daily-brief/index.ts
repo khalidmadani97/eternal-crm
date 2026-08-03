@@ -9,6 +9,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { checkAiCredits, json, logAiUsage, requireStaff } from '../_shared/twilio.ts'
+import { buildSnapshot, callerBusinessId, loadCaller } from '../_shared/sara.ts'
 
 function systemPrompt(me: {
   name: string
@@ -26,12 +27,20 @@ You are briefing ONE person:
 Team directory (name — role — responsibilities):
 ${team}
 
+flagged_recent_notes are recent HUMAN-written notes — explicit
+instructions/dates in them are commitments and MUST surface as urgent items
+on their day (e.g. "call these guys today" → a P1 for today).
+
 You get a JSON snapshot: open leads/jobs (stage, value, days since the
 client was last contacted, recent notes WITH THEIR AUTHORS — including voice
 transcripts), appointments for the next 7 days, overdue invoices, and open
 tasks with assignees.
 
 Build THEIR day, not a generic one:
+0. MANDATORY: every flagged_recent_notes entry dated today or earlier that
+   contains an instruction ("call X today", "quote by Friday") becomes its
+   own urgent item at the top — these are explicit human commitments and
+   skipping one is a failure.
 1. Lead with what falls under THEIR responsibilities.
 2. Route cross-role signals to them by name: if someone ELSE's note reveals
    something this person must act on — e.g. a salesperson unsure whether
@@ -88,133 +97,16 @@ Deno.serve(async (req) => {
     )
   }
 
-  const today = new Date().toISOString().slice(0, 10)
-
-  // ── Who is asking, and who exists ────────────────────────────────────────
-  const { data: teamRows, error: teamError } = await sb
-    .from('profiles')
-    .select('id, full_name, job_role, responsibilities')
-  if (teamError) return json({ error: teamError.message }, 500)
-  const meRow = teamRows?.find((p) => p.id === auth.userId)
-  const me = {
-    name: meRow?.full_name ?? 'the owner',
-    jobRole: meRow?.job_role ?? 'Owner (role not set — assume they oversee everything)',
-    responsibilities:
-      meRow?.responsibilities ??
-      'Not specified — assume overall responsibility for sales, production, and money.',
-  }
-  const teamDirectory = (teamRows ?? [])
-    .map(
-      (p) =>
-        `  ${p.full_name ?? 'Unnamed'} — ${p.job_role ?? 'no role set'} — ${p.responsibilities ?? 'no responsibilities set'}`,
-    )
-    .join('\n')
-
-  // ── Snapshot ──────────────────────────────────────────────────────────────
-  const [jobsRes, apptsRes, invoicesRes, tasksRes] = await Promise.all([
-    sb
-      .from('jobs')
-      .select(
-        `id, job_number, title, stage, value_est, value_final, lead_source, created_at,
-         assignee:profiles ( full_name ),
-         contact:contacts ( id, full_name, last_contacted_at, last_contact_method )`,
-      )
-      .is('deleted_at', null)
-      .not('stage', 'in', '(closed,lost)'),
-    sb
-      .from('appointments')
-      .select(
-        'kind, starts_at, notes, assignee:profiles ( full_name ), job:jobs ( job_number, title, contact:contacts ( full_name ) )',
-      )
-      .gte('starts_at', `${today}T00:00:00Z`)
-      .lte('starts_at', new Date(Date.now() + 7 * 86400_000).toISOString())
-      .order('starts_at'),
-    sb
-      .from('invoices')
-      .select('invoice_number, due_date, total, amount_paid, job:jobs ( job_number, contact:contacts ( full_name ) )')
-      .in('status', ['sent', 'partial'])
-      .lt('due_date', today),
-    sb
-      .from('tasks')
-      .select('title, due_date, assignee:profiles ( full_name ), job:jobs ( job_number )')
-      .is('completed_at', null)
-      .not('due_date', 'is', null)
-      .lte('due_date', new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10)),
+  const [caller2, businessId2] = await Promise.all([
+    loadCaller(sb, auth.userId),
+    callerBusinessId(sb, auth.userId),
   ])
-  for (const r of [jobsRes, apptsRes, invoicesRes, tasksRes]) {
-    if (r.error) return json({ error: r.error.message }, 500)
-  }
-
-  const jobs = jobsRes.data as unknown as {
-    id: string
-    job_number: string
-    title: string
-    stage: string
-    value_est: number | null
-    value_final: number | null
-    lead_source: string | null
-    created_at: string
-    assignee: { full_name: string | null } | null
-    contact: {
-      id: string
-      full_name: string
-      last_contacted_at: string | null
-      last_contact_method: string | null
-    } | null
-  }[]
-
-  // Recent notes with AUTHORS — the raw material for cross-role routing.
-  const contactIds = [...new Set(jobs.map((j) => j.contact?.id).filter(Boolean))] as string[]
-  const { data: recentActivity } = await sb
-    .from('activities')
-    .select('contact_id, job_id, kind, body, created_at, author:profiles ( full_name )')
-    .in('contact_id', contactIds.length ? contactIds : ['00000000-0000-0000-0000-000000000000'])
-    .in('kind', ['note', 'sms', 'dm', 'call', 'email', 'meeting'])
-    .order('created_at', { ascending: false })
-    .limit(250)
-
-  const notesByContact = new Map<string, string[]>()
-  for (const a of (recentActivity ?? []) as unknown as {
-    contact_id: string | null
-    kind: string
-    body: string | null
-    created_at: string
-    author: { full_name: string | null } | null
-  }[]) {
-    if (!a.contact_id || !a.body) continue
-    const list = notesByContact.get(a.contact_id) ?? []
-    if (list.length < 6) {
-      const author = a.author?.full_name ?? (a.kind === 'sms' || a.kind === 'dm' ? 'client/system' : 'unknown')
-      list.push(`[${a.created_at.slice(0, 10)} ${a.kind} by ${author}] ${a.body.slice(0, 220)}`)
-      notesByContact.set(a.contact_id, list)
-    }
-  }
-
-  const snapshot = {
-    today,
-    open_jobs: jobs.map((j) => ({
-      job_id: j.id,
-      job_number: j.job_number,
-      title: j.title,
-      stage: j.stage,
-      value: j.value_final ?? j.value_est,
-      assigned_to: j.assignee?.full_name ?? null,
-      age_days: Math.floor((Date.now() - new Date(j.created_at).getTime()) / 86400_000),
-      contact_id: j.contact?.id ?? null,
-      contact: j.contact?.full_name ?? null,
-      days_since_contact: j.contact?.last_contacted_at
-        ? Math.floor((Date.now() - new Date(j.contact.last_contacted_at).getTime()) / 86400_000)
-        : null,
-      recent_notes: j.contact ? (notesByContact.get(j.contact.id) ?? []) : [],
-    })),
-    appointments_next_7_days: apptsRes.data ?? [],
-    overdue_invoices: (invoicesRes.data ?? []).map((inv: Record<string, unknown>) => ({
-      ...inv,
-      balance:
-        Number((inv as { total: number }).total) -
-        Number((inv as { amount_paid: number }).amount_paid),
-    })),
-    open_tasks: tasksRes.data ?? [],
+  const snapshot = await buildSnapshot(sb, businessId2)
+  const me = {
+    name: caller2.name,
+    jobRole: caller2.jobRole,
+    responsibilities: caller2.responsibilities,
+    teamDirectory: caller2.teamDirectory,
   }
 
   const llmRes = await fetch(`${apiBase}/chat/completions`, {
@@ -224,7 +116,7 @@ Deno.serve(async (req) => {
       model,
       response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: systemPrompt(me, teamDirectory) },
+        { role: 'system', content: systemPrompt(me, caller2.teamDirectory) },
         { role: 'user', content: JSON.stringify(snapshot) },
       ],
     }),
@@ -240,6 +132,42 @@ Deno.serve(async (req) => {
     return json({ error: 'The model returned malformed JSON — try again' }, 502)
   }
 
+  // Deterministic guarantee: a human note written TODAY always makes the
+  // plan — if the model skipped one, inject it as P1 (models drift; notes
+  // are commitments).
+  try {
+    const b = brief as { urgent?: Record<string, unknown>[] }
+    const urgent = (b.urgent ?? []) as Record<string, unknown>[]
+    const snapNotes = (snapshot as { flagged_recent_notes?: {
+      date: string; author: string | null; about: string; job_id: string | null; note: string
+    }[] }).flagged_recent_notes ?? []
+    const today2 = new Date().toISOString().slice(0, 10)
+    const mentioned = JSON.stringify(urgent).toLowerCase()
+    const cutoff3 = new Date(Date.now() - 3 * 86400_000).toISOString().slice(0, 10)
+    for (const n of snapNotes.filter((x) => x.date >= cutoff3)) {
+      const key = (n.about.split(' ')[0] ?? '').toLowerCase()
+      const covered =
+        (n.job_id && mentioned.includes(n.job_id)) ||
+        (key && key.length > 3 && mentioned.includes(key)) ||
+        mentioned.includes(n.note.slice(0, 25).toLowerCase())
+      if (!covered) {
+        urgent.unshift({
+          contact_id: null,
+          job_id: n.job_id,
+          who: n.about,
+          job_number: n.about.startsWith('EI-') ? n.about.split(' ')[0] : null,
+          category: 'internal',
+          reason: `${n.date === today2 ? 'Note from today' : `Unaddressed note from ${n.date}`}${n.author ? ` (by ${n.author})` : ''}: "${n.note.slice(0, 160)}"`,
+          action: 'Do what the note says',
+          priority: 1,
+          task_title: n.note.slice(0, 60),
+          due: today2,
+        })
+      }
+    }
+    b.urgent = urgent.slice(0, 8)
+  } catch { /* never fail the brief over the guarantee */ }
+
   await logAiUsage(
     sb, auth.userId, 'daily-brief', model,
     llmBody.usage?.prompt_tokens ?? null, llmBody.usage?.completion_tokens ?? null,
@@ -249,7 +177,7 @@ Deno.serve(async (req) => {
     brief,
     model,
     generated_at: new Date().toISOString(),
-    for: { name: me.name, job_role: meRow?.job_role ?? null },
+    for: { name: me.name, job_role: me.jobRole ?? null },
     usage: { used: credits.used + 1, cap: credits.cap },
   })
 })
