@@ -30,9 +30,50 @@ export function AppShell() {
     return <Lobby />
   }
 
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
   return (
     <div className="flex min-h-screen bg-stone-100">
-      <aside className="flex w-56 flex-col bg-stone-900 text-stone-300">
+      {/* mobile slide-over */}
+      {mobileNavOpen && (
+        <div className="fixed inset-0 z-40 md:hidden" onClick={() => setMobileNavOpen(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <aside
+            className="absolute inset-y-0 left-0 flex w-64 flex-col bg-stone-900 text-stone-300 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-6">
+              <span>
+                <span className="text-lg font-semibold text-amber-500">Eternal</span>
+                <span className="text-lg font-light text-stone-100"> CRM</span>
+              </span>
+              <button onClick={() => setMobileNavOpen(false)} className="p-2 text-stone-400" aria-label="Close menu">
+                ✕
+              </button>
+            </div>
+            <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-6">
+              {NAV_ITEMS.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setMobileNavOpen(false)}
+                  className={({ isActive }) =>
+                    `block rounded px-3 py-3 text-base ${
+                      isActive
+                        ? 'bg-stone-800 font-medium text-amber-400'
+                        : 'hover:bg-stone-800 hover:text-stone-100'
+                    }`
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+          </aside>
+        </div>
+      )}
+
+      <aside className="hidden w-56 flex-col bg-stone-900 text-stone-300 md:flex">
         <div className="px-5 py-6">
           <span className="text-lg font-semibold text-amber-500">Eternal</span>
           <span className="text-lg font-light text-stone-100"> CRM</span>
@@ -56,7 +97,16 @@ export function AppShell() {
         </nav>
       </aside>
       <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-end gap-4 border-b border-stone-200 bg-white px-6 py-3">
+        <header className="flex items-center justify-end gap-3 border-b border-stone-200 bg-white px-3 py-3 md:gap-4 md:px-6">
+          <button
+            onClick={() => setMobileNavOpen(true)}
+            className="rounded p-2 text-stone-600 hover:bg-stone-100 md:hidden"
+            aria-label="Open menu"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" />
+            </svg>
+          </button>
           {membership && membership.platformAdmin && membership.businesses.length > 1 ? (
             <select
               value={membership.activeBusinessId ?? ''}
@@ -71,7 +121,7 @@ export function AppShell() {
               ))}
             </select>
           ) : (
-            <span className="mr-auto text-sm font-medium text-stone-500">
+            <span className="mr-auto hidden text-sm font-medium text-stone-500 sm:inline">
               {membership?.businesses.find((b) => b.id === membership.activeBusinessId)?.name ?? ''}
             </span>
           )}
@@ -79,7 +129,7 @@ export function AppShell() {
           <PushToggle />
           <AvatarMenu email={session?.user.email ?? ''} platformAdmin={membership?.platformAdmin ?? false} onSignOut={() => void signOut()} />
         </header>
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-3 pb-24 md:p-6 md:pb-24">
           <Outlet />
         </main>
         <SaraChat />

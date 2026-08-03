@@ -25,7 +25,7 @@ export function LeadSheetsDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl">
+      <div className="max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:p-6">
         <div className="mb-1 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-stone-900">Live lead sources</h2>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-700">✕</button>

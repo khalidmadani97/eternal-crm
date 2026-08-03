@@ -18,7 +18,7 @@ export function LostReasonDialog({ onConfirm, onCancel }: Props) {
 
   return (
     <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+      <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:p-6">
         <h2 className="mb-2 text-lg font-semibold text-stone-900">Mark job as lost</h2>
         <p className="mb-3 text-sm text-stone-600">
           Why was this job lost? This feeds win-rate reporting.

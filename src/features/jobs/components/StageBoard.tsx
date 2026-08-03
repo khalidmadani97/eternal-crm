@@ -125,7 +125,7 @@ export function StageBoard({
       {scoped && scoped.length === 0 && (
         <p className="py-12 text-center text-stone-500">Nothing here yet.</p>
       )}
-      <div className="flex flex-1 gap-3 overflow-x-auto pb-4">
+      <div className="flex flex-1 gap-2 overflow-x-auto pb-4 [-webkit-overflow-scrolling:touch] sm:gap-3">
         {columns.map(({ stage, label }) => {
           const inStage = (scoped ?? []).filter((j) => j.stage === stage)
           const total = inStage.reduce(
@@ -144,7 +144,7 @@ export function StageBoard({
                 e.preventDefault() // Firefox otherwise navigates to the drag data
                 drop(stage)
               }}
-              className={`flex w-60 shrink-0 flex-col rounded-lg border ${
+              className={`flex w-56 shrink-0 flex-col rounded-lg border sm:w-60 ${
                 dragOver === stage ? 'border-amber-500 bg-amber-50' : 'border-stone-200 bg-stone-50'
               }`}
             >
@@ -283,7 +283,7 @@ function CustomizeStagesDialog({
 
   return (
     <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+      <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:p-6">
         <h2 className="mb-1 text-lg font-semibold text-stone-900">Customize {phase === "pipeline" ? "Pipeline" : "Jobs"} stages</h2>
         <p className="mb-4 text-xs text-stone-500">
           Rename, reorder, or hide columns. Hidden stages still appear while they hold jobs, so
