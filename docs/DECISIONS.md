@@ -701,3 +701,19 @@ admins never see the tools. Tool traces are returned for transparency.
 covers remorse. The incident also proved the audit-trail restore path
 works. Perf fix bundled: sheet-sync dedupe is batched (196-row sheet:
 timeout → 0.9s).
+
+---
+
+## 037 — Cloudflare Pages for hosting (supersedes "Deploy: Vercel")
+2026-08 · accepted
+
+**Context** — The production domain (crm.eternalinteriors.ca) lives on
+Cloudflare, making Pages the zero-friction host; the stack table said
+Vercel before a host was ever provisioned.
+
+**Decision** — Frontend on Cloudflare Pages (SPA via public/_redirects,
+VITE_ vars in Pages env), backend on hosted Supabase per DECISIONS 017.
+Full runbook in DEPLOY.md.
+
+**Consequence** — One vendor for DNS + hosting + TLS; Vercel remains a
+drop-in alternative if ever needed.
