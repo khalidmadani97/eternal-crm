@@ -497,13 +497,24 @@ async function notifyNewLeads(
 
 // ── HTTP ─────────────────────────────────────────────────────────────────────
 
+
+function isServiceRole(req: Request): boolean {
+  try {
+    const token = (req.headers.get('Authorization') ?? '').replace('Bearer ', '')
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    // Signature already verified by the platform gateway (verify_jwt).
+    return payload.role === 'service_role'
+  } catch {
+    return false
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
   // Cron path: the scheduler authenticates with the service role and syncs
   // every business's active sheets (no user context).
-  const isCron =
-    req.headers.get('Authorization') === `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+  const isCron = isServiceRole(req)
 
   let auth: { userId: string } | Response = { userId: '' }
   if (!isCron) {

@@ -27,9 +27,12 @@ function service() {
 }
 
 async function requireAdmin(req: Request): Promise<{ userId: string } | Response> {
-  if (req.headers.get('Authorization') === `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`) {
-    return { userId: 'cron' } // scheduler
-  }
+  try {
+    const token = (req.headers.get('Authorization') ?? '').replace('Bearer ', '')
+    if (JSON.parse(atob(token.split('.')[1])).role === 'service_role') {
+      return { userId: 'cron' } // scheduler — gateway already verified the JWT
+    }
+  } catch { /* fall through to staff auth */ }
   const auth = await requireStaff(req)
   if (auth instanceof Response) return auth
   const { data } = await service().from('profiles').select('role').eq('id', auth.userId).single()
