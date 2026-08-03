@@ -1,0 +1,11 @@
+// Cloudflare Workers static-assets deployment (crm.eternalinteriors.ca).
+// `npx wrangler deploy` serves ./dist as a single-page app — SPA routing
+// handled natively (deep links like /jobs/123 fall back to index.html).
+{
+  "name": "eternal-crm",
+  "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
