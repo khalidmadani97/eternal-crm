@@ -499,8 +499,17 @@ async function notifyNewLeads(
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
-  const auth = await requireStaff(req)
-  if (auth instanceof Response) return auth
+
+  // Cron path: the scheduler authenticates with the service role and syncs
+  // every business's active sheets (no user context).
+  const isCron =
+    req.headers.get('Authorization') === `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+
+  let auth: { userId: string } | Response = { userId: '' }
+  if (!isCron) {
+    auth = await requireStaff(req)
+    if (auth instanceof Response) return auth
+  }
 
   let body: { action?: string; sheetId?: string; sheetUrl?: string }
   try {
@@ -510,10 +519,13 @@ Deno.serve(async (req) => {
   }
 
   const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-  const { data: profile } = await sb
-    .from('profiles').select('active_business_id').eq('id', auth.userId).single()
-  const businessId = profile?.active_business_id
-  if (!businessId) return json({ error: 'No active business' }, 400)
+  let businessId: string | null = null
+  if (!isCron) {
+    const { data: profile } = await sb
+      .from('profiles').select('active_business_id').eq('id', (auth as { userId: string }).userId).single()
+    businessId = profile?.active_business_id ?? null
+    if (!businessId) return json({ error: 'No active business' }, 400)
+  }
 
   if (body.action === 'preview') {
     if (!body.sheetUrl) return json({ error: 'sheetUrl required' }, 400)
@@ -531,7 +543,8 @@ Deno.serve(async (req) => {
   }
 
   if (body.action === 'sync') {
-    let query = sb.from('lead_sheets').select('*').eq('business_id', businessId).eq('active', true)
+    let query = sb.from('lead_sheets').select('*').eq('active', true)
+    if (!isCron) query = query.eq('business_id', businessId!)
     if (body.sheetId) query = query.eq('id', body.sheetId)
     const { data: sheets, error } = await query
     if (error) return json({ error: error.message }, 500)
