@@ -104,7 +104,7 @@ export function AgencyPage() {
       </div>
       {adding && (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+          <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:p-6">
             <h2 className="mb-1 text-lg font-semibold text-stone-900">Add a client business</h2>
             <p className="mb-4 text-xs text-stone-500">
               A fresh workspace with default stages and lists. You join as admin (without leaving

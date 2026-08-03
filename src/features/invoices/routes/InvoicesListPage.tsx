@@ -219,7 +219,7 @@ function NewInvoiceDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+      <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:p-6">
         <h2 className="mb-4 text-lg font-semibold text-stone-900">New invoice</h2>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-stone-700">Job</span>

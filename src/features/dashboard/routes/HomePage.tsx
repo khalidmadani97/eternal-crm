@@ -124,7 +124,7 @@ export function HomePage() {
   return (
     <div>
       {/* Hero — Sara greets you personally */}
-      <div className="mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-stone-900 via-stone-900 to-violet-950 p-6 text-white shadow-lg">
+      <div className="mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-stone-900 via-stone-900 to-violet-950 p-4 text-white shadow-lg sm:p-6">
         <div className="flex flex-wrap items-center gap-5">
           <div className="shrink-0 rounded-full bg-white/95 p-1 shadow-lg ring-2 ring-violet-400/60">
             <SaraBot size={72} mood="happy" />

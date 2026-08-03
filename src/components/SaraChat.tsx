@@ -166,7 +166,7 @@ export function SaraChat() {
       </button>
 
       {open && (
-        <div className="fixed bottom-20 right-5 z-30 flex h-[32rem] w-96 max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl">
+        <div className="fixed bottom-20 right-3 z-30 flex h-[min(32rem,calc(100dvh-7rem))] w-96 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl sm:right-5">
           <div className="flex items-center justify-between bg-stone-900 px-4 py-3">
             <div className="flex items-center gap-2.5">
               <span className="rounded-full bg-white/90 ring-1 ring-violet-400/60">

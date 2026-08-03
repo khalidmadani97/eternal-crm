@@ -841,3 +841,19 @@ also store contact_id. Deletable notes: ONLY kind=note (author or admin) —
 trigger + RLS; stage history, comms, and consent stay append-only
 (verified: own note 204, stage_change untouched). Daily-brief now uses the
 shared snapshot module.
+
+---
+
+## Slice 50 — Mobile pass
+**Status:** done (2026-08-03) — the desktop shell is now phone-friendly:
+sidebar collapses to a hamburger + slide-over drawer under md (large tap
+targets, backdrop dismiss); header compacts (business name hidden on tiny
+screens; ⌘K search already desktop-only); main padding tightens and leaves
+clearance for Sara's bubble. Sara's chat drawer caps at the visual viewport
+(100dvh-aware) so the input can't hide behind the keyboard area. All 17
+dialog panels cap at 92dvh with internal scrolling (long forms like New
+Job / Task / Lead sources stay usable). Board columns slim to w-56 with
+momentum scrolling; tables and the week calendar already scroll
+horizontally; detail grids already stack. The dedicated thumb-first /field
+route from Slice 6 remains the crew view. Real-device pass (iPhone Safari
+keyboard, Android Chrome) still needs human hands.

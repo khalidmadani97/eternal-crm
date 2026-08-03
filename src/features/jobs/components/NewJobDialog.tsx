@@ -45,7 +45,7 @@ export function NewJobDialog({ onClose, initialStage = 'new', pipelineId = null 
 
   return (
     <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+      <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:p-6">
         <h2 className="mb-4 text-lg font-semibold text-stone-900">New job</h2>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <div>
