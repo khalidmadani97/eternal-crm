@@ -38,7 +38,7 @@ export function SignupPage() {
         })
         if (acceptError) {
           const context = (acceptError as { context?: Response }).context
-          const parsed = context ? await context.json().catch(() => null) : null
+          const parsed = typeof context?.json === 'function' ? await context.json().catch(() => null) : null
           throw new Error(parsed?.error ?? 'This invite could not be applied — ask for a fresh link.')
         }
       } else if (mode === 'create') {

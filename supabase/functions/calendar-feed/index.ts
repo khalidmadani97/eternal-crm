@@ -23,10 +23,17 @@ const KIND_LABELS: Record<string, string> = {
   pickup: 'Pickup',
 }
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+}
+
 Deno.serve(async (req) => {
-  if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 })
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS })
+  if (req.method !== 'GET') return new Response('Method not allowed', { status: 405, headers: CORS_HEADERS })
   const feedToken = Deno.env.get('ICS_FEED_TOKEN')
-  if (!feedToken) return new Response('Feed not configured — set ICS_FEED_TOKEN', { status: 503 })
+  if (!feedToken) return new Response('Feed not configured — set ICS_FEED_TOKEN', { status: 503, headers: CORS_HEADERS })
 
   const url = new URL(req.url)
   const token = url.searchParams.get('token')
@@ -39,16 +46,16 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } },
     )
     const { data, error } = await asCaller.auth.getUser()
-    if (error || !data.user) return new Response('Not authenticated', { status: 401 })
+    if (error || !data.user) return new Response('Not authenticated', { status: 401, headers: CORS_HEADERS })
     const publicBase = Deno.env.get('PUBLIC_SUPABASE_URL') ?? Deno.env.get('SUPABASE_URL')!
     const base = `${publicBase}/functions/v1/calendar-feed?token=${feedToken}`
     return new Response(
       JSON.stringify({ url: base, personalUrl: `${base}&assignee=${data.user.id}` }),
-      { headers: { 'Content-Type': 'application/json' } },
+      { headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
     )
   }
 
-  if (token !== feedToken) return new Response('Invalid token', { status: 403 })
+  if (token !== feedToken) return new Response('Invalid token', { status: 403, headers: CORS_HEADERS })
 
   const service = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -69,7 +76,7 @@ Deno.serve(async (req) => {
   const assignee = url.searchParams.get('assignee')
   if (assignee) query = query.eq('assigned_to', assignee)
   const { data: appointments, error } = await query
-  if (error) return new Response(error.message, { status: 500 })
+  if (error) return new Response(error.message, { status: 500, headers: CORS_HEADERS })
 
   const lines: string[] = [
     'BEGIN:VCALENDAR',
@@ -125,7 +132,7 @@ Deno.serve(async (req) => {
     .lte('due_date', to.slice(0, 10))
   if (assignee) taskQuery = taskQuery.eq('assigned_to', assignee)
   const { data: tasks, error: tasksError } = await taskQuery
-  if (tasksError) return new Response(tasksError.message, { status: 500 })
+  if (tasksError) return new Response(tasksError.message, { status: 500, headers: CORS_HEADERS })
   for (const t of tasks as unknown as {
     id: string
     title: string

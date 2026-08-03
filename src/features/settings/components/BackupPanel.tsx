@@ -15,7 +15,7 @@ async function invokeBackup(body: object) {
   if (error) {
     const context = (error as { context?: Response }).context
     if (context) {
-      const parsed = await context.json().catch(() => null)
+      const parsed = typeof context?.json === 'function' ? await context.json().catch(() => null) : null
       if (parsed?.error) throw new Error(parsed.error)
     }
     throw error

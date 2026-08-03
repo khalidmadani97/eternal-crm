@@ -12,7 +12,7 @@
 // once by the AI (heuristics as fallback) and cached on the sheet.
 
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2'
-import { json, requireStaff } from '../_shared/twilio.ts'
+import { CORS_HEADERS, json, requireStaff } from '../_shared/twilio.ts'
 
 // ── CSV / URL helpers ────────────────────────────────────────────────────────
 
@@ -510,6 +510,7 @@ function isServiceRole(req: Request): boolean {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
   // Cron path: the scheduler authenticates with the service role and syncs

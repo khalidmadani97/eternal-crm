@@ -3,7 +3,7 @@
 // FPA JWT signed HS256 with the API secret — credentials never reach the
 // browser, only the short-lived token does.
 
-import { json, requireStaff } from '../_shared/twilio.ts'
+import { CORS_HEADERS, json, requireStaff } from '../_shared/twilio.ts'
 
 function base64url(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes))
@@ -28,6 +28,7 @@ async function signJwt(header: object, payload: object, secret: string): Promise
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
   const auth = await requireStaff(req)
   if (auth instanceof Response) return auth

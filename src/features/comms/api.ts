@@ -77,7 +77,7 @@ export function useSendDm(contactId: string) {
       if (error) {
         const context = (error as { context?: Response }).context
         if (context) {
-          const parsed = await context.json().catch(() => null)
+          const parsed = typeof context?.json === 'function' ? await context.json().catch(() => null) : null
           if (parsed?.error) throw new Error(parsed.error)
         }
         throw error
@@ -161,7 +161,7 @@ export function useSendSms(contactId: string) {
         // Surface the function's JSON error (consent block, config missing).
         const context = (error as { context?: Response }).context
         if (context) {
-          const parsed = await context.json().catch(() => null)
+          const parsed = typeof context?.json === 'function' ? await context.json().catch(() => null) : null
           if (parsed?.error) throw new Error(parsed.error)
         }
         throw error
@@ -185,7 +185,7 @@ export function useStartCall() {
       if (error) {
         const context = (error as { context?: Response }).context
         if (context) {
-          const parsed = await context.json().catch(() => null)
+          const parsed = typeof context?.json === 'function' ? await context.json().catch(() => null) : null
           if (parsed?.error) throw new Error(parsed.error)
         }
         throw error

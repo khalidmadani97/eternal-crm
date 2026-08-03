@@ -3,6 +3,7 @@
 // ever called, and enforced again by the DB trigger on messages.
 
 import {
+  CORS_HEADERS,
   hasSmsConsent,
   json,
   latestOpenJob,
@@ -13,6 +14,7 @@ import {
 } from '../_shared/twilio.ts'
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
   const auth = await requireStaff(req)
   if (auth instanceof Response) return auth

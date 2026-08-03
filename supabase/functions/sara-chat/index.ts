@@ -5,7 +5,7 @@
 // message, validates assignees against the team, clamps due dates).
 
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2'
-import { checkAiCredits, json, logAiUsage, requireStaff } from '../_shared/twilio.ts'
+import { CORS_HEADERS, checkAiCredits, json, logAiUsage, requireStaff } from '../_shared/twilio.ts'
 import { buildSnapshot, callerBusinessId, loadCaller } from '../_shared/sara.ts'
 
 const MAX_TURNS = 14
@@ -332,6 +332,7 @@ async function executeAssignLeads(
 
 Deno.serve(async (req) => {
   try {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
   const auth = await requireStaff(req)
   if (auth instanceof Response) return auth

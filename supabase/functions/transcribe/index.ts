@@ -4,9 +4,10 @@
 // browser's live dictation draft — the audio itself is always kept.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { checkAiCredits, json, logAiUsage, requireStaff } from '../_shared/twilio.ts'
+import { CORS_HEADERS, checkAiCredits, json, logAiUsage, requireStaff } from '../_shared/twilio.ts'
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
   const auth = await requireStaff(req)
   if (auth instanceof Response) return auth

@@ -128,10 +128,20 @@ export function twiml(inner: string): Response {
   })
 }
 
+// Functions are called cross-origin from the app (supabase.co ≠ app domain),
+// so every browser-facing response needs CORS headers and OPTIONS preflights
+// must be answered — the platform gateway does NOT do this for us. Auth still
+// happens per-request; the wildcard origin exposes nothing on its own.
+export const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+} as const
+
 export function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   })
 }
 

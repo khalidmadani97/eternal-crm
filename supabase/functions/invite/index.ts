@@ -7,7 +7,7 @@
 //     them to the inviting business with the invited role.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { json, requireStaff } from '../_shared/twilio.ts'
+import { CORS_HEADERS, json, requireStaff } from '../_shared/twilio.ts'
 
 function service() {
   return createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
@@ -39,6 +39,7 @@ async function sendInviteEmail(
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
   const auth = await requireStaff(req)
   if (auth instanceof Response) return auth

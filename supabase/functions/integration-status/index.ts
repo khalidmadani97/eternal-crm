@@ -1,9 +1,10 @@
 // Integration health for Settings (Slice 31). Staff-only. Reports which
 // integrations have their secrets configured — never the values.
 
-import { json, requireStaff } from '../_shared/twilio.ts'
+import { CORS_HEADERS, json, requireStaff } from '../_shared/twilio.ts'
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
   const auth = await requireStaff(req)
   if (auth instanceof Response) return auth
