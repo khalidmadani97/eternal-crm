@@ -50,7 +50,7 @@ export function JobDetailPage({ mode = 'job' }: { mode?: 'lead' | 'job' }) {
         <div className="space-y-4">
           {mode === 'lead' && <LeadInfo job={job} />}
           {mode === 'lead' && <LeadGrading job={job} />}
-          {mode === 'lead' && <ActivityTimeline jobId={job.id} title="Notes" />}
+          {mode === 'lead' && <ActivityTimeline jobId={job.id} contactId={job.contact?.id} title="Notes" />}
           {mode === 'job' && <JobDetailsForm job={job} />}
           {job.contact && (
             <CommsThread
@@ -60,7 +60,7 @@ export function JobDetailPage({ mode = 'job' }: { mode?: 'lead' | 'job' }) {
               jobId={job.id}
             />
           )}
-          {mode === 'job' && <ActivityTimeline jobId={job.id} />}
+          {mode === 'job' && <ActivityTimeline jobId={job.id} contactId={job.contact?.id} />}
           {mode === 'lead' && <JobDetailsForm job={job} />}
         </div>
         <div className="space-y-4">

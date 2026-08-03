@@ -2,7 +2,7 @@ import { AudioNote } from '../../../components/AudioNote'
 import { NoteComposer } from '../../../components/NoteComposer'
 import { useAuth } from '../../auth/AuthProvider'
 import { formatDateTime } from '../../../lib/format'
-import { useActivities, useAddNote } from '../api'
+import { useActivities, useAddNote, useDeleteNote } from '../api'
 import { STAGE_LABELS } from './StageBadge'
 import type { JobStage } from '../api'
 
@@ -16,10 +16,11 @@ const KIND_ICONS: Record<string, string> = {
   system: '⚙️',
 }
 
-export function ActivityTimeline({ jobId, title = 'Activity' }: { jobId: string; title?: string }) {
+export function ActivityTimeline({ jobId, contactId, title = 'Activity' }: { jobId: string; contactId?: string | null; title?: string }) {
   const { session } = useAuth()
   const { data: activities, isPending, isError, error } = useActivities(jobId)
-  const addNote = useAddNote(jobId)
+  const addNote = useAddNote(jobId, contactId)
+  const deleteNote = useDeleteNote(jobId)
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-4">
@@ -37,6 +38,9 @@ export function ActivityTimeline({ jobId, title = 'Activity' }: { jobId: string;
         />
       </div>
       {isPending && <p className="py-4 text-sm text-stone-500">Loading activity…</p>}
+      {deleteNote.isError && (
+        <p className="mb-2 text-sm text-red-600">Could not delete. {deleteNote.error.message}</p>
+      )}
       {isError && (
         <p className="py-4 text-sm text-red-600">Could not load activity. {error.message}</p>
       )}
@@ -55,6 +59,18 @@ export function ActivityTimeline({ jobId, title = 'Activity' }: { jobId: string;
                 {a.user?.full_name ? ` — ${a.user.full_name}` : ''}
               </p>
             </div>
+            {a.kind === 'note' && (
+              <button
+                onClick={() => {
+                  if (window.confirm('Delete this note?')) deleteNote.mutate(a.id)
+                }}
+                className="shrink-0 self-start text-stone-300 hover:text-red-600"
+                aria-label="Delete note"
+                title="Delete note (yours, or any as admin)"
+              >
+                ×
+              </button>
+            )}
           </li>
         ))}
       </ul>

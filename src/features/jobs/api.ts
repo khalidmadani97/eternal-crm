@@ -209,7 +209,21 @@ export function useActivities(jobId: string) {
   })
 }
 
-export function useAddNote(jobId: string) {
+export function useDeleteNote(jobId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (activityId: string) => {
+      const { error } = await supabase.from('activities').delete().eq('id', activityId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['activities'] })
+      void queryClient.invalidateQueries({ queryKey: ['activities', jobId] })
+    },
+  })
+}
+
+export function useAddNote(jobId: string, contactId?: string | null) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({
@@ -223,6 +237,7 @@ export function useAddNote(jobId: string) {
     }) => {
       const { error } = await supabase.from('activities').insert({
         job_id: jobId,
+        contact_id: contactId ?? null,
         kind: 'note',
         body,
         user_id: userId,

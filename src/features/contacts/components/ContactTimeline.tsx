@@ -3,6 +3,7 @@ import { AudioNote } from '../../../components/AudioNote'
 import { NoteComposer } from '../../../components/NoteComposer'
 import { useAuth } from '../../auth/AuthProvider'
 import { formatDateTime } from '../../../lib/format'
+import { useDeleteNote } from '../../jobs/api'
 import { useAddContactNote, useContactActivities } from '../api'
 
 const KIND_ICONS: Record<string, string> = {
@@ -21,6 +22,7 @@ export function ContactTimeline({ contactId }: { contactId: string }) {
   const { session } = useAuth()
   const { data: activities, isPending, isError, error } = useContactActivities(contactId)
   const addNote = useAddContactNote(contactId)
+  const deleteNote = useDeleteNote('')
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-4">
@@ -65,6 +67,17 @@ export function ContactTimeline({ contactId }: { contactId: string }) {
                 )}
               </p>
             </div>
+            {a.kind === 'note' && (
+              <button
+                onClick={() => {
+                  if (window.confirm('Delete this note?')) deleteNote.mutate(a.id)
+                }}
+                className="shrink-0 self-start text-stone-300 hover:text-red-600"
+                aria-label="Delete note"
+              >
+                ×
+              </button>
+            )}
           </li>
         ))}
       </ul>

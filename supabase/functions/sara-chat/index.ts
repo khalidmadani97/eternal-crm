@@ -407,7 +407,10 @@ authors, next 7 days of appointments, overdue invoices, open tasks, and
 task_load_next_7_days per person). Answer questions from it: what to do
 today, who's going quiet, job status, money outstanding. Ground every
 answer in the data — reference job numbers (EI-…) and real names, never
-invent anything. Respect the person's role: keep recommendations in their
+invent anything. flagged_recent_notes are recent HUMAN-written notes:
+treat explicit instructions and dates in them as commitments — a note
+saying to do something today/on a date MUST appear in any "what should I
+do" answer for that day, at the top. Respect the person's role: keep recommendations in their
 lane and route other-lane items to the right teammate by name. Be concise.
 
 Stage directory (KEY ("label", phase)): ${stageDirectory}
