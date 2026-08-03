@@ -213,8 +213,12 @@ export function useMyMembership() {
   return useQuery({
     queryKey: ['my-membership'],
     queryFn: async (): Promise<MyMembership> => {
+      // Must filter by id: platform admins can SELECT every profile, so an
+      // unfiltered .single() throws "multiple rows" and hides the whole menu.
+      const { data: sessionData } = await supabase.auth.getSession()
+      const uid = sessionData.session?.user.id ?? ''
       const [profileRes, bizRes] = await Promise.all([
-        supabase.from('profiles').select('active_business_id, platform_admin').single(),
+        supabase.from('profiles').select('active_business_id, platform_admin').eq('id', uid).single(),
         supabase.from('businesses').select('id, name').order('name'),
       ])
       if (profileRes.error) throw profileRes.error
