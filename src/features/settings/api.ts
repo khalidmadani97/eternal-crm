@@ -206,7 +206,9 @@ export function useIntegrationStatus() {
 export interface MyMembership {
   activeBusinessId: string | null
   platformAdmin: boolean
-  businesses: { id: string; name: string }[]
+  businesses: { id: string; name: string; suspended_at: string | null }[]
+  /** The active business exists but is suspended (agency kill-switch). */
+  suspended: boolean
 }
 
 export function useMyMembership() {
@@ -219,14 +221,16 @@ export function useMyMembership() {
       const uid = sessionData.session?.user.id ?? ''
       const [profileRes, bizRes] = await Promise.all([
         supabase.from('profiles').select('active_business_id, platform_admin').eq('id', uid).single(),
-        supabase.from('businesses').select('id, name').order('name'),
+        supabase.from('businesses').select('id, name, suspended_at').order('name'),
       ])
       if (profileRes.error) throw profileRes.error
       if (bizRes.error) throw bizRes.error
+      const active = bizRes.data.find((b) => b.id === profileRes.data.active_business_id)
       return {
         activeBusinessId: profileRes.data.active_business_id,
         platformAdmin: profileRes.data.platform_admin,
         businesses: bizRes.data,
+        suspended: !profileRes.data.platform_admin && !!active?.suspended_at,
       }
     },
   })

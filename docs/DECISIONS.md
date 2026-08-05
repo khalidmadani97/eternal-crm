@@ -717,3 +717,22 @@ Full runbook in DEPLOY.md.
 
 **Consequence** — One vendor for DNS + hosting + TLS; Vercel remains a
 drop-in alternative if ever needed.
+
+## 038 — Business suspension: the agency kill-switch
+
+2026-08 · accepted
+
+**Context** — The CRM is resold GHL-style to marketing clients (Slice 33's
+multi-tenancy, owner's direction). Clients access the app hosted on OUR
+infrastructure only — no code is ever handed to their websites; their site
+carries at most a login link. Non-payment needs a clean, reversible cutoff.
+
+**Decision** — `businesses.suspended_at timestamptz` + `my_business_ids()`
+excludes suspended businesses, so every tenant RLS policy enforces the
+suspension at the root. Edge functions (service role, RLS-exempt) check it
+in `callerBusinessId()`. Platform admins flip it via the
+`set_business_suspended` definer RPC from the Agency page; members see a
+"workspace suspended" notice. No data is deleted; reactivation is one click.
+
+**Consequence** — Suspension is instant and total (data, Sara, syncs) with
+zero data loss. Per-client custom domains/branding remain future work.

@@ -857,3 +857,12 @@ momentum scrolling; tables and the week calendar already scroll
 horizontally; detail grids already stack. The dedicated thumb-first /field
 route from Slice 6 remains the crew view. Real-device pass (iPhone Safari
 keyboard, Android Chrome) still needs human hands.
+
+## Slice 51 — Business suspension (agency kill-switch)
+
+Suspend/reactivate a client business from the Agency page. Suspended
+members see a notice, keep no data access (RLS root + function checks),
+platform admins keep full visibility. DECISIONS 038.
+
+**Acceptance** ✓ suspend blocks member data/Sara instantly ✓ notice screen
+✓ reactivate restores ✓ platform admin unaffected

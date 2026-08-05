@@ -31,6 +31,28 @@ export function AppShell() {
     return <Lobby />
   }
 
+  // Agency kill-switch: suspended workspaces get a clear notice, not an
+  // empty shell. RLS already blocks the data; this is the honest UI for it.
+  if (!membershipPending && membership?.suspended) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-stone-100 p-4">
+        <div className="w-full max-w-md rounded-lg bg-white p-8 text-center shadow">
+          <h1 className="mb-2 text-xl font-semibold text-stone-900">Workspace suspended</h1>
+          <p className="mb-6 text-sm text-stone-600">
+            This workspace is currently suspended. Please contact your service provider to
+            restore access. Your data is safe and will be exactly as you left it.
+          </p>
+          <button
+            onClick={() => void signOut()}
+            className="rounded border border-stone-300 px-4 py-2 text-sm text-stone-700 hover:bg-stone-50"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex min-h-screen bg-stone-100">
       {/* mobile slide-over */}

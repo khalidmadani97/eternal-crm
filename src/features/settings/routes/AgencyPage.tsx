@@ -34,11 +34,24 @@ export function AgencyPage() {
       void queryClient.invalidateQueries({ queryKey: ['my-membership'] })
     },
   })
+  const suspend = useMutation({
+    mutationFn: async ({ id, suspend }: { id: string; suspend: boolean }) => {
+      const { error } = await supabase.rpc('set_business_suspended', {
+        p_business_id: id,
+        p_suspend: suspend,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['agency-businesses'] })
+      void queryClient.invalidateQueries({ queryKey: ['my-membership'] })
+    },
+  })
   const { data: businesses, isPending, isError, error } = useQuery({
     queryKey: ['agency-businesses'],
     queryFn: async () => {
       const [bizRes, membersRes] = await Promise.all([
-        supabase.from('businesses').select('id, name, created_at').order('created_at'),
+        supabase.from('businesses').select('id, name, created_at, suspended_at').order('created_at'),
         supabase.from('business_members').select('business_id, status'),
       ])
       if (bizRes.error) throw bizRes.error
@@ -82,22 +95,49 @@ export function AgencyPage() {
             >
               <div className="mb-1 flex items-center justify-between">
                 <h2 className="font-semibold text-stone-900">{b.name}</h2>
-                {active && (
+                {b.suspended_at ? (
+                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                    suspended
+                  </span>
+                ) : active ? (
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
                     current
                   </span>
-                )}
+                ) : null}
               </div>
               <p className="mb-3 text-xs text-stone-400">
                 {b.members} member{b.members === 1 ? '' : 's'} · since {formatDateTime(b.created_at)}
               </p>
-              <button
-                onClick={() => void switchBusiness(b.id)}
-                disabled={active}
-                className="w-full rounded bg-stone-900 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-40"
-              >
-                {active ? 'You are here' : 'Enter workspace'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => void switchBusiness(b.id)}
+                  disabled={active}
+                  className="flex-1 rounded bg-stone-900 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-40"
+                >
+                  {active ? 'You are here' : 'Enter workspace'}
+                </button>
+                <button
+                  onClick={() => {
+                    if (
+                      b.suspended_at ||
+                      window.confirm(`Suspend ${b.name}? Every member loses access until you reactivate. Data is untouched.`)
+                    ) {
+                      suspend.mutate({ id: b.id, suspend: !b.suspended_at })
+                    }
+                  }}
+                  disabled={suspend.isPending}
+                  className={`rounded border px-2.5 py-1.5 text-sm font-medium disabled:opacity-40 ${
+                    b.suspended_at
+                      ? 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                      : 'border-red-200 text-red-600 hover:bg-red-50'
+                  }`}
+                >
+                  {b.suspended_at ? 'Reactivate' : 'Suspend'}
+                </button>
+              </div>
+              {suspend.isError && (
+                <p className="mt-2 text-xs text-red-600">{suspend.error.message}</p>
+              )}
             </div>
           )
         })}

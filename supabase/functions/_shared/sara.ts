@@ -239,5 +239,10 @@ export async function buildSnapshot(sb: SupabaseClient, businessId: string | nul
 
 export async function callerBusinessId(sb: SupabaseClient, userId: string): Promise<string | null> {
   const { data } = await sb.from('profiles').select('active_business_id').eq('id', userId).single()
-  return data?.active_business_id ?? null
+  const businessId = data?.active_business_id ?? null
+  if (!businessId) return null
+  // Functions run as service role, so RLS won't enforce suspension — check it
+  // here: a suspended business gets no AI, no syncs, nothing.
+  const { data: biz } = await sb.from('businesses').select('suspended_at').eq('id', businessId).single()
+  return biz?.suspended_at ? null : businessId
 }

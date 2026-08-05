@@ -334,6 +334,7 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          suspended_at: string | null
           updated_at: string
         }
         Insert: {
@@ -341,6 +342,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name: string
+          suspended_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -348,6 +350,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name?: string
+          suspended_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2212,6 +2215,10 @@ export type Database = {
         Returns: undefined
       }
       set_active_business: { Args: { p_business: string }; Returns: undefined }
+      set_business_suspended: {
+        Args: { p_business_id: string; p_suspend: boolean }
+        Returns: undefined
+      }
       touch_last_contacted: {
         Args: {
           p_at: string
