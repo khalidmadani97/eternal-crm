@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 
@@ -14,6 +15,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -32,11 +34,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session)
       setLoading(false)
     })
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next)
+      // Recovery links land the user in a session; send them to set a new
+      // password even if Supabase redirected to the site root as a fallback.
+      if (event === 'PASSWORD_RECOVERY') navigate('/reset-password')
     })
     return () => sub.subscription.unsubscribe()
-  }, [])
+  }, [navigate])
 
   const signOut = async () => {
     await supabase.auth.signOut()

@@ -54,9 +54,14 @@ export function LoginPage() {
             {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
           </div>
           <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium text-stone-700">
-              Password
-            </label>
+            <div className="mb-1 flex items-baseline justify-between">
+              <label htmlFor="password" className="block text-sm font-medium text-stone-700">
+                Password
+              </label>
+              <Link to="/forgot-password" className="text-xs text-amber-700 hover:underline">
+                Forgot password?
+              </Link>
+            </div>
             <input
               id="password"
               type="password"

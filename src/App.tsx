@@ -4,6 +4,8 @@ import { AuthProvider } from './features/auth/AuthProvider'
 import { ProtectedRoute } from './features/auth/ProtectedRoute'
 import { LoginPage } from './features/auth/routes/LoginPage'
 import { SignupPage } from './features/auth/routes/SignupPage'
+import { ForgotPasswordPage } from './features/auth/routes/ForgotPasswordPage'
+import { ResetPasswordPage } from './features/auth/routes/ResetPasswordPage'
 import { JobDetailPage } from './features/jobs/routes/JobDetailPage'
 import { JobsPage } from './features/jobs/routes/JobsPage'
 import { PipelinePage } from './features/jobs/routes/PipelinePage'
@@ -34,6 +36,8 @@ export function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route element={<ProtectedRoute />}>
             {/* Mobile field view — deliberately outside the desktop shell. */}
             <Route path="/field" element={<FieldPage />} />
