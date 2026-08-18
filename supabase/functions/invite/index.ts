@@ -1,10 +1,17 @@
-// Team/client invites (Slice 44).
+// Team/client invites & membership management (Slices 44, 52). All team
+// writes go through here (service role) so RLS on business_members/invites
+// stays read-only for the app.
 //   {action:'send', email, role?, businessId?} — admin of the business (or
 //     platform admin). Existing account → added immediately. No account →
 //     single-use signup link, emailed via Resend when configured; the link
 //     is ALWAYS returned so it can be copied manually.
 //   {action:'accept', token} — called by the freshly signed-up user; joins
 //     them to the inviting business with the invited role.
+//   {action:'set-role', userId, role, businessId?} — admin changes a member's
+//     role. Refuses to demote the last admin.
+//   {action:'remove', userId, businessId?} — admin removes a member from the
+//     business (account & other workspaces untouched). Refuses the last admin.
+//   {action:'revoke', email, businessId?} — admin cancels a pending invite.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { CORS_HEADERS, json, requireStaff } from '../_shared/twilio.ts'
@@ -38,13 +45,64 @@ async function sendInviteEmail(
   return res.ok
 }
 
+// Resolve the target business and confirm the caller may administer it.
+// Returns the business id, or a ready-to-send error Response.
+async function authorizeBusiness(
+  sb: ReturnType<typeof service>,
+  userId: string,
+  businessId?: string,
+): Promise<{ businessId: string } | Response> {
+  const { data: me } = await sb
+    .from('profiles')
+    .select('active_business_id, platform_admin')
+    .eq('id', userId)
+    .single()
+  const target = businessId ?? me?.active_business_id
+  if (!target) return json({ error: 'No business to manage' }, 400)
+  if (!me?.platform_admin) {
+    const { data: membership } = await sb
+      .from('business_members')
+      .select('role')
+      .eq('business_id', target)
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .maybeSingle()
+    if (membership?.role !== 'admin') return json({ error: 'Business admins only' }, 403)
+  }
+  return { businessId: target }
+}
+
+// True when removing/demoting this user would leave the business with no
+// active admin.
+async function isLastAdmin(
+  sb: ReturnType<typeof service>,
+  businessId: string,
+  userId: string,
+): Promise<boolean> {
+  const { count } = await sb
+    .from('business_members')
+    .select('id', { count: 'exact', head: true })
+    .eq('business_id', businessId)
+    .eq('status', 'active')
+    .eq('role', 'admin')
+    .neq('user_id', userId)
+  return (count ?? 0) === 0
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
   const auth = await requireStaff(req)
   if (auth instanceof Response) return auth
 
-  let body: { action?: string; email?: string; role?: string; businessId?: string; token?: string }
+  let body: {
+    action?: string
+    email?: string
+    role?: string
+    businessId?: string
+    token?: string
+    userId?: string
+  }
   try {
     body = await req.json()
   } catch {
@@ -59,24 +117,9 @@ Deno.serve(async (req) => {
     }
     const role = body.role === 'admin' ? 'admin' : 'staff'
 
-    // Resolve + authorize the target business.
-    const { data: me } = await sb
-      .from('profiles')
-      .select('active_business_id, platform_admin')
-      .eq('id', auth.userId)
-      .single()
-    const businessId = body.businessId ?? me?.active_business_id
-    if (!businessId) return json({ error: 'No business to invite into' }, 400)
-    if (!me?.platform_admin) {
-      const { data: membership } = await sb
-        .from('business_members')
-        .select('role')
-        .eq('business_id', businessId)
-        .eq('user_id', auth.userId)
-        .eq('status', 'active')
-        .maybeSingle()
-      if (membership?.role !== 'admin') return json({ error: 'Business admins only' }, 403)
-    }
+    const authorized = await authorizeBusiness(sb, auth.userId, body.businessId)
+    if (authorized instanceof Response) return authorized
+    const { businessId } = authorized
     const { data: business } = await sb
       .from('businesses')
       .select('name')
@@ -156,5 +199,77 @@ Deno.serve(async (req) => {
     return json({ joined: true, business: business?.name })
   }
 
-  return json({ error: 'action must be send or accept' }, 400)
+  if (body.action === 'set-role') {
+    if (!body.userId) return json({ error: 'userId required' }, 400)
+    const role = body.role === 'admin' ? 'admin' : 'staff'
+    const authorized = await authorizeBusiness(sb, auth.userId, body.businessId)
+    if (authorized instanceof Response) return authorized
+    const { businessId } = authorized
+    if (role !== 'admin' && (await isLastAdmin(sb, businessId, body.userId))) {
+      return json({ error: 'This is the last admin — promote someone else first.' }, 409)
+    }
+    const { error, count } = await sb
+      .from('business_members')
+      .update({ role }, { count: 'exact' })
+      .eq('business_id', businessId)
+      .eq('user_id', body.userId)
+    if (error) return json({ error: error.message }, 500)
+    if (!count) return json({ error: 'That person is not a member of this business.' }, 404)
+    return json({ updated: true })
+  }
+
+  if (body.action === 'remove') {
+    if (!body.userId) return json({ error: 'userId required' }, 400)
+    const authorized = await authorizeBusiness(sb, auth.userId, body.businessId)
+    if (authorized instanceof Response) return authorized
+    const { businessId } = authorized
+    const { data: target } = await sb
+      .from('business_members')
+      .select('role')
+      .eq('business_id', businessId)
+      .eq('user_id', body.userId)
+      .maybeSingle()
+    if (!target) return json({ error: 'That person is not a member of this business.' }, 404)
+    if (target.role === 'admin' && (await isLastAdmin(sb, businessId, body.userId))) {
+      return json({ error: 'This is the last admin — promote someone else first.' }, 409)
+    }
+    const { error } = await sb
+      .from('business_members')
+      .delete()
+      .eq('business_id', businessId)
+      .eq('user_id', body.userId)
+    if (error) return json({ error: error.message }, 500)
+    // If they were parked in this workspace, move them to another one (or none).
+    const { data: next } = await sb
+      .from('business_members')
+      .select('business_id')
+      .eq('user_id', body.userId)
+      .eq('status', 'active')
+      .limit(1)
+      .maybeSingle()
+    await sb
+      .from('profiles')
+      .update({ active_business_id: next?.business_id ?? null })
+      .eq('id', body.userId)
+      .eq('active_business_id', businessId)
+    return json({ removed: true })
+  }
+
+  if (body.action === 'revoke') {
+    const email = body.email?.trim().toLowerCase()
+    if (!email) return json({ error: 'email required' }, 400)
+    const authorized = await authorizeBusiness(sb, auth.userId, body.businessId)
+    if (authorized instanceof Response) return authorized
+    const { businessId } = authorized
+    const { error } = await sb
+      .from('invites')
+      .delete()
+      .eq('business_id', businessId)
+      .ilike('email', email)
+      .is('accepted_at', null)
+    if (error) return json({ error: error.message }, 500)
+    return json({ revoked: true })
+  }
+
+  return json({ error: 'unknown action' }, 400)
 })

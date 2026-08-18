@@ -5,7 +5,6 @@ import { useProfiles } from '../../auth/api'
 import { formatCurrency, formatDate } from '../../../lib/format'
 import {
   installDate,
-  JOB_STAGES,
   useJobs,
   useMoveJobStage,
   useSaveStageSettings,
@@ -63,11 +62,21 @@ export function StageBoard({
     if (best) setActiveStage(best.stage)
   }
 
-  // Custom order + labels; hidden stages still show while occupied.
-  const columns: { stage: JobStage; label: string }[] = (
-    stageSettings ?? JOB_STAGES.map((s, i) => ({ stage: s, label: STAGE_LABELS[s], position: i, hidden: false }))
-  )
-    .filter((s) => stages.includes(s.stage))
+  // Custom order + labels; hidden stages still show while occupied. `stages`
+  // is already the deduped, ordered key list for THIS pipeline — build one
+  // column per key from it, picking this pipeline's own stage row for the
+  // label. (Every pipeline owns a row per stage key, so scanning stageSettings
+  // by key alone renders each column once per pipeline — the doubling bug.)
+  const stageRowFor = (stage: JobStage) => {
+    const rows = (stageSettings ?? []).filter((s) => s.stage === stage)
+    return (
+      rows.find((s) => s.pipeline_id === pipelineId) ??
+      rows.find((s) => s.pipeline_id === null) ??
+      rows[0]
+    )
+  }
+  const columns: { stage: JobStage; label: string }[] = stages
+    .map((stage) => stageRowFor(stage) ?? { stage, label: STAGE_LABELS[stage], hidden: false })
     .filter((s) => !s.hidden || jobs?.some((j) => j.stage === s.stage))
     .map((s) => ({ stage: s.stage, label: s.label }))
 
