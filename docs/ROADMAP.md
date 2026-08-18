@@ -237,7 +237,7 @@ with all audit fields confirmed inside the PDF content streams; token reuse
 → 409, expired token rejected on GET and POST, tampering with a signed
 contract blocked by the DB trigger; signed PDF also lands in the job's files
 list. pdf-lib is function-scoped (DECISIONS 022). Note: production wants a
-/sign/:token rewrite to the function URL in vercel.json at deploy time.
+/sign/:token rewrite to the function URL in the host's redirect config at deploy time.
 
 Highest risk. Everything else should be stable first.
 

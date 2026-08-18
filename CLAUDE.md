@@ -21,7 +21,7 @@ Do not add to this list without an entry in `docs/DECISIONS.md`.
 | Forms | react-hook-form + zod |
 | Payments | Stripe (payment links + webhook) |
 | Comms | Twilio — voice (dial-out bridging) + SMS, Slice 10 (DECISIONS 012) |
-| Deploy | Vercel |
+| Deploy | Cloudflare Workers — static `./dist` via wrangler (DECISIONS 037) |
 
 The CRM has its **own** Supabase project (DECISIONS 017). `/design` lives in a
 separate project; any linkage between them is an API call, never a shared table.

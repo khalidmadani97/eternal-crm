@@ -1,0 +1,14 @@
+# SPA fallback for IONOS Deploy Now (Apache) — replaces the Cloudflare Worker's
+# `not_found_handling: single-page-application`. Deep links like /jobs/123 must
+# serve index.html so React Router can handle the route client-side.
+# Vite copies everything in public/ into dist/, so this ships at the site root.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  # Never rewrite real files or directories (hashed assets, sw.js, manifest, icons).
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+  # Everything else falls back to the SPA entry point.
+  RewriteRule ^ index.html [L]
+</IfModule>
