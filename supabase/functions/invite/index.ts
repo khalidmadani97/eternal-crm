@@ -141,12 +141,34 @@ Deno.serve(async (req) => {
           { onConflict: 'business_id,user_id' },
         )
       if (error) return json({ error: error.message }, 500)
-      await sb
+      // Point them at this workspace if they aren't already parked in a usable
+      // one: no active business, or their current one is suspended or one they
+      // can no longer access. Without this, re-homing someone (suspend the
+      // wrong business → invite to the right one) leaves them stranded on the
+      // "workspace suspended" screen because active_business_id never moves.
+      const { data: prof } = await sb
         .from('profiles')
-        .update({ active_business_id: businessId })
+        .select('active_business_id')
         .eq('id', existing.id)
-        .is('active_business_id', null)
-      return json({ added: true, business: business.name })
+        .single()
+      let moveActive = !prof?.active_business_id
+      if (prof?.active_business_id && prof.active_business_id !== businessId) {
+        const [{ data: cur }, { data: stillMember }] = await Promise.all([
+          sb.from('businesses').select('suspended_at').eq('id', prof.active_business_id).maybeSingle(),
+          sb
+            .from('business_members')
+            .select('id')
+            .eq('business_id', prof.active_business_id)
+            .eq('user_id', existing.id)
+            .eq('status', 'active')
+            .maybeSingle(),
+        ])
+        if (cur?.suspended_at || !stillMember) moveActive = true
+      }
+      if (moveActive) {
+        await sb.from('profiles').update({ active_business_id: businessId }).eq('id', existing.id)
+      }
+      return json({ added: true, business: business.name, switched: moveActive })
     }
 
     // New person → invite token + link.
