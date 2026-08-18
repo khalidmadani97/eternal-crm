@@ -39,13 +39,26 @@
         function env() {
           return 'UA: ' + navigator.userAgent + '\nOnline: ' + navigator.onLine + '\nURL: ' + location.href
         }
+        function appUp() {
+          var root = document.getElementById('root')
+          return !!(root && root.childElementCount > 0)
+        }
         window.addEventListener(
           'error',
           function (e) {
             var t = e.target
             if (t && t !== window && (t.src || t.href)) {
-              show('A file failed to load', (t.tagName || '') + ': ' + (t.src || t.href) + '\n' + env())
+              // A resource failed to load. Only alarm for OUR OWN assets that
+              // are needed to boot — a blocked third-party script (analytics
+              // beacons, etc.) or any failure after the app has rendered is
+              // background noise, not a crash. Prevents iOS content blockers
+              // killing the app over Cloudflare's beacon.min.js.
+              var url = String(t.src || t.href || '')
+              var sameOrigin = url.indexOf(location.origin + '/') === 0
+              if (!sameOrigin || appUp()) return
+              show('A file failed to load', (t.tagName || '') + ': ' + url + '\n' + env())
             } else {
+              if (appUp()) return // app is up; a later runtime error isn't a load failure
               show(
                 e.message || 'Script error',
                 (e.filename || '') + ':' + (e.lineno || '') + '\n' + ((e.error && e.error.stack) || '') + '\n' + env(),
