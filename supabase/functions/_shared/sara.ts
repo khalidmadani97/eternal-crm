@@ -40,7 +40,7 @@ export async function buildSnapshot(sb: SupabaseClient, businessId: string | nul
   const scope = <T extends { eq: (c: string, v: string) => T }>(q: T): T =>
     businessId ? q.eq('business_id', businessId) : q
 
-  const [jobsRes, apptsRes, invoicesRes, tasksRes] = await Promise.all([
+  const [jobsRes, apptsRes, invoicesRes, tasksRes, quickNotesRes] = await Promise.all([
     scope(
       sb
         .from('jobs')
@@ -79,10 +79,26 @@ export async function buildSnapshot(sb: SupabaseClient, businessId: string | nul
         .not('due_date', 'is', null)
         .lte('due_date', new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10)) as never,
     ),
+    // Quick notepad — read BEFORE all other data; treated as owner directives
+    scope(
+      sb
+        .from('quick_notes')
+        .select('id, body, kind, created_at, author:profiles ( full_name )')
+        .order('created_at', { ascending: false })
+        .limit(20) as never,
+    ),
   ]) as { data: unknown[] | null; error: { message: string } | null }[]
   for (const r of [jobsRes, apptsRes, invoicesRes, tasksRes]) {
     if (r.error) throw new Error(r.error.message)
   }
+
+  const quickNotes = (quickNotesRes.data ?? []) as {
+    id: string
+    body: string
+    kind: string
+    created_at: string
+    author: { full_name: string | null } | null
+  }[]
 
   const jobs = jobsRes.data as {
     id: string
@@ -195,6 +211,14 @@ export async function buildSnapshot(sb: SupabaseClient, businessId: string | nul
     })
 
   return {
+    // FIRST — owner's scratchpad. Read these before everything else.
+    // Each is a direct instruction or reminder from the owner. Treat as P0.
+    owner_quick_notes: quickNotes.map((n) => ({
+      id: n.id,
+      when: n.created_at.slice(0, 16).replace('T', ' '),
+      by: n.author?.full_name ?? 'owner',
+      note: n.body,
+    })),
     today,
     flagged_recent_notes,
     open_jobs: jobs.map((j) => ({

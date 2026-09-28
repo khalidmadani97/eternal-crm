@@ -4,6 +4,7 @@ import { useAuth } from '../features/auth/AuthProvider'
 import { useMyMembership, switchBusiness } from '../features/settings/api'
 import { CommandPalette } from './CommandPalette'
 import { Lobby } from './Lobby'
+import { QuickNotepad } from './QuickNotepad'
 import { SaraChat } from './SaraChat'
 import { PushToggle } from './PushToggle'
 
@@ -155,6 +156,7 @@ export function AppShell() {
         <main className="flex-1 p-3 pb-24 md:p-6 md:pb-24">
           <Outlet />
         </main>
+        <QuickNotepad />
         <SaraChat />
       </div>
     </div>
