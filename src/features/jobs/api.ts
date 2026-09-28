@@ -176,9 +176,12 @@ export function useUpdateJob() {
       const { error } = await supabase.from('jobs').update(patch).eq('id', id)
       if (error) throw error
     },
-    onSuccess: (_data, { id }) => {
+    onSuccess: (_data, { id, patch }) => {
       void queryClient.invalidateQueries({ queryKey: ['jobs'] })
       void queryClient.invalidateQueries({ queryKey: ['activities', id] })
+      if (patch.stage === 'won') {
+        void supabase.functions.invoke('process-conversions', { body: {} })
+      }
     },
   })
 }
@@ -448,6 +451,14 @@ export function useMoveJobStage() {
     },
     onError: (_err, _vars, context) => {
       if (context?.previous) queryClient.setQueryData(['jobs', 'list'], context.previous)
+    },
+    onSuccess: (_data, { stage }) => {
+      // Fire-and-forget conversion event when a job is won. The queue row
+      // was already written by the DB trigger; this processes it immediately.
+      // Failures are visible in Settings → Ad tracking → Retry.
+      if (stage === 'won') {
+        void supabase.functions.invoke('process-conversions', { body: {} })
+      }
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['jobs'] })

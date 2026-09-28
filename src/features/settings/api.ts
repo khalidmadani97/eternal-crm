@@ -364,6 +364,99 @@ export function useRevokeInvite() {
   })
 }
 
+// ── Ad conversion tracking (Slice 52) ───────────────────────────────────────
+
+export interface AdSettings {
+  meta_pixel_id: string | null
+  meta_capi_token: string | null
+  google_ads_customer_id: string | null
+  google_ads_developer_token: string | null
+  google_ads_refresh_token: string | null
+  google_ads_oauth_client_id: string | null
+  google_ads_oauth_client_secret: string | null
+  google_ads_conversion_action: string | null
+}
+
+export function useAdSettings() {
+  return useQuery({
+    queryKey: ['ad-settings'],
+    queryFn: async (): Promise<AdSettings> => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
+        .from('business_settings')
+        .select(`
+          meta_pixel_id, meta_capi_token,
+          google_ads_customer_id, google_ads_developer_token,
+          google_ads_refresh_token, google_ads_oauth_client_id,
+          google_ads_oauth_client_secret, google_ads_conversion_action
+        `)
+        .single()
+      if (error) throw error
+      return data as AdSettings
+    },
+    staleTime: 60_000,
+  })
+}
+
+export function useUpdateAdSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (patch: Partial<AdSettings>) => {
+      const { data: settings } = await supabase
+        .from('business_settings')
+        .select('business_id')
+        .single()
+      if (!settings) throw new Error('No business settings found')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from('business_settings')
+        .update(patch)
+        .eq('business_id', settings.business_id)
+      if (error) throw error
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['ad-settings'] }),
+  })
+}
+
+export function useProcessConversions() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('process-conversions', { body: {} })
+      if (error) throw error
+      return data as { processed: number; meta: { sent: number; skipped: number }; google: { sent: number; skipped: number } }
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['conversion-queue'] }),
+  })
+}
+
+export interface ConversionQueueRow {
+  id: string
+  meta_sent: boolean
+  meta_sent_at: string | null
+  meta_error: string | null
+  google_sent: boolean
+  google_sent_at: string | null
+  google_error: string | null
+}
+
+export function useConversionQueue(jobId: string) {
+  return useQuery({
+    queryKey: ['conversion-queue', jobId],
+    queryFn: async (): Promise<ConversionQueueRow | null> => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
+        .from('conversion_queue')
+        .select('id, meta_sent, meta_sent_at, meta_error, google_sent, google_sent_at, google_error')
+        .eq('job_id', jobId)
+        .maybeSingle()
+      if (error) throw error
+      return data as ConversionQueueRow | null
+    },
+    staleTime: 30_000,
+  })
+}
+
 export interface PendingInvite {
   id: string
   email: string

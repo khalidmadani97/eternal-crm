@@ -18,6 +18,7 @@ import { JobFiles } from '../components/JobFiles'
 import { JobTasks } from '../components/JobTasks'
 import { LostReasonDialog } from '../components/LostReasonDialog'
 import { StageBadge, useStageLabels } from '../components/StageBadge'
+import { useConversionQueue } from '../../settings/api'
 
 export function JobDetailPage({ mode = 'job' }: { mode?: 'lead' | 'job' }) {
   const { id } = useParams<{ id: string }>()
@@ -79,6 +80,7 @@ export function JobDetailPage({ mode = 'job' }: { mode?: 'lead' | 'job' }) {
 function JobHeader({ job, mode }: { job: JobDetail; mode: 'lead' | 'job' }) {
   const updateJob = useUpdateJob()
   const workspaceStages = useWorkspaceStages(mode === 'lead' ? 'pipeline' : 'production')
+  const { data: conv } = useConversionQueue(job.id)
   // Always include the current stage so an out-of-phase value still renders.
   const STAGE_LABELS = useStageLabels()
   const stageOptions = workspaceStages.includes(job.stage)
@@ -135,6 +137,17 @@ function JobHeader({ job, mode }: { job: JobDetail; mode: 'lead' | 'job' }) {
       <span className="ml-auto text-lg font-medium tabular-nums text-stone-900">
         {formatCurrency(job.value_final ?? job.value_est)}
       </span>
+      {conv && (conv.meta_sent || conv.google_sent) && (
+        <span
+          title={[
+            conv.meta_sent ? 'Meta ✓' : conv.meta_error ? `Meta: ${conv.meta_error}` : null,
+            conv.google_sent ? 'Google ✓' : conv.google_error ? `Google: ${conv.google_error}` : null,
+          ].filter(Boolean).join(' · ')}
+          className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700"
+        >
+          Ads notified ✓
+        </span>
+      )}
       {pendingLost && (
         <LostReasonDialog
           onCancel={() => setPendingLost(false)}

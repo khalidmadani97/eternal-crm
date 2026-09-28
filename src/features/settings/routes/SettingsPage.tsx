@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
+import { AdTrackingPanel } from '../components/AdTrackingPanel'
 import { AiUsagePanel } from '../components/AiUsagePanel'
 import { BackupPanel } from '../components/BackupPanel'
 import { BusinessPanel } from '../components/BusinessPanel'
@@ -14,7 +15,7 @@ import {
   useUpdateOption,
 } from '../api'
 
-type Tab = 'business' | 'team' | 'ai' | 'lists' | 'integrations' | 'security'
+type Tab = 'business' | 'team' | 'ai' | 'lists' | 'integrations' | 'adtracking' | 'security'
 
 const TABS: { id: Tab; label: string; adminOnly?: boolean }[] = [
   { id: 'business', label: 'Business', adminOnly: true },
@@ -22,6 +23,7 @@ const TABS: { id: Tab; label: string; adminOnly?: boolean }[] = [
   { id: 'ai', label: 'AI usage' },
   { id: 'lists', label: 'Dropdown lists' },
   { id: 'integrations', label: 'Integrations', adminOnly: true },
+  { id: 'adtracking', label: 'Ad tracking', adminOnly: true },
   { id: 'security', label: 'Security & backups', adminOnly: true },
 ]
 
@@ -70,6 +72,7 @@ export function SettingsPage() {
         </div>
       )}
       {tab === 'integrations' && isAdmin && <IntegrationsPanel />}
+      {tab === 'adtracking' && isAdmin && <AdTrackingPanel />}
       {tab === 'security' && isAdmin && <BackupPanel />}
       {tab === 'business' && !isAdmin && null}
     </div>

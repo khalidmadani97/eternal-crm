@@ -445,3 +445,5 @@ verify_jwt = false
 [functions.calendar-feed]
 # Calendar apps cannot send a JWT; the feed token is the authentication.
 verify_jwt = false
+
+# process-conversions: standard JWT auth — staff-only, called by the React app.
