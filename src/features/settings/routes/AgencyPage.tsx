@@ -4,6 +4,80 @@ import { supabase } from '../../../lib/supabase'
 import { formatDateTime } from '../../../lib/format'
 import { switchBusiness, useInviteMember, useMyMembership } from '../api'
 
+interface BizRow {
+  id: string
+  name: string
+  created_at: string
+  suspended_at: string | null
+  members: number
+}
+
+function BusinessCard({
+  b,
+  isCurrent,
+  onSuspendToggle,
+  onReactivate,
+  suspendPending,
+  suspendError,
+}: {
+  b: BizRow
+  isCurrent: boolean
+  onSuspendToggle?: () => void
+  onReactivate?: () => void
+  suspendPending: boolean
+  suspendError: string | null
+}) {
+  const isSuspended = !!b.suspended_at
+  return (
+    <div
+      className={`rounded-lg border bg-white p-4 ${
+        isCurrent ? 'border-amber-400 ring-1 ring-amber-200' : 'border-stone-200'
+      } ${isSuspended ? 'opacity-75' : ''}`}
+    >
+      <div className="mb-0.5 flex items-center justify-between">
+        <h2 className="font-semibold text-stone-900">{b.name}</h2>
+        {isCurrent && !isSuspended && (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+            current
+          </span>
+        )}
+      </div>
+      <p className="mb-3 text-xs text-stone-400">
+        {b.members} member{b.members === 1 ? '' : 's'} · since {formatDateTime(b.created_at)}
+      </p>
+      <div className="flex gap-2">
+        <button
+          onClick={() => void switchBusiness(b.id)}
+          disabled={isCurrent}
+          className="flex-1 rounded bg-stone-900 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-40"
+        >
+          {isCurrent ? 'You are here' : 'Enter workspace'}
+        </button>
+        {isSuspended ? (
+          <button
+            onClick={onReactivate}
+            disabled={suspendPending}
+            className="rounded border border-emerald-300 px-2.5 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-40"
+          >
+            Reactivate
+          </button>
+        ) : (
+          <button
+            onClick={onSuspendToggle}
+            disabled={suspendPending}
+            className="rounded border border-red-200 px-2.5 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-40"
+          >
+            Suspend
+          </button>
+        )}
+      </div>
+      {suspendError && (
+        <p className="mt-2 text-xs text-red-600">{suspendError}</p>
+      )}
+    </div>
+  )
+}
+
 /** Platform-admin agency view (Slice 33, GHL-style): every business on the
  *  platform, with one-click entry. Ordinary users never see this. */
 export function AgencyPage() {
@@ -67,6 +141,9 @@ export function AgencyPage() {
     return <p className="py-12 text-center text-stone-500">This area is for the platform team.</p>
   }
 
+  const active = businesses?.filter((b) => !b.suspended_at) ?? []
+  const suspended = businesses?.filter((b) => !!b.suspended_at) ?? []
+
   return (
     <div>
       <div className="mb-1 flex items-center justify-between">
@@ -81,67 +158,74 @@ export function AgencyPage() {
       <p className="mb-4 text-sm text-stone-500">
         Every business on the platform. Entering one scopes the whole app to its data.
       </p>
+
       {isPending && <p className="py-8 text-center text-stone-500">Loading businesses…</p>}
       {isError && <p className="py-8 text-center text-red-600">Could not load. {error.message}</p>}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {businesses?.map((b) => {
-          const active = membership?.activeBusinessId === b.id
-          return (
-            <div
-              key={b.id}
-              className={`rounded-lg border bg-white p-4 ${
-                active ? 'border-amber-400 ring-1 ring-amber-200' : 'border-stone-200'
-              }`}
-            >
-              <div className="mb-1 flex items-center justify-between">
-                <h2 className="font-semibold text-stone-900">{b.name}</h2>
-                {b.suspended_at ? (
-                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                    suspended
-                  </span>
-                ) : active ? (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-                    current
-                  </span>
-                ) : null}
-              </div>
-              <p className="mb-3 text-xs text-stone-400">
-                {b.members} member{b.members === 1 ? '' : 's'} · since {formatDateTime(b.created_at)}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => void switchBusiness(b.id)}
-                  disabled={active}
-                  className="flex-1 rounded bg-stone-900 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-40"
-                >
-                  {active ? 'You are here' : 'Enter workspace'}
-                </button>
-                <button
-                  onClick={() => {
-                    if (
-                      b.suspended_at ||
-                      window.confirm(`Suspend ${b.name}? Every member loses access until you reactivate. Data is untouched.`)
-                    ) {
-                      suspend.mutate({ id: b.id, suspend: !b.suspended_at })
-                    }
-                  }}
-                  disabled={suspend.isPending}
-                  className={`rounded border px-2.5 py-1.5 text-sm font-medium disabled:opacity-40 ${
-                    b.suspended_at
-                      ? 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
-                      : 'border-red-200 text-red-600 hover:bg-red-50'
-                  }`}
-                >
-                  {b.suspended_at ? 'Reactivate' : 'Suspend'}
-                </button>
-              </div>
-              {suspend.isError && (
-                <p className="mt-2 text-xs text-red-600">{suspend.error.message}</p>
-              )}
+
+      {businesses && (
+        <>
+          {/* ── Stats row ─────────────────────────────────────────── */}
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-stone-200 bg-white px-4 py-3">
+              <p className="text-xs text-stone-500">Total clients</p>
+              <p className="mt-0.5 text-2xl font-semibold text-stone-900">{businesses.length}</p>
             </div>
-          )
-        })}
-      </div>
+            <div className="rounded-lg border border-stone-200 bg-white px-4 py-3">
+              <p className="text-xs text-stone-500">Active</p>
+              <p className="mt-0.5 text-2xl font-semibold text-emerald-700">{active.length}</p>
+            </div>
+            <div className="rounded-lg border border-stone-200 bg-white px-4 py-3">
+              <p className="text-xs text-stone-500">Suspended</p>
+              <p className="mt-0.5 text-2xl font-semibold text-red-600">{suspended.length}</p>
+            </div>
+          </div>
+
+          {/* ── Active accounts ───────────────────────────────────── */}
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-stone-500">
+            Active ({active.length})
+          </h2>
+          {active.length === 0 && (
+            <p className="mb-6 text-sm text-stone-400">No active clients yet.</p>
+          )}
+          <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {active.map((b) => (
+              <BusinessCard
+                key={b.id}
+                b={b}
+                isCurrent={membership?.activeBusinessId === b.id}
+                onSuspendToggle={() => {
+                  if (window.confirm(`Suspend ${b.name}? Every member loses access until you reactivate. Data is untouched.`))
+                    suspend.mutate({ id: b.id, suspend: true })
+                }}
+                suspendPending={suspend.isPending}
+                suspendError={suspend.isError ? suspend.error.message : null}
+              />
+            ))}
+          </div>
+
+          {/* ── Suspended accounts ────────────────────────────────── */}
+          {suspended.length > 0 && (
+            <>
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-stone-500">
+                Suspended ({suspended.length})
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {suspended.map((b) => (
+                  <BusinessCard
+                    key={b.id}
+                    b={b}
+                    isCurrent={membership?.activeBusinessId === b.id}
+                    onReactivate={() => suspend.mutate({ id: b.id, suspend: false })}
+                    suspendPending={suspend.isPending}
+                    suspendError={suspend.isError ? suspend.error.message : null}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
       {adding && (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:p-6">

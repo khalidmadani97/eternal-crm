@@ -138,7 +138,7 @@ export function AppShell() {
               className="mr-auto rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-sm font-medium text-amber-900"
               aria-label="Switch business"
             >
-              {membership.businesses.map((b) => (
+              {membership.businesses.filter((b) => !b.suspended_at).map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
                 </option>

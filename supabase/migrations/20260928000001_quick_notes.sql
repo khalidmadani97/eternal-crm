@@ -25,15 +25,15 @@ alter table public.quick_notes enable row level security;
 -- Staff see their own notes + the whole business's notes (Sara reads all)
 create policy "staff select" on public.quick_notes
   for select to authenticated
-  using (business_id = any (public.my_business_ids()));
+  using (business_id in (select public.my_business_ids()));
 
 create policy "staff insert" on public.quick_notes
   for insert to authenticated
-  with check (business_id = any (public.my_business_ids()));
+  with check (business_id in (select public.my_business_ids()));
 
 create policy "owner delete" on public.quick_notes
   for delete to authenticated
-  using (user_id = auth.uid() and business_id = any (public.my_business_ids()));
+  using (user_id = auth.uid() and business_id in (select public.my_business_ids()));
 
 grant select, insert, delete on public.quick_notes to authenticated;
 grant all on public.quick_notes to service_role;

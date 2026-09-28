@@ -55,7 +55,7 @@ create trigger trg_conversion_queue_updated_at
 
 alter table public.conversion_queue enable row level security;
 create policy "staff select" on public.conversion_queue for select to authenticated using (
-  business_id = any (public.my_business_ids())
+  business_id in (select public.my_business_ids())
 );
 create policy "service insert" on public.conversion_queue for insert to service_role with check (true);
 create policy "service update" on public.conversion_queue for update to service_role using (true);
