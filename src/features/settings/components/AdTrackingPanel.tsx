@@ -116,6 +116,7 @@ export function AdTrackingPanel() {
               <input
                 {...register('meta_capi_token')}
                 type={showMetaToken ? 'text' : 'password'}
+                autoComplete="new-password"
                 placeholder="System user access token from Meta Events Manager"
                 className={inputClass}
               />
@@ -184,6 +185,7 @@ export function AdTrackingPanel() {
                   <input
                     {...register('google_ads_developer_token')}
                     type={showGoogleSecrets ? 'text' : 'password'}
+                    autoComplete="new-password"
                     placeholder="Google Cloud Console"
                     className={inputClass}
                   />
@@ -195,6 +197,7 @@ export function AdTrackingPanel() {
                   <input
                     {...register('google_ads_oauth_client_id')}
                     type={showGoogleSecrets ? 'text' : 'password'}
+                    autoComplete="new-password"
                     className={inputClass}
                   />
                 </div>
@@ -205,6 +208,7 @@ export function AdTrackingPanel() {
                   <input
                     {...register('google_ads_oauth_client_secret')}
                     type={showGoogleSecrets ? 'text' : 'password'}
+                    autoComplete="new-password"
                     className={inputClass}
                   />
                 </div>
@@ -215,6 +219,7 @@ export function AdTrackingPanel() {
                   <input
                     {...register('google_ads_refresh_token')}
                     type={showGoogleSecrets ? 'text' : 'password'}
+                    autoComplete="new-password"
                     className={inputClass}
                   />
                 </div>
