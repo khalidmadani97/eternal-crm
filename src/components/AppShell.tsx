@@ -132,18 +132,7 @@ export function AppShell() {
             </svg>
           </button>
           {membership && membership.platformAdmin && membership.businesses.length > 1 ? (
-            <select
-              value={membership.activeBusinessId ?? ''}
-              onChange={(e) => void switchBusiness(e.target.value)}
-              className="mr-auto rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-sm font-medium text-amber-900"
-              aria-label="Switch business"
-            >
-              {membership.businesses.filter((b) => !b.suspended_at).map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+            <BusinessSwitcher membership={membership} />
           ) : (
             <span className="mr-auto hidden text-sm font-medium text-stone-500 sm:inline">
               {membership?.businesses.find((b) => b.id === membership.activeBusinessId)?.name ?? ''}
@@ -163,6 +152,84 @@ export function AppShell() {
   )
 }
 
+
+function BusinessSwitcher({ membership }: { membership: NonNullable<ReturnType<typeof useMyMembership>['data']> }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const active = membership.businesses.find((b) => b.id === membership.activeBusinessId)
+  const options = membership.businesses.filter((b) => !b.suspended_at)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const initials = (name: string) =>
+    name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+
+  return (
+    <div ref={ref} className="relative mr-auto">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 py-1.5 pl-2 pr-3 text-sm font-medium text-amber-900 hover:border-amber-400 hover:bg-amber-100 transition-colors"
+        aria-label="Switch workspace"
+      >
+        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-600 text-[10px] font-bold text-white shrink-0">
+          {active ? initials(active.name) : '—'}
+        </span>
+        <span className="hidden max-w-[10rem] truncate sm:block">{active?.name ?? 'Select workspace'}</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className={`shrink-0 text-amber-600 transition-transform ${open ? 'rotate-180' : ''}`}>
+          <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1.5 w-56 rounded-xl border border-stone-200 bg-white py-1.5 shadow-xl">
+          <p className="px-3 pb-1.5 pt-0.5 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
+            Workspaces
+          </p>
+          {options.map((b) => {
+            const isCurrent = b.id === membership.activeBusinessId
+            return (
+              <button
+                key={b.id}
+                onClick={() => { void switchBusiness(b.id); setOpen(false) }}
+                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors hover:bg-stone-50 ${isCurrent ? 'text-stone-900' : 'text-stone-600'}`}
+              >
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold ${isCurrent ? 'bg-amber-600 text-white' : 'bg-stone-100 text-stone-500'}`}>
+                  {initials(b.name)}
+                </span>
+                <span className="flex-1 truncate">{b.name}</span>
+                {isCurrent && (
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-amber-600 shrink-0">
+                    <path d="M2 7l3.5 3.5L12 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </button>
+            )
+          })}
+          <div className="mx-3 my-1.5 border-t border-stone-100" />
+          <Link
+            to="/agency"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-amber-700 hover:bg-amber-50 transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
+              <rect x="1" y="1" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+              <rect x="8" y="1" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+              <rect x="1" y="8" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+              <rect x="8" y="8" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+            </svg>
+            Agency dashboard
+          </Link>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function AvatarMenu({ email, platformAdmin, onSignOut }: { email: string; platformAdmin: boolean; onSignOut: () => void }) {
   const [open, setOpen] = useState(false)
