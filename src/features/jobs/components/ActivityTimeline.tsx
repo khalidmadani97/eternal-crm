@@ -6,6 +6,22 @@ import { useActivities, useAddNote, useDeleteNote } from '../api'
 import { STAGE_LABELS } from './StageBadge'
 import type { JobStage } from '../api'
 
+const isHtmlBody = (s: string) => s.trimStart().startsWith('<')
+
+function NoteBody({ kind, body, meta }: { kind: string; body: string | null; meta: Record<string, unknown> | null }) {
+  if (kind === 'stage_change' && meta) {
+    const from = meta.from as JobStage | undefined
+    const to = meta.to as JobStage | undefined
+    if (from && to)
+      return <p className="text-stone-800">{`Stage changed: ${STAGE_LABELS[from] ?? from} → ${STAGE_LABELS[to] ?? to}`}</p>
+  }
+  const text = body ?? kind
+  if (kind === 'note' && isHtmlBody(text)) {
+    return <div className="note-body text-sm text-stone-800" dangerouslySetInnerHTML={{ __html: text }} />
+  }
+  return <p className="text-stone-800">{text}</p>
+}
+
 const KIND_ICONS: Record<string, string> = {
   note: '📝',
   call: '📞',
@@ -52,7 +68,7 @@ export function ActivityTimeline({ jobId, contactId, title = 'Activity' }: { job
           <li key={a.id} className="flex gap-3 text-sm">
             <span aria-hidden>{KIND_ICONS[a.kind] ?? '•'}</span>
             <div className="min-w-0 flex-1">
-              <p className="text-stone-800">{describeActivity(a.kind, a.body, a.meta)}</p>
+              <NoteBody kind={a.kind} body={a.body} meta={a.meta} />
               {typeof a.meta?.audio_path === 'string' && <AudioNote path={a.meta.audio_path} />}
               <p className="text-xs text-stone-400">
                 {formatDateTime(a.created_at)}
@@ -78,16 +94,3 @@ export function ActivityTimeline({ jobId, contactId, title = 'Activity' }: { job
   )
 }
 
-function describeActivity(
-  kind: string,
-  body: string | null,
-  meta: Record<string, unknown> | null,
-): string {
-  if (kind === 'stage_change' && meta) {
-    const from = meta.from as JobStage | undefined
-    const to = meta.to as JobStage | undefined
-    if (from && to)
-      return `Stage changed: ${STAGE_LABELS[from] ?? from} → ${STAGE_LABELS[to] ?? to}`
-  }
-  return body ?? kind
-}

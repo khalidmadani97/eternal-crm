@@ -17,6 +17,8 @@ const KIND_ICONS: Record<string, string> = {
   system: '⚙️',
 }
 
+const isHtmlBody = (s: string) => s.trimStart().startsWith('<')
+
 /** Notes + comms history on the contact card, with voice dictation. */
 export function ContactTimeline({ contactId }: { contactId: string }) {
   const { session } = useAuth()
@@ -52,7 +54,10 @@ export function ContactTimeline({ contactId }: { contactId: string }) {
           <li key={a.id} className="flex gap-3 text-sm">
             <span aria-hidden>{KIND_ICONS[a.kind] ?? '•'}</span>
             <div className="min-w-0 flex-1">
-              <p className="text-stone-800">{a.body ?? a.kind}</p>
+              {a.kind === 'note' && a.body && isHtmlBody(a.body)
+                ? <div className="note-body text-sm text-stone-800" dangerouslySetInnerHTML={{ __html: a.body }} />
+                : <p className="text-stone-800">{a.body ?? a.kind}</p>
+              }
               {typeof a.meta?.audio_path === 'string' && <AudioNote path={a.meta.audio_path} />}
               <p className="text-xs text-stone-400">
                 {formatDateTime(a.created_at)}

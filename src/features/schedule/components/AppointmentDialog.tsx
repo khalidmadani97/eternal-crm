@@ -1,7 +1,11 @@
 import { useState } from 'react'
+import { useEditor, EditorContent } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import Underline from '@tiptap/extension-underline'
 import { useProfiles } from '../../auth/api'
 import { useJobs } from '../../jobs/api'
 import { APPT_KIND_LABELS, APPT_KINDS, useCreateAppointment } from '../api'
+import { RichToolbar } from '../../../components/RichToolbar'
 import type { ApptKind } from '../api'
 
 interface Props {
@@ -23,7 +27,11 @@ export function AppointmentDialog({ jobId, initialDate, onClose }: Props) {
     time: '09:00',
     durationHours: '2',
     assigned_to: '',
-    notes: '',
+  })
+
+  const notesEditor = useEditor({
+    extensions: [StarterKit, Underline],
+    editorProps: { attributes: { class: 'note-editor' } },
   })
   const [validationError, setValidationError] = useState<string | null>(null)
 
@@ -50,7 +58,7 @@ export function AppointmentDialog({ jobId, initialDate, onClose }: Props) {
         starts_at: starts.toISOString(),
         ends_at: ends ? ends.toISOString() : null,
         assigned_to: form.assigned_to || null,
-        notes: form.notes.trim() || null,
+        notes: notesEditor?.isEmpty ? null : (notesEditor?.getHTML() ?? null),
       },
       { onSuccess: onClose },
     )
@@ -139,15 +147,13 @@ export function AppointmentDialog({ jobId, initialDate, onClose }: Props) {
               />
             </label>
           </div>
-          <label className="block text-sm">
+          <div className="block text-sm">
             <span className="mb-1 block font-medium text-stone-700">Notes</span>
-            <textarea
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              rows={2}
-              className={inputClass}
-            />
-          </label>
+            <div className="rounded-lg border border-stone-200 focus-within:border-amber-400 transition-colors">
+              <RichToolbar editor={notesEditor} />
+              <EditorContent editor={notesEditor} />
+            </div>
+          </div>
           {(validationError || createAppointment.isError) && (
             <p className="text-sm text-red-600">
               {validationError ?? createAppointment.error?.message}

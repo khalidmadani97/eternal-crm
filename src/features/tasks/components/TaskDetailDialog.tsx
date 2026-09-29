@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useEditor, EditorContent } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import Underline from '@tiptap/extension-underline'
 import { useProfiles } from '../../auth/api'
 import { useJobs } from '../../jobs/api'
 import { useDeleteTask, useUpdateTask } from '../api'
+import { RichToolbar } from '../../../components/RichToolbar'
 import type { TaskRow } from '../api'
 
 /** Full task editor (Slice 38): instructions, due date, assignee, time
@@ -14,11 +18,16 @@ export function TaskDetailDialog({ task, onClose }: { task: TaskRow; onClose: ()
   const { data: jobs } = useJobs()
   const [form, setForm] = useState({
     title: task.title,
-    description: task.description ?? '',
     due_date: task.due_date ?? '',
     assigned_to: task.assignee?.id ?? '',
     estimated_minutes: task.estimated_minutes?.toString() ?? '',
     job_id: task.job?.id ?? '',
+  })
+
+  const descEditor = useEditor({
+    extensions: [StarterKit, Underline],
+    content: task.description ?? '',
+    editorProps: { attributes: { class: 'note-editor' } },
   })
   const [validationError, setValidationError] = useState<string | null>(null)
   const done = task.completed_at !== null
@@ -39,7 +48,7 @@ export function TaskDetailDialog({ task, onClose }: { task: TaskRow; onClose: ()
         id: task.id,
         patch: {
           title: form.title.trim(),
-          description: form.description.trim() || null,
+          description: descEditor?.isEmpty ? null : (descEditor?.getHTML() ?? null),
           due_date: form.due_date || null,
           assigned_to: form.assigned_to || null,
           estimated_minutes: minutes,
@@ -83,16 +92,20 @@ export function TaskDetailDialog({ task, onClose }: { task: TaskRow; onClose: ()
               className={inputClass}
             />
           </label>
-          <label className="block text-sm">
+          <div className="block text-sm">
             <span className="mb-1 block font-medium text-stone-700">Notes / instructions</span>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              rows={4}
-              placeholder="Context, steps, key numbers — anything the person doing this needs."
-              className={inputClass}
-            />
-          </label>
+            <div className="rounded-lg border border-stone-200 focus-within:border-amber-400 transition-colors">
+              <RichToolbar editor={descEditor} />
+              <div className="relative">
+                <EditorContent editor={descEditor} />
+                {descEditor?.isEmpty && (
+                  <p className="pointer-events-none absolute left-2.5 top-2 select-none text-sm text-stone-400">
+                    Context, steps, key numbers — anything the person doing this needs.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <label className="block text-sm">
               <span className="mb-1 block font-medium text-stone-700">Due date</span>
