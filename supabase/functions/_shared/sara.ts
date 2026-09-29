@@ -84,6 +84,7 @@ export async function buildSnapshot(sb: SupabaseClient, businessId: string | nul
       sb
         .from('quick_notes')
         .select('id, body, kind, created_at, author:profiles ( full_name )')
+        .is('completed_at', null)
         .order('created_at', { ascending: false })
         .limit(20) as never,
     ),

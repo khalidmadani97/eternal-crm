@@ -5,13 +5,17 @@ import Underline from '@tiptap/extension-underline'
 import { supabase } from '../lib/supabase'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMyMembership } from '../features/settings/api'
+import { useCreateTask } from '../features/tasks/api'
 
 interface QuickNote {
   id: string
   body: string
   kind: 'text' | 'voice'
   created_at: string
+  completed_at: string | null
 }
+
+// ── Data hooks ────────────────────────────────────────────────────────────────
 
 function useQuickNotes() {
   const { data: membership } = useMyMembership()
@@ -23,10 +27,10 @@ function useQuickNotes() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase as any)
         .from('quick_notes')
-        .select('id, body, kind, created_at')
+        .select('id, body, kind, created_at, completed_at')
         .eq('business_id', businessId)
         .order('created_at', { ascending: false })
-        .limit(30)
+        .limit(50)
       if (error) throw error
       return data as QuickNote[]
     },
@@ -54,6 +58,33 @@ function useAddNote() {
   })
 }
 
+function useUpdateNote() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, body }: { id: string; body: string }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any).from('quick_notes').update({ body }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['quick-notes'] }),
+  })
+}
+
+function useToggleComplete() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, complete }: { id: string; complete: boolean }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from('quick_notes')
+        .update({ completed_at: complete ? new Date().toISOString() : null })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['quick-notes'] }),
+  })
+}
+
 function useDeleteNote() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -66,7 +97,18 @@ function useDeleteNote() {
   })
 }
 
-// Toolbar button — onMouseDown + preventDefault keeps editor focused
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const isHtmlBody = (s: string) => s.trimStart().startsWith('<')
+
+const stripHtml = (html: string) =>
+  html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+
+const noteToPlainText = (body: string) =>
+  isHtmlBody(body) ? stripHtml(body) : body
+
+// ── Toolbar ───────────────────────────────────────────────────────────────────
+
 function ToolBtn({
   onPress,
   active,
@@ -151,39 +193,210 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
   )
 }
 
-const isHtmlBody = (s: string) => s.trimStart().startsWith('<')
+// ── Inline editor (edit mode for an existing note) ────────────────────────────
 
-function NoteCard({ note, onDelete }: { note: QuickNote; onDelete: () => void }) {
+function NoteInlineEditor({
+  initialContent,
+  onSave,
+  onCancel,
+}: {
+  initialContent: string
+  onSave: (html: string) => void
+  onCancel: () => void
+}) {
+  const editor = useEditor({
+    extensions: [StarterKit, Underline],
+    content: initialContent,
+    editorProps: { attributes: { class: 'note-editor' } },
+    autofocus: 'end',
+  })
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); onCancel() }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault()
+        if (editor && !editor.isEmpty) onSave(editor.getHTML())
+      }
+    }
+    document.addEventListener('keydown', handler, true)
+    return () => document.removeEventListener('keydown', handler, true)
+  }, [editor, onSave, onCancel])
+
   return (
-    <div className="group relative rounded-lg border border-stone-100 bg-stone-50 px-3 py-2.5">
-      <div className="pr-5">
-        {note.kind === 'voice' && (
-          <span className="mr-1.5 text-xs text-amber-600">🎙</span>
-        )}
-        {note.kind === 'voice' || !isHtmlBody(note.body) ? (
-          <span className="text-sm text-stone-800 whitespace-pre-wrap break-words">{note.body}</span>
-        ) : (
-          <div
-            className="note-body text-sm text-stone-800 break-words"
-            dangerouslySetInnerHTML={{ __html: note.body }}
-          />
-        )}
+    <div className="rounded-lg border border-amber-400 bg-white shadow-sm">
+      <Toolbar editor={editor} />
+      <EditorContent editor={editor} />
+      <div className="flex justify-end gap-2 border-t border-stone-100 px-2.5 py-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded px-3 py-1 text-xs text-stone-500 hover:bg-stone-100"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => { if (editor && !editor.isEmpty) onSave(editor.getHTML()) }}
+          className="rounded bg-stone-900 px-3 py-1 text-xs font-medium text-white hover:bg-stone-800"
+        >
+          Save
+        </button>
       </div>
-      <button
-        onClick={onDelete}
-        className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded text-stone-300 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
-        aria-label="Delete note"
-      >
-        ×
-      </button>
     </div>
   )
 }
 
+// ── Note card ─────────────────────────────────────────────────────────────────
+
+function NoteBody({ body, kind }: { body: string; kind: string }) {
+  if (kind === 'voice' || !isHtmlBody(body)) {
+    return <p className="break-words text-sm text-stone-800 whitespace-pre-wrap">{body}</p>
+  }
+  return (
+    <div
+      className="note-body break-words text-sm text-stone-800"
+      dangerouslySetInnerHTML={{ __html: body }}
+    />
+  )
+}
+
+function NoteCard({
+  note,
+  onDelete,
+  onUpdate,
+  onComplete,
+  onConvertToTask,
+}: {
+  note: QuickNote
+  onDelete: () => void
+  onUpdate: (html: string) => void
+  onComplete: () => void
+  onConvertToTask: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [taskFlash, setTaskFlash] = useState(false)
+  const done = !!note.completed_at
+
+  const handleConvertToTask = () => {
+    onConvertToTask()
+    setTaskFlash(true)
+    setTimeout(() => setTaskFlash(false), 2000)
+  }
+
+  if (editing) {
+    return (
+      <NoteInlineEditor
+        initialContent={note.body}
+        onSave={(html) => { onUpdate(html); setEditing(false) }}
+        onCancel={() => setEditing(false)}
+      />
+    )
+  }
+
+  if (done) {
+    return (
+      <div className="group flex items-start gap-2 rounded-lg border border-stone-100 bg-stone-50/60 px-3 py-2 opacity-60">
+        <div className="min-w-0 flex-1 line-through">
+          <NoteBody body={note.body} kind={note.kind} />
+        </div>
+        <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <ActionIconBtn onClick={onComplete} title="Restore">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M1 6a5 5 0 105-5H4M4 1v3h3"/>
+            </svg>
+          </ActionIconBtn>
+          <ActionIconBtn onClick={onDelete} title="Delete" danger>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M2 3h8M5 3V2h2v1M4 3v6M6 3v6M8 3v6"/>
+            </svg>
+          </ActionIconBtn>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="group rounded-lg border border-stone-100 bg-stone-50 px-3 py-2.5">
+      {note.kind === 'voice' && (
+        <span className="mr-1 text-xs text-amber-600">🎙</span>
+      )}
+      <NoteBody body={note.body} kind={note.kind} />
+
+      {/* Action row — visible on hover */}
+      <div className="mt-1.5 flex items-center justify-between opacity-0 transition-opacity group-hover:opacity-100">
+        {taskFlash ? (
+          <span className="text-xs text-emerald-600">Added to Tasks ✓</span>
+        ) : (
+          <div className="flex gap-1">
+            <ActionIconBtn onClick={() => setEditing(true)} title="Edit">
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7.5 1.5l2 2L3 10H1V8z"/>
+              </svg>
+            </ActionIconBtn>
+            <ActionIconBtn onClick={handleConvertToTask} title="Convert to task">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="1" y="1" width="10" height="10" rx="2"/>
+                <path d="M3.5 6l2 2 3-3"/>
+              </svg>
+            </ActionIconBtn>
+          </div>
+        )}
+        <div className="flex gap-1">
+          <ActionIconBtn onClick={onComplete} title="Mark done" className="text-emerald-600 hover:bg-emerald-50">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1.5 6l3 3 6-6"/>
+            </svg>
+          </ActionIconBtn>
+          <ActionIconBtn onClick={onDelete} title="Delete" danger>
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M2 2l7 7M9 2L2 9"/>
+            </svg>
+          </ActionIconBtn>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ActionIconBtn({
+  onClick,
+  title,
+  danger,
+  className,
+  children,
+}: {
+  onClick: () => void
+  title: string
+  danger?: boolean
+  className?: string
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`flex h-6 w-6 items-center justify-center rounded transition-colors ${
+        danger
+          ? 'text-stone-400 hover:bg-red-50 hover:text-red-500'
+          : className ?? 'text-stone-400 hover:bg-stone-200 hover:text-stone-700'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+// ── Voice recording ───────────────────────────────────────────────────────────
+
 type RecState = 'idle' | 'recording' | 'uploading'
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export function QuickNotepad() {
   const [open, setOpen] = useState(false)
+  const [doneOpen, setDoneOpen] = useState(false)
   const [recState, setRecState] = useState<RecState>('idle')
   const [recError, setRecError] = useState<string | null>(null)
   const mediaRef = useRef<MediaRecorder | null>(null)
@@ -191,14 +404,18 @@ export function QuickNotepad() {
 
   const { data: notes, isPending } = useQuickNotes()
   const addNote = useAddNote()
+  const updateNote = useUpdateNote()
   const deleteNote = useDeleteNote()
+  const toggleComplete = useToggleComplete()
+  const createTask = useCreateTask()
 
-  // Editor lives at the component level so it persists across panel open/close
+  const active = notes?.filter((n) => !n.completed_at) ?? []
+  const done = notes?.filter((n) => !!n.completed_at) ?? []
+
+  // Compose editor — lives at component level to persist across open/close
   const editor = useEditor({
     extensions: [StarterKit, Underline],
-    editorProps: {
-      attributes: { class: 'note-editor' },
-    },
+    editorProps: { attributes: { class: 'note-editor' } },
   })
 
   useEffect(() => {
@@ -211,6 +428,14 @@ export function QuickNotepad() {
     editor.commands.clearContent()
   }
 
+  const handleConvertToTask = (note: QuickNote) => {
+    const title = noteToPlainText(note.body).slice(0, 120)
+    if (!title) return
+    createTask.mutate({ title, job_id: null, assigned_to: null, due_date: null })
+    toggleComplete.mutate({ id: note.id, complete: true })
+  }
+
+  // Voice recording
   const startRecording = async () => {
     setRecError(null)
     try {
@@ -262,11 +487,11 @@ export function QuickNotepad() {
     return () => window.removeEventListener('keydown', handler)
   }, [open])
 
-  const noteCount = notes?.length ?? 0
+  const noteCount = active.length
 
   return (
     <>
-      {/* Floating trigger button */}
+      {/* Floating trigger */}
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label="Quick notepad"
@@ -287,9 +512,9 @@ export function QuickNotepad() {
         )}
       </button>
 
-      {/* Floating panel */}
+      {/* Panel */}
       {open && (
-        <div className="fixed bottom-20 left-5 z-30 flex h-[min(36rem,calc(100dvh-7rem))] w-80 max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl">
+        <div className="fixed bottom-20 left-5 z-30 flex h-[min(38rem,calc(100dvh-7rem))] w-80 max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl">
           {/* Header */}
           <div className="flex shrink-0 items-center justify-between border-b border-stone-100 px-4 py-3">
             <div>
@@ -302,14 +527,55 @@ export function QuickNotepad() {
           {/* Notes list */}
           <div className="flex-1 space-y-2 overflow-y-auto p-3">
             {isPending && <p className="py-4 text-center text-sm text-stone-400">Loading…</p>}
-            {!isPending && noteCount === 0 && (
+            {!isPending && active.length === 0 && done.length === 0 && (
               <p className="py-6 text-center text-sm text-stone-400">
                 Nothing yet — jot a note below or tap the mic.
               </p>
             )}
-            {notes?.map((n) => (
-              <NoteCard key={n.id} note={n} onDelete={() => deleteNote.mutate(n.id)} />
+
+            {active.map((n) => (
+              <NoteCard
+                key={n.id}
+                note={n}
+                onDelete={() => deleteNote.mutate(n.id)}
+                onUpdate={(html) => updateNote.mutate({ id: n.id, body: html })}
+                onComplete={() => toggleComplete.mutate({ id: n.id, complete: true })}
+                onConvertToTask={() => handleConvertToTask(n)}
+              />
             ))}
+
+            {/* Done section */}
+            {done.length > 0 && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setDoneOpen((v) => !v)}
+                  className="flex w-full items-center gap-1.5 py-1 text-xs font-medium text-stone-400 hover:text-stone-600"
+                >
+                  <svg
+                    width="10" height="10" viewBox="0 0 10 10" fill="none"
+                    className={`shrink-0 transition-transform ${doneOpen ? 'rotate-90' : ''}`}
+                  >
+                    <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Done ({done.length})
+                </button>
+                {doneOpen && (
+                  <div className="mt-1 space-y-1.5">
+                    {done.map((n) => (
+                      <NoteCard
+                        key={n.id}
+                        note={n}
+                        onDelete={() => deleteNote.mutate(n.id)}
+                        onUpdate={(html) => updateNote.mutate({ id: n.id, body: html })}
+                        onComplete={() => toggleComplete.mutate({ id: n.id, complete: false })}
+                        onConvertToTask={() => handleConvertToTask(n)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Compose area */}
