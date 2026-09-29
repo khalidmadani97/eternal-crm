@@ -736,3 +736,21 @@ in `callerBusinessId()`. Platform admins flip it via the
 
 **Consequence** — Suspension is instant and total (data, Sara, syncs) with
 zero data loss. Per-client custom domains/branding remain future work.
+
+## 039 — TipTap for rich text in the Quick Notepad
+
+2026-09 · accepted
+
+**Context** — Quick notepad (Slice 53) needed bold, italic, underline, lists,
+and headings. Building a ProseMirror wrapper from scratch would be hundreds of
+lines; a `<textarea>` with markdown shortcuts is hard to render correctly.
+
+**Decision** — TipTap (`@tiptap/react`, `@tiptap/starter-kit`,
+`@tiptap/extension-underline`). React-first, tree-shakeable, ProseMirror
+under the hood, excellent TypeScript types. Notes are stored as HTML in the
+existing `quick_notes.body text` column. Sara strips tags via regex before
+reading. No schema change needed.
+
+**Consequence** — ~85 kB gzip addition to the bundle (TipTap + ProseMirror).
+Scope: Quick Notepad only. If rich text is needed elsewhere (job notes, etc.)
+TipTap is already in the tree — reuse, don't re-add.

@@ -217,7 +217,8 @@ export async function buildSnapshot(sb: SupabaseClient, businessId: string | nul
       id: n.id,
       when: n.created_at.slice(0, 16).replace('T', ' '),
       by: n.author?.full_name ?? 'owner',
-      note: n.body,
+      // Strip HTML tags so Sara reads plain text, not raw markup
+      note: n.body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(),
     })),
     today,
     flagged_recent_notes,
