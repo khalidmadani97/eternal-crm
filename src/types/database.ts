@@ -664,6 +664,7 @@ export type Database = {
           business_id: string
           city: string | null
           company_id: string | null
+          contact_type: Database["public"]["Enums"]["contact_type"] | null
           created_at: string
           deleted_at: string | null
           email: string | null
@@ -685,6 +686,7 @@ export type Database = {
           business_id?: string
           city?: string | null
           company_id?: string | null
+          contact_type?: Database["public"]["Enums"]["contact_type"] | null
           created_at?: string
           deleted_at?: string | null
           email?: string | null
@@ -706,6 +708,7 @@ export type Database = {
           business_id?: string
           city?: string | null
           company_id?: string | null
+          contact_type?: Database["public"]["Enums"]["contact_type"] | null
           created_at?: string
           deleted_at?: string | null
           email?: string | null
@@ -2441,6 +2444,7 @@ export type Database = {
         | "other"
       consent_channel: "sms" | "call_recording"
       consent_status: "express" | "implied" | "withdrawn"
+      contact_type: "homeowner" | "builder" | "contractor"
       contract_status: "draft" | "sent" | "signed" | "declined" | "void"
       dm_platform: "messenger" | "instagram"
       expense_category:
@@ -2649,6 +2653,7 @@ export const Constants = {
       ],
       consent_channel: ["sms", "call_recording"],
       consent_status: ["express", "implied", "withdrawn"],
+      contact_type: ["homeowner", "builder", "contractor"],
       contract_status: ["draft", "sent", "signed", "declined", "void"],
       dm_platform: ["messenger", "instagram"],
       expense_category: [

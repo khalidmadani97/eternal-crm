@@ -52,8 +52,7 @@ export function useCreateContact() {
     mutationFn: async (input: NewContactInput) => {
       const { data, error } = await supabase
         .from('contacts')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .insert(input as any)
+        .insert(input)
         .select('id, full_name, phone, company:companies ( id, name )')
         .single()
       if (error) throw error
@@ -157,8 +156,7 @@ export function useUpdateContact() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, input }: { id: string; input: Partial<ContactInput> }) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await supabase.from('contacts').update(input as any).eq('id', id)
+      const { error } = await supabase.from('contacts').update(input).eq('id', id)
       if (error) throw error
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['contacts'] }),
@@ -169,8 +167,7 @@ export function useCreateFullContact() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (input: ContactInput) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await supabase.from('contacts').insert(input as any).select('id').single()
+      const { data, error } = await supabase.from('contacts').insert(input).select('id').single()
       if (error) throw error
       return data
     },
