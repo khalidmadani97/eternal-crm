@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../../lib/supabase'
 import { formatDateTime, formatPhone } from '../../../lib/format'
 import type { JobDetail } from '../../jobs/api'
+import { ContactQuickEditPanel } from '../../contacts/components/ContactQuickEditPanel'
 
 // Lead info panel (Slice 41): everything known about where this lead came
 // from — source, when it arrived, and every answer from the lead form
@@ -35,6 +37,7 @@ const META_KEY = /time|date|^id$|campaign|ad.?(set|name|id)|form|platform|source
 
 export function LeadInfo({ job }: { job: JobDetail }) {
   const { data: origin, isPending, isError, error } = useLeadOrigin(job.id)
+  const [editingContact, setEditingContact] = useState(false)
 
   const formAnswers = origin
     ? Object.entries(origin.raw_payload).filter(
@@ -44,9 +47,21 @@ export function LeadInfo({ job }: { job: JobDetail }) {
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-4">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-stone-500">
-        Lead info
-      </h2>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">Lead info</h2>
+        {job.contact && (
+          <button
+            onClick={() => setEditingContact(true)}
+            className="flex items-center gap-1 rounded border border-stone-200 px-2 py-1 text-xs text-stone-600 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700"
+            title="Edit contact"
+          >
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8.5 1.5a1.414 1.414 0 0 1 2 2L3 11H1V9L8.5 1.5z"/>
+            </svg>
+            Edit contact
+          </button>
+        )}
+      </div>
       <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-xs uppercase tracking-wide text-stone-400">Contact</dt>
@@ -122,6 +137,13 @@ export function LeadInfo({ job }: { job: JobDetail }) {
         <p className="mt-3 border-t border-stone-100 pt-3 text-sm text-stone-700">
           {origin.parsed_message}
         </p>
+      )}
+
+      {editingContact && job.contact && (
+        <ContactQuickEditPanel
+          contactId={job.contact.id}
+          onClose={() => setEditingContact(false)}
+        />
       )}
     </section>
   )
