@@ -754,3 +754,47 @@ reading. No schema change needed.
 **Consequence** — ~85 kB gzip addition to the bundle (TipTap + ProseMirror).
 Scope: Quick Notepad only. If rich text is needed elsewhere (job notes, etc.)
 TipTap is already in the tree — reuse, don't re-add.
+
+## 040 — Multi-source lead pipeline: Meta Lead Ads + Google Lead Form Extensions
+
+2026-09 · accepted
+
+**Context** — Leads arrive from multiple paid channels (Meta Lead Ads, Google
+Lead Form ads). We need them auto-created in the pipeline with full attribution
+so we can report qualified-lead counts by ad_id / campaign_id, and close the
+two-way sync loop both platforms require.
+
+**Decision**
+
+*Meta Lead Ads*: Extend the existing `meta-webhook` edge function to handle
+`entry.changes[].field === 'leadgen'` events alongside the existing DM events.
+On each event, fetch lead details from Graph API v21.0 using the business's
+`meta_page_access_token` (separate from the CAPI system-user token; requires
+`leads_retrieval` permission and Meta App Review). Create inbound_lead + contact
++ job. Store `ad_id`, `campaign_id`, `adset_id`, `form_id` on the lead row.
+Idempotent on `platform_lead_id`.
+
+*Google Lead Form Extensions*: New `google-lead-webhook` edge function at
+`/functions/v1/google-lead-webhook?b=<business_id>`. Google POSTs a JSON body
+with `google_key` (shared secret), `user_column_data`, and attribution fields.
+Verify the key matches `business_settings.google_lead_webhook_key` for that
+business. Create inbound_lead + contact + job. If `gcl_id` (gclid) is present,
+immediately upload a click conversion to Google Ads API (`uploadClickConversions`)
+using the stored OAuth credentials — this is the two-way sync.
+
+*Attribution columns* added to `inbound_leads`: `platform_lead_id`, `ad_id`,
+`campaign_id`, `adset_id`, `form_id`. Indexed for report queries.
+
+*Settings*: `business_settings` gains `meta_page_id`, `meta_page_access_token`,
+`google_lead_webhook_key`. UI in Settings → Ad tracking with webhook URL display
+and copy button for the Google endpoint.
+
+*Report*: Settings → Lead attribution — breakdown by source, campaign, ad with
+lead counts and qualification rates (leads that got a job_id).
+
+**Consequence** — Two-way sync is compliant with both platforms' requirements:
+Meta's `leadgen` webhook subscription model (not polling), Google's shared-key
+verification. All tokens are server-side only. The Meta page token is stored
+per-business in `business_settings`; the CAPI token (for won-job conversions)
+remains separate. The Google gclid path fires immediately on lead receipt, not
+deferred to `process-conversions` (which handles won-job enhanced conversions).

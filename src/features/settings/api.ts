@@ -367,14 +367,21 @@ export function useRevokeInvite() {
 // ── Ad conversion tracking (Slice 52) ───────────────────────────────────────
 
 export interface AdSettings {
+  business_id: string
   meta_pixel_id: string | null
   meta_capi_token: string | null
+  // Meta Lead Ads (leadgen webhook)
+  meta_page_id: string | null
+  meta_page_access_token: string | null
+  // Google Ads enhanced conversions
   google_ads_customer_id: string | null
   google_ads_developer_token: string | null
   google_ads_refresh_token: string | null
   google_ads_oauth_client_id: string | null
   google_ads_oauth_client_secret: string | null
   google_ads_conversion_action: string | null
+  // Google Lead Form Extensions webhook
+  google_lead_webhook_key: string | null
 }
 
 export function useAdSettings() {
@@ -385,10 +392,13 @@ export function useAdSettings() {
       const { data, error } = await (supabase as any)
         .from('business_settings')
         .select(`
+          business_id,
           meta_pixel_id, meta_capi_token,
+          meta_page_id, meta_page_access_token,
           google_ads_customer_id, google_ads_developer_token,
           google_ads_refresh_token, google_ads_oauth_client_id,
-          google_ads_oauth_client_secret, google_ads_conversion_action
+          google_ads_oauth_client_secret, google_ads_conversion_action,
+          google_lead_webhook_key
         `)
         .single()
       if (error) throw error

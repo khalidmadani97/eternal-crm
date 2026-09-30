@@ -36,6 +36,7 @@ export function NewJobDialog({ onClose, initialStage = 'new', pipelineId = null 
       stage: initialStage,
       pipeline_id: pipelineId,
       title: values.title,
+      summary: values.summary?.trim() || null,
       site_address: values.site_address || null,
       value_est: values.value_est ? Number(values.value_est) : null,
       lead_source: values.lead_source || null,
@@ -74,6 +75,12 @@ export function NewJobDialog({ onClose, initialStage = 'new', pipelineId = null 
                 onSelect={(c) => {
                   setSelectedContact(c)
                   setValue('contact_id', c.id, { shouldValidate: true })
+                  // Auto-fill title as "First name - City" if title not yet set
+                  if (!watch('title')) {
+                    const firstName = c.full_name.split(' ')[0]
+                    const city = c.city?.trim()
+                    setValue('title', city ? `${firstName} - ${city}` : firstName)
+                  }
                 }}
               />
             )}
@@ -87,11 +94,23 @@ export function NewJobDialog({ onClose, initialStage = 'new', pipelineId = null 
             </label>
             <input
               id="title"
-              placeholder="Kitchen countertops — quartz"
+              placeholder="Jane - Mississauga"
               className="w-full rounded border border-stone-300 px-3 py-2 text-sm focus:border-amber-600 focus:outline-none"
               {...register('title')}
             />
             {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
+          </div>
+          <div>
+            <label htmlFor="summary" className="mb-1 block text-sm font-medium text-stone-700">
+              Summary <span className="font-normal text-stone-400">(3–4 words, shown on card)</span>
+            </label>
+            <input
+              id="summary"
+              placeholder="Kitchen quartz countertops"
+              className="w-full rounded border border-stone-300 px-3 py-2 text-sm focus:border-amber-600 focus:outline-none"
+              {...register('summary')}
+            />
+            {errors.summary && <p className="mt-1 text-sm text-red-600">{errors.summary.message}</p>}
           </div>
           <div>
             <label htmlFor="site_address" className="mb-1 block text-sm font-medium text-stone-700">

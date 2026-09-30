@@ -5,6 +5,7 @@ export interface ContactOption {
   id: string
   full_name: string
   phone: string | null
+  city: string | null
   company: { id: string; name: string } | null
 }
 
@@ -16,7 +17,7 @@ export function useContactSearch(term: string) {
     queryFn: async (): Promise<ContactOption[]> => {
       let query = supabase
         .from('contacts')
-        .select('id, full_name, phone, company:companies ( id, name )')
+        .select('id, full_name, phone, city, company:companies ( id, name )')
         .is('deleted_at', null)
         .eq('auto_created', false)
         .order('full_name')

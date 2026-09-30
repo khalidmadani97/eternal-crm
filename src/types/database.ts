@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -288,7 +293,18 @@ export type Database = {
           created_at: string
           default_tax_rate: number
           email: string | null
+          google_ads_conversion_action: string | null
+          google_ads_customer_id: string | null
+          google_ads_developer_token: string | null
+          google_ads_oauth_client_id: string | null
+          google_ads_oauth_client_secret: string | null
+          google_ads_refresh_token: string | null
+          google_lead_webhook_key: string | null
           hst_number: string | null
+          meta_capi_token: string | null
+          meta_page_access_token: string | null
+          meta_page_id: string | null
+          meta_pixel_id: string | null
           name: string
           phone: string | null
           tagline: string | null
@@ -300,7 +316,18 @@ export type Database = {
           created_at?: string
           default_tax_rate?: number
           email?: string | null
+          google_ads_conversion_action?: string | null
+          google_ads_customer_id?: string | null
+          google_ads_developer_token?: string | null
+          google_ads_oauth_client_id?: string | null
+          google_ads_oauth_client_secret?: string | null
+          google_ads_refresh_token?: string | null
+          google_lead_webhook_key?: string | null
           hst_number?: string | null
+          meta_capi_token?: string | null
+          meta_page_access_token?: string | null
+          meta_page_id?: string | null
+          meta_pixel_id?: string | null
           name?: string
           phone?: string | null
           tagline?: string | null
@@ -312,7 +339,18 @@ export type Database = {
           created_at?: string
           default_tax_rate?: number
           email?: string | null
+          google_ads_conversion_action?: string | null
+          google_ads_customer_id?: string | null
+          google_ads_developer_token?: string | null
+          google_ads_oauth_client_id?: string | null
+          google_ads_oauth_client_secret?: string | null
+          google_ads_refresh_token?: string | null
+          google_lead_webhook_key?: string | null
           hst_number?: string | null
+          meta_capi_token?: string | null
+          meta_page_access_token?: string | null
+          meta_page_id?: string | null
+          meta_pixel_id?: string | null
           name?: string
           phone?: string | null
           tagline?: string | null
@@ -782,6 +820,73 @@ export type Database = {
           },
         ]
       }
+      conversion_queue: {
+        Row: {
+          business_id: string
+          created_at: string
+          google_error: string | null
+          google_sent: boolean
+          google_sent_at: string | null
+          id: string
+          job_id: string
+          lead_id: string | null
+          meta_error: string | null
+          meta_sent: boolean
+          meta_sent_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          google_error?: string | null
+          google_sent?: boolean
+          google_sent_at?: string | null
+          id?: string
+          job_id: string
+          lead_id?: string | null
+          meta_error?: string | null
+          meta_sent?: boolean
+          meta_sent_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          google_error?: string | null
+          google_sent?: boolean
+          google_sent_at?: string | null
+          id?: string
+          job_id?: string
+          lead_id?: string | null
+          meta_error?: string | null
+          meta_sent?: boolean
+          meta_sent_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversion_queue_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversion_queue_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversion_queue_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dm_messages: {
         Row: {
           activity_id: string
@@ -1024,12 +1129,18 @@ export type Database = {
       }
       inbound_leads: {
         Row: {
+          ad_id: string | null
+          adset_id: string | null
           business_id: string
+          campaign_id: string | null
           contact_id: string | null
           converted_at: string | null
           created_at: string
           dedupe_key: string | null
           discarded_at: string | null
+          fbclid: string | null
+          form_id: string | null
+          gclid: string | null
           id: string
           job_id: string | null
           parse_error: string | null
@@ -1037,18 +1148,25 @@ export type Database = {
           parsed_message: string | null
           parsed_name: string | null
           parsed_phone: string | null
+          platform_lead_id: string | null
           provider: Database["public"]["Enums"]["lead_provider"]
           raw_payload: Json
           received_at: string
           updated_at: string
         }
         Insert: {
+          ad_id?: string | null
+          adset_id?: string | null
           business_id?: string
+          campaign_id?: string | null
           contact_id?: string | null
           converted_at?: string | null
           created_at?: string
           dedupe_key?: string | null
           discarded_at?: string | null
+          fbclid?: string | null
+          form_id?: string | null
+          gclid?: string | null
           id?: string
           job_id?: string | null
           parse_error?: string | null
@@ -1056,18 +1174,25 @@ export type Database = {
           parsed_message?: string | null
           parsed_name?: string | null
           parsed_phone?: string | null
+          platform_lead_id?: string | null
           provider: Database["public"]["Enums"]["lead_provider"]
           raw_payload: Json
           received_at?: string
           updated_at?: string
         }
         Update: {
+          ad_id?: string | null
+          adset_id?: string | null
           business_id?: string
+          campaign_id?: string | null
           contact_id?: string | null
           converted_at?: string | null
           created_at?: string
           dedupe_key?: string | null
           discarded_at?: string | null
+          fbclid?: string | null
+          form_id?: string | null
+          gclid?: string | null
           id?: string
           job_id?: string | null
           parse_error?: string | null
@@ -1075,6 +1200,7 @@ export type Database = {
           parsed_message?: string | null
           parsed_name?: string | null
           parsed_phone?: string | null
+          platform_lead_id?: string | null
           provider?: Database["public"]["Enums"]["lead_provider"]
           raw_payload?: Json
           received_at?: string
@@ -1333,6 +1459,7 @@ export type Database = {
           pipeline_id: string | null
           site_address: string | null
           stage: Database["public"]["Enums"]["job_stage"]
+          summary: string | null
           title: string
           updated_at: string
           value_est: number | null
@@ -1358,6 +1485,7 @@ export type Database = {
           pipeline_id?: string | null
           site_address?: string | null
           stage?: Database["public"]["Enums"]["job_stage"]
+          summary?: string | null
           title: string
           updated_at?: string
           value_est?: number | null
@@ -1383,6 +1511,7 @@ export type Database = {
           pipeline_id?: string | null
           site_address?: string | null
           stage?: Database["public"]["Enums"]["job_stage"]
+          summary?: string | null
           title?: string
           updated_at?: string
           value_est?: number | null
@@ -1860,6 +1989,57 @@ export type Database = {
           },
         ]
       }
+      quick_notes: {
+        Row: {
+          body: string
+          business_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          kind: string
+          updated_at: string
+          user_id: string | null
+          voice_path: string | null
+        }
+        Insert: {
+          body: string
+          business_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          updated_at?: string
+          user_id?: string | null
+          voice_path?: string | null
+        }
+        Update: {
+          body?: string
+          business_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          updated_at?: string
+          user_id?: string | null
+          voice_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quick_notes_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quick_notes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quote_line_items: {
         Row: {
           amount: number | null
@@ -2326,12 +2506,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2355,11 +2535,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2380,11 +2560,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2405,11 +2585,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2422,11 +2602,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2526,4 +2706,3 @@ export const Constants = {
     },
   },
 } as const
-

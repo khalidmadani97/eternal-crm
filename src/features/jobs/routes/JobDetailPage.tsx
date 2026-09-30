@@ -166,6 +166,7 @@ function JobDetailsForm({ job }: { job: JobDetail }) {
   const { data: profiles } = useProfiles()
   const [form, setForm] = useState({
     title: job.title,
+    summary: job.summary ?? '',
     site_address: job.site_address ?? '',
     city: job.city ?? '',
     value_est: job.value_est?.toString() ?? '',
@@ -185,6 +186,7 @@ function JobDetailsForm({ job }: { job: JobDetail }) {
       id: job.id,
       patch: {
         title: form.title.trim(),
+        summary: form.summary.trim() || null,
         site_address: form.site_address.trim() || null,
         city: form.city.trim() || null,
         extra: Object.fromEntries(Object.entries(extra).filter(([, v]) => v.trim() !== '')),
@@ -216,6 +218,15 @@ function JobDetailsForm({ job }: { job: JobDetail }) {
           <input
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
+            className={inputClass}
+          />,
+        )}
+        {field(
+          'Summary (3–4 words, shown on card)',
+          <input
+            value={form.summary}
+            onChange={(e) => setForm({ ...form, summary: e.target.value })}
+            placeholder="Kitchen quartz countertops"
             className={inputClass}
           />,
         )}

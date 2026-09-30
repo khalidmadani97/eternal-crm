@@ -5,6 +5,7 @@ import { AiUsagePanel } from '../components/AiUsagePanel'
 import { BackupPanel } from '../components/BackupPanel'
 import { BusinessPanel } from '../components/BusinessPanel'
 import { IntegrationsPanel } from '../components/IntegrationsPanel'
+import { LeadAttributionReport } from '../components/LeadAttributionReport'
 import { TeamEditor } from '../components/TeamEditor'
 import {
   OPTION_LISTS,
@@ -15,7 +16,7 @@ import {
   useUpdateOption,
 } from '../api'
 
-type Tab = 'business' | 'team' | 'ai' | 'lists' | 'integrations' | 'adtracking' | 'security'
+type Tab = 'business' | 'team' | 'ai' | 'lists' | 'integrations' | 'adtracking' | 'attribution' | 'security'
 
 const TABS: { id: Tab; label: string; adminOnly?: boolean }[] = [
   { id: 'business', label: 'Business', adminOnly: true },
@@ -24,6 +25,7 @@ const TABS: { id: Tab; label: string; adminOnly?: boolean }[] = [
   { id: 'lists', label: 'Dropdown lists' },
   { id: 'integrations', label: 'Integrations', adminOnly: true },
   { id: 'adtracking', label: 'Ad tracking', adminOnly: true },
+  { id: 'attribution', label: 'Lead attribution', adminOnly: true },
   { id: 'security', label: 'Security & backups', adminOnly: true },
 ]
 
@@ -73,6 +75,7 @@ export function SettingsPage() {
       )}
       {tab === 'integrations' && isAdmin && <IntegrationsPanel />}
       {tab === 'adtracking' && isAdmin && <AdTrackingPanel />}
+      {tab === 'attribution' && isAdmin && <LeadAttributionReport />}
       {tab === 'security' && isAdmin && <BackupPanel />}
       {tab === 'business' && !isAdmin && null}
     </div>

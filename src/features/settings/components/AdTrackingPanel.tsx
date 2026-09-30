@@ -4,15 +4,20 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAdSettings, useProcessConversions, useUpdateAdSettings } from '../api'
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
+
 const schema = z.object({
   meta_pixel_id: z.string(),
   meta_capi_token: z.string(),
+  meta_page_id: z.string(),
+  meta_page_access_token: z.string(),
   google_ads_customer_id: z.string(),
   google_ads_developer_token: z.string(),
   google_ads_refresh_token: z.string(),
   google_ads_oauth_client_id: z.string(),
   google_ads_oauth_client_secret: z.string(),
   google_ads_conversion_action: z.string(),
+  google_lead_webhook_key: z.string(),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -24,6 +29,22 @@ function nullifyEmpty(values: FormValues): NullableAdPatch {
   )
 }
 
+function WebhookUrl({ href }: { href: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <div className="flex items-center gap-2 rounded border border-stone-200 bg-stone-50 px-3 py-2">
+      <code className="flex-1 truncate text-xs text-stone-600">{href}</code>
+      <button
+        type="button"
+        onClick={() => { void navigator.clipboard.writeText(href); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+        className="shrink-0 text-xs text-stone-400 hover:text-stone-700"
+      >
+        {copied ? 'Copied ✓' : 'Copy'}
+      </button>
+    </div>
+  )
+}
+
 export function AdTrackingPanel() {
   const { data: settings, isPending, isError, error } = useAdSettings()
   const update = useUpdateAdSettings()
@@ -31,7 +52,13 @@ export function AdTrackingPanel() {
   const [saved, setSaved] = useState(false)
   const [retryResult, setRetryResult] = useState<string | null>(null)
   const [showMetaToken, setShowMetaToken] = useState(false)
+  const [showMetaPageToken, setShowMetaPageToken] = useState(false)
   const [showGoogleSecrets, setShowGoogleSecrets] = useState(false)
+  const [showGoogleWebhookKey, setShowGoogleWebhookKey] = useState(false)
+
+  const googleWebhookUrl = settings?.business_id
+    ? `${SUPABASE_URL}/functions/v1/google-lead-webhook?b=${settings.business_id}`
+    : null
 
   const {
     register,
@@ -44,12 +71,15 @@ export function AdTrackingPanel() {
       ? {
           meta_pixel_id: settings.meta_pixel_id ?? '',
           meta_capi_token: settings.meta_capi_token ?? '',
+          meta_page_id: settings.meta_page_id ?? '',
+          meta_page_access_token: settings.meta_page_access_token ?? '',
           google_ads_customer_id: settings.google_ads_customer_id ?? '',
           google_ads_developer_token: settings.google_ads_developer_token ?? '',
           google_ads_refresh_token: settings.google_ads_refresh_token ?? '',
           google_ads_oauth_client_id: settings.google_ads_oauth_client_id ?? '',
           google_ads_oauth_client_secret: settings.google_ads_oauth_client_secret ?? '',
           google_ads_conversion_action: settings.google_ads_conversion_action ?? '',
+          google_lead_webhook_key: settings.google_lead_webhook_key ?? '',
         }
       : undefined,
   })
@@ -122,6 +152,55 @@ export function AdTrackingPanel() {
               />
               <p className="mt-1 text-xs text-stone-400">
                 Meta Events Manager → Data Sources → your Pixel → Settings → Generate access token
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Meta Lead Ads (leadgen webhook) ──────────────────────── */}
+        <section className="mt-4 max-w-2xl rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-0.5 text-sm font-semibold uppercase tracking-wide text-stone-500">
+            Meta Lead Ads
+          </h2>
+          <p className="mb-4 text-xs text-stone-400">
+            When someone submits a Meta Lead Ad form, a new contact + job is created automatically.
+            Requires the <em>leads_retrieval</em> permission and Meta App Review. Register this
+            webhook in Meta Business Suite → All Tools → Webhooks → Page → leadgen field.
+          </p>
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-stone-700">Page ID</label>
+              <input
+                {...register('meta_page_id')}
+                placeholder="123456789012345"
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-stone-400">
+                Meta Business Suite → Settings → Business info → page ID
+              </p>
+            </div>
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="text-sm font-medium text-stone-700">Page Access Token</label>
+                <button
+                  type="button"
+                  onClick={() => setShowMetaPageToken((v) => !v)}
+                  className="text-xs text-stone-400 hover:text-stone-700"
+                >
+                  {showMetaPageToken ? 'hide' : 'show'}
+                </button>
+              </div>
+              <input
+                {...register('meta_page_access_token')}
+                type={showMetaPageToken ? 'text' : 'password'}
+                autoComplete="new-password"
+                placeholder="Page-level token with leads_retrieval permission"
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-stone-400">
+                Must be a page-level token (not a system user token). Meta Graph API Explorer →
+                select your page → generate token with <em>pages_manage_metadata</em> +{' '}
+                <em>leads_retrieval</em>.
               </p>
             </div>
           </div>
@@ -228,6 +307,60 @@ export function AdTrackingPanel() {
                 Google Cloud Console → APIs &amp; Services → OAuth 2.0. Refresh token via the Google
                 OAuth Playground with the <em>Google Ads API</em> scope.
               </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Google Lead Form Extensions ───────────────────────────── */}
+        <section className="mt-4 max-w-2xl rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-0.5 text-sm font-semibold uppercase tracking-wide text-stone-500">
+            Google Lead Form Extensions
+          </h2>
+          <p className="mb-4 text-xs text-stone-400">
+            When someone submits a Google Lead Form ad, a contact + job is created and a click
+            conversion is sent back to Google Ads automatically (two-way sync). Set the webhook
+            URL in Google Ads → Campaigns → Assets → Lead Form → Webhook.
+          </p>
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-stone-700">
+                Webhook URL
+              </label>
+              {googleWebhookUrl ? (
+                <WebhookUrl href={googleWebhookUrl} />
+              ) : (
+                <p className="text-xs text-stone-400">Save to generate URL</p>
+              )}
+              <p className="mt-1 text-xs text-stone-400">
+                Paste this URL into your Google Lead Form asset → Webhook URL. Also paste the key
+                below into the Google "Key" field.
+              </p>
+            </div>
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="text-sm font-medium text-stone-700">Webhook Key</label>
+                <button
+                  type="button"
+                  onClick={() => setShowGoogleWebhookKey((v) => !v)}
+                  className="text-xs text-stone-400 hover:text-stone-700"
+                >
+                  {showGoogleWebhookKey ? 'hide' : 'show'}
+                </button>
+              </div>
+              <input
+                {...register('google_lead_webhook_key')}
+                type={showGoogleWebhookKey ? 'text' : 'password'}
+                autoComplete="new-password"
+                placeholder="Any random string — paste into Google Lead Form webhook key field"
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-stone-400">
+                Generate any random string (e.g. 32-char hex). Google sends it in every payload so
+                we can verify requests are genuine.
+              </p>
+              {errors.google_lead_webhook_key && (
+                <p className="mt-1 text-xs text-red-600">{errors.google_lead_webhook_key.message}</p>
+              )}
             </div>
           </div>
         </section>

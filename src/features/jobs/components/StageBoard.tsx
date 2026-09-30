@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { useProfiles } from '../../auth/api'
@@ -9,6 +10,8 @@ import {
   useMoveJobStage,
   useSaveStageSettings,
   useStageSettings,
+  useUpdateJob,
+  useBulkArchiveJobs,
   CLOSE_GRADE_STYLES,
   marginSigns,
 } from '../api'
@@ -35,6 +38,8 @@ export function StageBoard({
   const { session } = useAuth()
   const [assigneeFilter, setAssigneeFilter] = useState('all')
   const moveStage = useMoveJobStage()
+  const updateJob = useUpdateJob()
+  const archiveJob = useBulkArchiveJobs()
   const [dragId, setDragId] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState<JobStage | null>(null)
   const [pendingLost, setPendingLost] = useState<string | null>(null)
@@ -199,7 +204,7 @@ export function StageBoard({
                 e.preventDefault() // Firefox otherwise navigates to the drag data
                 drop(stage)
               }}
-              className={`flex w-56 shrink-0 snap-start flex-col rounded-lg border sm:w-60 ${
+              className={`flex w-64 shrink-0 snap-start flex-col rounded-lg border sm:w-72 ${
                 dragOver === stage ? 'border-amber-500 bg-amber-50' : 'border-stone-200 bg-stone-50'
               }`}
             >
@@ -221,6 +226,15 @@ export function StageBoard({
                     detailPath={detailPath}
                     onDragStart={() => setDragId(job.id)}
                     onDragEnd={() => setDragId(null)}
+                    onMoveWon={() => moveStage.mutate({ id: job.id, stage: 'won' })}
+                    onMoveLost={() => setPendingLost(job.id)}
+                    onAssignMe={() =>
+                      updateJob.mutate({ id: job.id, patch: { assigned_to: session?.user.id ?? null } })
+                    }
+                    onDelete={() => {
+                      if (window.confirm(`Delete "${job.title}"?\nThis cannot be undone.`))
+                        archiveJob.mutate([job.id])
+                    }}
                   />
                 ))}
               </div>
@@ -250,15 +264,40 @@ function BoardCard({
   detailPath,
   onDragStart,
   onDragEnd,
+  onMoveWon,
+  onMoveLost,
+  onAssignMe,
+  onDelete,
 }: {
   job: JobListRow
   dragging: boolean
   detailPath: string
   onDragStart: () => void
   onDragEnd: () => void
+  onMoveWon: () => void
+  onMoveLost: () => void
+  onAssignMe: () => void
+  onDelete: () => void
 }) {
   const install = installDate(job)
   const navigate = useNavigate()
+  const menuBtnRef = useRef<HTMLButtonElement>(null)
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null)
+
+  useEffect(() => {
+    if (!menuPos) return
+    const close = () => setMenuPos(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [menuPos])
+
+  const openMenu = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const rect = menuBtnRef.current?.getBoundingClientRect()
+    if (!rect) return
+    setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+  }
+
   return (
     <div
       draggable
@@ -270,36 +309,139 @@ function BoardCard({
         onDragStart()
       }}
       onDragEnd={onDragEnd}
-      className={`cursor-pointer rounded border p-3 shadow-sm transition-shadow hover:shadow ${
+      className={`cursor-pointer rounded border p-3.5 shadow-sm transition-shadow hover:shadow ${
         job.close_grade
           ? CLOSE_GRADE_STYLES[job.close_grade]
           : 'border-stone-200 bg-white hover:border-amber-300'
       } ${dragging ? 'opacity-40' : ''}`}
     >
-      <div className="flex items-baseline justify-between gap-2">
+      {/* Row 1: job number + value + menu */}
+      <div className="flex items-center justify-between gap-2">
         <Link
           to={`${detailPath}/${job.id}`}
           draggable={false}
-          className="text-xs font-semibold text-stone-500 hover:text-amber-700 hover:underline"
+          className="text-xs font-semibold text-stone-400 hover:text-amber-700 hover:underline"
+          onClick={(e) => e.stopPropagation()}
         >
           {job.job_number}
         </Link>
-        <span className="text-sm font-medium tabular-nums text-stone-900">
-          {job.margin_grade && (
-            <span className="mr-1 font-bold text-amber-600" title={`Margin potential ${job.margin_grade}/5`}>
-              {marginSigns(job.margin_grade)}
-            </span>
-          )}
-          {formatCurrency(job.value_final ?? job.value_est)}
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="text-sm font-semibold tabular-nums text-stone-900">
+            {job.margin_grade && (
+              <span className="mr-1 font-bold text-amber-600" title={`Margin potential ${job.margin_grade}/5`}>
+                {marginSigns(job.margin_grade)}
+              </span>
+            )}
+            {formatCurrency(job.value_final ?? job.value_est)}
+          </span>
+          <button
+            ref={menuBtnRef}
+            type="button"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={openMenu}
+            title="Quick actions"
+            aria-label="Quick actions"
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-stone-300 hover:bg-stone-100 hover:text-stone-600"
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor">
+              <circle cx="6.5" cy="2.5" r="1.2"/>
+              <circle cx="6.5" cy="6.5" r="1.2"/>
+              <circle cx="6.5" cy="10.5" r="1.2"/>
+            </svg>
+          </button>
+        </div>
       </div>
-      <p className="mt-1 truncate text-sm text-stone-800">{job.title}</p>
-      <p className="truncate text-xs text-stone-500">{job.contact?.full_name ?? '—'}</p>
+
+      {/* Row 2: title (First Name - City) */}
+      <p className="mt-1.5 truncate font-medium text-stone-900">{job.title}</p>
+
+      {/* Row 3: summary (3–4 word job description) */}
+      {job.summary && (
+        <p className="truncate text-xs text-stone-500">{job.summary}</p>
+      )}
+
+      {/* Row 4: contact name + phone */}
+      <div className="mt-1 flex items-baseline justify-between gap-2">
+        <span className="truncate text-xs text-stone-600">{job.contact?.full_name ?? '—'}</span>
+        {job.contact?.phone && (
+          <span className="shrink-0 text-xs tabular-nums text-stone-400">{job.contact.phone}</span>
+        )}
+      </div>
+
+      {/* Row 5: install date + assignee */}
       <div className="mt-1 flex items-center justify-between text-xs text-stone-400">
-        <span>{install ? `Install ${formatDate(install)}` : 'No install date'}</span>
-        <span>{job.assignee?.full_name ?? ''}</span>
+        <span>{install ? `Install ${formatDate(install)}` : ''}</span>
+        <span className="truncate pl-2 text-right">{job.assignee?.full_name ?? ''}</span>
       </div>
+
+      {menuPos && createPortal(
+        <div
+          style={{ top: menuPos.top, right: menuPos.right }}
+          onClick={(e) => e.stopPropagation()}
+          className="fixed z-50 w-44 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 shadow-xl"
+        >
+          <CardMenuItem
+            onClick={() => { setMenuPos(null); void navigate(`${detailPath}/${job.id}`) }}
+            icon={<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2 11L11 2M11 2H6M11 2V7"/></svg>}
+            label="Open detail"
+          />
+          <div className="my-1 border-t border-stone-100" />
+          <CardMenuItem
+            onClick={() => { setMenuPos(null); onMoveWon() }}
+            icon={<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M2 7l3 3 6-6"/></svg>}
+            label="Mark won"
+            className="text-emerald-700 hover:bg-emerald-50"
+          />
+          <CardMenuItem
+            onClick={() => { setMenuPos(null); onMoveLost() }}
+            icon={<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2.5 2.5l8 8M10.5 2.5l-8 8"/></svg>}
+            label="Mark lost"
+          />
+          <CardMenuItem
+            onClick={() => { setMenuPos(null); onAssignMe() }}
+            icon={<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><circle cx="6.5" cy="4" r="2.3"/><path d="M1.5 11.5c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5"/></svg>}
+            label="Assign to me"
+          />
+          <div className="my-1 border-t border-stone-100" />
+          <CardMenuItem
+            onClick={() => { setMenuPos(null); onDelete() }}
+            icon={<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><path d="M2 3.5h9M5 3.5V2.5h3v1M4 3.5v7M6.5 3.5v7M9 3.5v7"/></svg>}
+            label="Delete"
+            danger
+          />
+        </div>,
+        document.body,
+      )}
     </div>
+  )
+}
+
+function CardMenuItem({
+  onClick,
+  icon,
+  label,
+  danger,
+  className,
+}: {
+  onClick: () => void
+  icon: React.ReactNode
+  label: string
+  danger?: boolean
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm ${
+        danger
+          ? 'text-red-600 hover:bg-red-50'
+          : className ?? 'text-stone-700 hover:bg-stone-50'
+      }`}
+    >
+      <span className="shrink-0 text-current">{icon}</span>
+      {label}
+    </button>
   )
 }
 
