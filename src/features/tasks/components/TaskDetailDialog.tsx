@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, useEditorState, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import { useProfiles } from '../../auth/api'
@@ -28,6 +28,10 @@ export function TaskDetailDialog({ task, onClose }: { task: TaskRow; onClose: ()
     extensions: [StarterKit, Underline],
     content: task.description ?? '',
     editorProps: { attributes: { class: 'note-editor' } },
+  })
+  const descIsEmpty = useEditorState({
+    editor: descEditor,
+    selector: (ctx) => ctx.editor?.isEmpty ?? true,
   })
   const [validationError, setValidationError] = useState<string | null>(null)
   const done = task.completed_at !== null
@@ -98,7 +102,7 @@ export function TaskDetailDialog({ task, onClose }: { task: TaskRow; onClose: ()
               <RichToolbar editor={descEditor} />
               <div className="relative">
                 <EditorContent editor={descEditor} />
-                {descEditor?.isEmpty && (
+                {descIsEmpty && (
                   <p className="pointer-events-none absolute left-2.5 top-2 select-none text-sm text-stone-400">
                     Context, steps, key numbers — anything the person doing this needs.
                   </p>

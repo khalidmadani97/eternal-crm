@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useEditor, EditorContent, type Editor } from '@tiptap/react'
+import { useEditor, useEditorState, EditorContent, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import { supabase } from '../lib/supabase'
@@ -38,6 +38,11 @@ export function NoteComposer({ placeholder = 'Add a note…', pending, errorMess
   })
 
   useEffect(() => { editorRef.current = editor ?? null }, [editor])
+
+  const editorIsEmpty = useEditorState({
+    editor,
+    selector: (ctx) => ctx.editor?.isEmpty ?? true,
+  })
 
   const recorder = useVoiceRecorder()
 
@@ -97,7 +102,7 @@ export function NoteComposer({ placeholder = 'Add a note…', pending, errorMess
         <RichToolbar editor={editor} />
         <div className="relative">
           <EditorContent editor={editor} />
-          {editor?.isEmpty && !recorder.recording && !processing && (
+          {editorIsEmpty && !recorder.recording && !processing && (
             <p className="pointer-events-none absolute left-2.5 top-2 select-none text-sm text-stone-400">
               {placeholder}
             </p>
@@ -145,7 +150,7 @@ export function NoteComposer({ placeholder = 'Add a note…', pending, errorMess
         <button
           type="button"
           onClick={() => void submit()}
-          disabled={busy || (!editor || editor.isEmpty) && !audioPath}
+          disabled={busy || (editorIsEmpty && !audioPath)}
           className="rounded bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
         >
           {processing ? 'Transcribing…' : pending ? 'Adding…' : 'Add note'}

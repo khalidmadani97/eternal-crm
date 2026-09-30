@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, useEditorState, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import { supabase } from '../lib/supabase'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMyMembership } from '../features/settings/api'
-import { useCreateTask } from '../features/tasks/api'
 import { RichToolbar } from './RichToolbar'
 
 interface QuickNote {
@@ -184,21 +183,24 @@ function NoteCard({
   onUpdate,
   onComplete,
   onConvertToTask,
+  onUndoConvert,
 }: {
   note: QuickNote
   onDelete: () => void
   onUpdate: (html: string) => void
   onComplete: () => void
-  onConvertToTask: () => void
+  onConvertToTask: () => Promise<string | null>
+  onUndoConvert: (taskId: string) => void
 }) {
   const [editing, setEditing] = useState(false)
-  const [taskFlash, setTaskFlash] = useState(false)
+  const [taskFlash, setTaskFlash] = useState<{ taskId: string } | null>(null)
   const done = !!note.completed_at
 
-  const handleConvertToTask = () => {
-    onConvertToTask()
-    setTaskFlash(true)
-    setTimeout(() => setTaskFlash(false), 2000)
+  const handleConvertToTask = async () => {
+    const taskId = await onConvertToTask()
+    if (!taskId) return
+    setTaskFlash({ taskId })
+    setTimeout(() => setTaskFlash(null), 5000)
   }
 
   if (editing) {
@@ -243,15 +245,24 @@ function NoteCard({
       {/* Action row — visible on hover */}
       <div className="mt-1.5 flex items-center justify-between opacity-0 transition-opacity group-hover:opacity-100">
         {taskFlash ? (
-          <span className="text-xs text-emerald-600">Added to Tasks ✓</span>
+          <span className="flex items-center gap-2 text-xs text-emerald-600">
+            Added to Tasks ✓
+            <button
+              type="button"
+              onClick={() => { onUndoConvert(taskFlash.taskId); setTaskFlash(null) }}
+              className="rounded px-1 py-0.5 text-xs text-stone-500 underline hover:text-stone-800"
+            >
+              Undo
+            </button>
+          </span>
         ) : (
           <div className="flex gap-1">
-            <ActionIconBtn onClick={() => setEditing(true)} title="Edit">
+            <ActionIconBtn onClick={() => setEditing(true)} title="Edit" label="Edit">
               <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M7.5 1.5l2 2L3 10H1V8z"/>
               </svg>
             </ActionIconBtn>
-            <ActionIconBtn onClick={handleConvertToTask} title="Convert to task">
+            <ActionIconBtn onClick={() => void handleConvertToTask()} title="Convert to task" label="Task">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="1" y="1" width="10" height="10" rx="2"/>
                 <path d="M3.5 6l2 2 3-3"/>
@@ -260,12 +271,12 @@ function NoteCard({
           </div>
         )}
         <div className="flex gap-1">
-          <ActionIconBtn onClick={onComplete} title="Mark done" className="text-emerald-600 hover:bg-emerald-50">
+          <ActionIconBtn onClick={onComplete} title="Mark done" label="Done" className="text-emerald-600 hover:bg-emerald-50">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
               <path d="M1.5 6l3 3 6-6"/>
             </svg>
           </ActionIconBtn>
-          <ActionIconBtn onClick={onDelete} title="Delete" danger>
+          <ActionIconBtn onClick={onDelete} title="Delete" label="Delete" danger>
             <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
               <path d="M2 2l7 7M9 2L2 9"/>
             </svg>
@@ -281,12 +292,14 @@ function ActionIconBtn({
   title,
   danger,
   className,
+  label,
   children,
 }: {
   onClick: () => void
   title: string
   danger?: boolean
   className?: string
+  label?: string
   children: React.ReactNode
 }) {
   return (
@@ -294,13 +307,17 @@ function ActionIconBtn({
       type="button"
       onClick={onClick}
       title={title}
-      className={`flex h-6 w-6 items-center justify-center rounded transition-colors ${
+      aria-label={title}
+      className={`flex items-center gap-1 rounded transition-colors ${
+        label ? 'px-1.5 py-1 text-xs' : 'h-6 w-6 justify-center'
+      } ${
         danger
           ? 'text-stone-400 hover:bg-red-50 hover:text-red-500'
           : className ?? 'text-stone-400 hover:bg-stone-200 hover:text-stone-700'
       }`}
     >
       {children}
+      {label && <span>{label}</span>}
     </button>
   )
 }
@@ -319,12 +336,12 @@ export function QuickNotepad() {
   const mediaRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
 
+  const queryClient = useQueryClient()
   const { data: notes, isPending } = useQuickNotes()
   const addNote = useAddNote()
   const updateNote = useUpdateNote()
   const deleteNote = useDeleteNote()
   const toggleComplete = useToggleComplete()
-  const createTask = useCreateTask()
 
   const active = notes?.filter((n) => !n.completed_at) ?? []
   const done = notes?.filter((n) => !!n.completed_at) ?? []
@@ -333,6 +350,11 @@ export function QuickNotepad() {
   const editor = useEditor({
     extensions: [StarterKit, Underline],
     editorProps: { attributes: { class: 'note-editor' } },
+  })
+
+  const composeIsEmpty = useEditorState({
+    editor,
+    selector: (ctx) => ctx.editor?.isEmpty ?? true,
   })
 
   useEffect(() => {
@@ -345,11 +367,26 @@ export function QuickNotepad() {
     editor.commands.clearContent()
   }
 
-  const handleConvertToTask = (note: QuickNote) => {
+  const handleConvertToTask = async (note: QuickNote): Promise<string | null> => {
     const title = noteToPlainText(note.body).slice(0, 120)
-    if (!title) return
-    createTask.mutate({ title, job_id: null, assigned_to: null, due_date: null })
+    if (!title) return null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('tasks')
+      .insert({ title, job_id: null, assigned_to: null, due_date: null })
+      .select('id')
+      .single()
+    if (error) return null
     toggleComplete.mutate({ id: note.id, complete: true })
+    void queryClient.invalidateQueries({ queryKey: ['tasks'] })
+    return data.id as string
+  }
+
+  const handleUndoConvert = async (note: QuickNote, taskId: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from('tasks').delete().eq('id', taskId)
+    toggleComplete.mutate({ id: note.id, complete: false })
+    void queryClient.invalidateQueries({ queryKey: ['tasks'] })
   }
 
   // Voice recording
@@ -458,6 +495,7 @@ export function QuickNotepad() {
                 onUpdate={(html) => updateNote.mutate({ id: n.id, body: html })}
                 onComplete={() => toggleComplete.mutate({ id: n.id, complete: true })}
                 onConvertToTask={() => handleConvertToTask(n)}
+                onUndoConvert={(taskId) => void handleUndoConvert(n, taskId)}
               />
             ))}
 
@@ -487,6 +525,7 @@ export function QuickNotepad() {
                         onUpdate={(html) => updateNote.mutate({ id: n.id, body: html })}
                         onComplete={() => toggleComplete.mutate({ id: n.id, complete: false })}
                         onConvertToTask={() => handleConvertToTask(n)}
+                        onUndoConvert={(taskId) => void handleUndoConvert(n, taskId)}
                       />
                     ))}
                   </div>
@@ -501,7 +540,7 @@ export function QuickNotepad() {
 
             <div className="relative">
               <EditorContent editor={editor} />
-              {editor?.isEmpty && recState === 'idle' && (
+              {composeIsEmpty && recState === 'idle' && (
                 <p className="pointer-events-none absolute left-2.5 top-2 select-none text-sm text-stone-400">
                   Write a note…
                 </p>
@@ -546,7 +585,7 @@ export function QuickNotepad() {
               <button
                 type="button"
                 onClick={submit}
-                disabled={!editor || editor.isEmpty || addNote.isPending}
+                disabled={composeIsEmpty || addNote.isPending}
                 className="rounded-lg bg-stone-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-40"
               >
                 {addNote.isPending ? 'Saving…' : 'Save'}
