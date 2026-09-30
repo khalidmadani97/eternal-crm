@@ -379,11 +379,10 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
       contactId = contact.id
     }
 
-    // Build "First Name - City" title
-    const firstName = rawName ? rawName.split(' ')[0] : ''
-    const jobTitle = firstName && rawCity
-      ? `${firstName} - ${rawCity}`
-      : firstName || rawEmail || `${sheet.name} lead`
+    // Build "Full Name - City" title
+    const jobTitle = rawName && rawCity
+      ? `${rawName} - ${rawCity}`
+      : rawName || rawEmail || `${sheet.name} lead`
 
     const { data: jobNumber, error: numberError } = await sb.rpc('next_document_number_for', {
       p_business: sheet.business_id,
@@ -486,11 +485,11 @@ async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
     const rawCity  = cell(map.city)
     const rawStage = map.stage !== null ? cell(map.stage).toLowerCase() : ''
 
-    // Fix job title to "First Name - City" format
+    // Fix job title to "First Name - City" format (skip if rawName is still a phone)
+    const rawNameIsPhone = /^\+?\d[\d\s\-().]{6,}$|^[a-z]{1,4}:\s*\+?\d/i.test(rawName)
     const jobPatch: Record<string, string> = {}
-    if (rawName) {
-      const firstName = rawName.split(' ')[0]
-      jobPatch.title = firstName && rawCity ? `${firstName} - ${rawCity}` : firstName
+    if (rawName && !rawNameIsPhone) {
+      jobPatch.title = rawName && rawCity ? `${rawName} - ${rawCity}` : rawName
     }
     if (rawStage && stageValues[rawStage]) jobPatch.stage = stageValues[rawStage]
     if (Object.keys(jobPatch).length) {
@@ -503,7 +502,8 @@ async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
       const { data: contact } = await sb
         .from('contacts').select('full_name, city').eq('id', entry.contactId).single()
       if (contact) {
-        const nameIsPhone = /^\+?\d[\d\s\-().]{6,}$/.test((contact.full_name ?? '').trim())
+        // Matches bare E.164 (+14165551234) AND prefix-style (p:+14165551234, p: +1...)
+        const nameIsPhone = /^\+?\d[\d\s\-().]{6,}$|^[a-z]{1,4}:\s*\+?\d/i.test((contact.full_name ?? '').trim())
         const contactPatch: Record<string, string | null> = {}
         if (nameIsPhone || !contact.full_name) contactPatch.full_name = rawName
         if (rawCity && !contact.city) contactPatch.city = rawCity

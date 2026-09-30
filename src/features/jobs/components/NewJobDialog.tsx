@@ -78,11 +78,10 @@ export function NewJobDialog({ onClose, initialStage = 'new', pipelineId = null 
                 onSelect={(c) => {
                   setSelectedContact(c)
                   setValue('contact_id', c.id, { shouldValidate: true })
-                  // Auto-fill title as "First name - City" if title not yet set
+                  // Auto-fill title as "Full Name - City" if title not yet set
                   if (!watch('title')) {
-                    const firstName = c.full_name.split(' ')[0]
                     const city = c.city?.trim()
-                    setValue('title', city ? `${firstName} - ${city}` : firstName)
+                    setValue('title', city ? `${c.full_name} - ${city}` : c.full_name)
                   }
                 }}
               />
