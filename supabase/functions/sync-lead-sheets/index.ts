@@ -94,7 +94,7 @@ function heuristicMap(headers: string[]): ColumnMap {
     return i === -1 ? null : i
   }
   // Patterns handle both full words and common short-form headers (p, n, e, c…)
-  const name       = find([/full.?name/, /^name$/, /^n$/, /^full$/, /contact/])
+  const name       = find([/full.?name/, /^names?$/, /^n$/, /^full$/, /contact/])
   const first_name = find([/^first.?name$/, /^first$/, /^fn$/, /^fname$/])
   const last_name  = find([/^last.?name$/, /^last$/, /^ln$/, /^lname$/, /^surname$/])
   const phone      = find([/phone/, /mobile/, /^p$/, /^ph$/, /^mob$/, /^cell$/, /tel/, /number/])
@@ -127,7 +127,7 @@ async function aiMap(headers: string[], samples: string[][]): Promise<ColumnMap 
             role: 'system',
             content:
               'You map lead-form spreadsheet columns. Given headers (0-indexed) and sample rows, return JSON with these fields (all null/[] when absent):\n' +
-              '  "name": index of a full-name column (null if absent)\n' +
+              '  "name": index of a full-name column — headers like "name", "names", "full name", "contact name" all count (null if absent)\n' +
               '  "first_name": index of a first-name-only column (null if absent)\n' +
               '  "last_name": index of a last-name-only column (null if absent)\n' +
               '  "phone": index of phone/mobile number column — IMPORTANT: short headers like "p", "ph", "mob" are phone, NOT name\n' +
@@ -233,7 +233,8 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
     map.notes === undefined ||
     map.stage === undefined ||
     map.city === undefined ||  // force remap: old cached maps predate city field
-    (map.name === null && map.first_name === null && map.phone === null && map.email === null)
+    // No name column found — likely wrong mapping, retry with updated heuristic
+    (map.name === null && map.first_name === null && map.last_name === null)
   ) {
     map = (await aiMap(headers, dataRows.slice(0, 3))) ?? heuristicMap(headers)
     await sb.from('lead_sheets').update({ column_map: map }).eq('id', sheet.id)
