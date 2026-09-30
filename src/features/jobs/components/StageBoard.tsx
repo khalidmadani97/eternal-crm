@@ -326,14 +326,21 @@ function BoardCard({
           {job.job_number}
         </Link>
         <div className="flex items-center gap-1">
-          <span className="text-sm font-semibold tabular-nums text-stone-900">
-            {job.margin_grade && (
-              <span className="mr-1 font-bold text-amber-600" title={`Margin potential ${job.margin_grade}/5`}>
-                {marginSigns(job.margin_grade)}
-              </span>
+          <div className="text-right">
+            <div className="text-sm font-semibold tabular-nums text-stone-900">
+              {job.margin_grade && (
+                <span className="mr-1 font-bold text-amber-600" title={`Margin potential ${job.margin_grade}/5`}>
+                  {marginSigns(job.margin_grade)}
+                </span>
+              )}
+              {formatCurrency(job.value_final ?? job.value_est)}
+            </div>
+            {(job.profit_final ?? job.profit_est) != null && (
+              <div className="text-xs tabular-nums text-emerald-600">
+                {formatCurrency(job.profit_final ?? job.profit_est)} profit
+              </div>
             )}
-            {formatCurrency(job.value_final ?? job.value_est)}
-          </span>
+          </div>
           <button
             ref={menuBtnRef}
             type="button"

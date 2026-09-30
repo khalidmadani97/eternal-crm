@@ -171,6 +171,8 @@ function JobDetailsForm({ job }: { job: JobDetail }) {
     city: job.city ?? '',
     value_est: job.value_est?.toString() ?? '',
     value_final: job.value_final?.toString() ?? '',
+    profit_est: job.profit_est?.toString() ?? '',
+    profit_final: job.profit_final?.toString() ?? '',
     lead_source: job.lead_source ?? '',
     assigned_to: job.assignee?.id ?? '',
   })
@@ -192,6 +194,8 @@ function JobDetailsForm({ job }: { job: JobDetail }) {
         extra: Object.fromEntries(Object.entries(extra).filter(([, v]) => v.trim() !== '')),
         value_est: form.value_est ? Number(form.value_est) : null,
         value_final: form.value_final ? Number(form.value_final) : null,
+        profit_est: form.profit_est ? Number(form.profit_est) : null,
+        profit_final: form.profit_final ? Number(form.profit_final) : null,
         lead_source: form.lead_source.trim() || null,
         assigned_to: form.assigned_to || null,
       },
@@ -257,11 +261,29 @@ function JobDetailsForm({ job }: { job: JobDetail }) {
           />,
         )}
         {field(
+          'Estimated profit ($)',
+          <input
+            inputMode="decimal"
+            value={form.profit_est}
+            onChange={(e) => setForm({ ...form, profit_est: e.target.value })}
+            className={inputClass}
+          />,
+        )}
+        {field(
           'Final value ($)',
           <input
             inputMode="decimal"
             value={form.value_final}
             onChange={(e) => setForm({ ...form, value_final: e.target.value })}
+            className={inputClass}
+          />,
+        )}
+        {field(
+          'Final profit ($)',
+          <input
+            inputMode="decimal"
+            value={form.profit_final}
+            onChange={(e) => setForm({ ...form, profit_final: e.target.value })}
             className={inputClass}
           />,
         )}

@@ -39,6 +39,7 @@ export function NewJobDialog({ onClose, initialStage = 'new', pipelineId = null 
       summary: values.summary?.trim() || null,
       site_address: values.site_address || null,
       value_est: values.value_est ? Number(values.value_est) : null,
+      profit_est: values.profit_est ? Number(values.profit_est) : null,
       lead_source: values.lead_source || null,
     })
     onClose()
@@ -135,6 +136,20 @@ export function NewJobDialog({ onClose, initialStage = 'new', pipelineId = null 
               />
               {errors.value_est && (
                 <p className="mt-1 text-sm text-red-600">{errors.value_est.message}</p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="profit_est" className="mb-1 block text-sm font-medium text-stone-700">
+                Estimated profit ($)
+              </label>
+              <input
+                id="profit_est"
+                inputMode="decimal"
+                className="w-full rounded border border-stone-300 px-3 py-2 text-sm focus:border-amber-600 focus:outline-none"
+                {...register('profit_est')}
+              />
+              {errors.profit_est && (
+                <p className="mt-1 text-sm text-red-600">{errors.profit_est.message}</p>
               )}
             </div>
             <div>

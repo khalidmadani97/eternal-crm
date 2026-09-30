@@ -1457,6 +1457,8 @@ export type Database = {
           lost_reason: string | null
           margin_grade: number | null
           pipeline_id: string | null
+          profit_est: number | null
+          profit_final: number | null
           site_address: string | null
           stage: Database["public"]["Enums"]["job_stage"]
           summary: string | null
@@ -1483,6 +1485,8 @@ export type Database = {
           lost_reason?: string | null
           margin_grade?: number | null
           pipeline_id?: string | null
+          profit_est?: number | null
+          profit_final?: number | null
           site_address?: string | null
           stage?: Database["public"]["Enums"]["job_stage"]
           summary?: string | null
@@ -1509,6 +1513,8 @@ export type Database = {
           lost_reason?: string | null
           margin_grade?: number | null
           pipeline_id?: string | null
+          profit_est?: number | null
+          profit_final?: number | null
           site_address?: string | null
           stage?: Database["public"]["Enums"]["job_stage"]
           summary?: string | null

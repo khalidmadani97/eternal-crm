@@ -19,7 +19,7 @@ export const JOB_STAGES: JobStage[] = [
 ]
 
 const JOB_LIST_SELECT = `
-  id, job_number, title, summary, stage, pipeline_id, close_grade, margin_grade, value_est, value_final, lead_source,
+  id, job_number, title, summary, stage, pipeline_id, close_grade, margin_grade, value_est, value_final, profit_est, profit_final, lead_source,
   site_address, created_at,
   contact:contacts ( id, full_name, phone, last_contacted_at, last_contact_method ),
   company:companies ( id, name ),
@@ -38,6 +38,8 @@ export interface JobListRow {
   margin_grade: number | null
   value_est: number | null
   value_final: number | null
+  profit_est: number | null
+  profit_final: number | null
   lead_source: string | null
   site_address: string | null
   created_at: string
@@ -85,6 +87,7 @@ export interface NewJobInput {
   summary?: string | null
   site_address: string | null
   value_est: number | null
+  profit_est?: number | null
   lead_source: string | null
 }
 
@@ -126,6 +129,8 @@ export interface JobDetail {
   margin_grade: number | null
   value_est: number | null
   value_final: number | null
+  profit_est: number | null
+  profit_final: number | null
   lead_source: string | null
   lost_reason: string | null
   created_at: string
@@ -141,7 +146,7 @@ export function useJob(id: string) {
       const { data, error } = await supabase
         .from('jobs')
         .select(
-          `id, job_number, title, summary, stage, site_address, city, extra, close_grade, margin_grade, value_est, value_final,
+          `id, job_number, title, summary, stage, site_address, city, extra, close_grade, margin_grade, value_est, value_final, profit_est, profit_final,
            lead_source, lost_reason, created_at,
            contact:contacts ( id, full_name, phone ),
            company:companies ( id, name ),
@@ -167,6 +172,8 @@ export interface UpdateJobInput {
     margin_grade: number | null
     value_est: number | null
     value_final: number | null
+    profit_est: number | null
+    profit_final: number | null
     lead_source: string | null
     assigned_to: string | null
     stage: JobStage

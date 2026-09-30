@@ -10,6 +10,11 @@ export const newJobSchema = z.object({
     .trim()
     .optional()
     .refine((v) => !v || (!Number.isNaN(Number(v)) && Number(v) >= 0), 'Enter a valid amount'),
+  profit_est: z
+    .string()
+    .trim()
+    .optional()
+    .refine((v) => !v || (!Number.isNaN(Number(v)) && Number(v) >= 0), 'Enter a valid amount'),
   lead_source: z.string().trim().optional(),
 })
 
