@@ -65,6 +65,25 @@ export function normalizePhone(input: string): string | null {
   return null
 }
 
+/**
+ * Returns the margin as a whole-number percentage, or null when either input
+ * is missing or the value is zero (division guard).
+ */
+export function calcMargin(
+  profit: number | null | undefined,
+  value: number | null | undefined,
+): number | null {
+  if (profit == null || value == null || value === 0) return null
+  return Math.round((profit / value) * 100)
+}
+
+/** Tailwind text-color class for a margin percentage. */
+export function marginColor(pct: number): string {
+  if (pct > 50) return 'text-emerald-600'
+  if (pct >= 30) return 'text-amber-500'
+  return 'text-red-500'
+}
+
 /** Compact relative recency for last-contacted displays: "2h", "3d", "5w". */
 export function formatAgo(value: string | null | undefined): string {
   if (!value) return 'never'

@@ -4,7 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { OptionSelect } from '../../../components/OptionSelect'
 import { useContactSearch, useCreateContact } from '../../contacts/api'
 import type { ContactOption } from '../../contacts/api'
-import { normalizePhone } from '../../../lib/format'
+import { normalizePhone, calcMargin, marginColor } from '../../../lib/format'
+import type { ContactType } from '../../contacts/api'
+import { CONTACT_TYPE_LABELS } from '../../contacts/api'
 import { useCreateJob } from '../api'
 import { newJobSchema } from '../schema'
 import type { NewJobForm } from '../schema'
@@ -152,6 +154,23 @@ export function NewJobDialog({ onClose, initialStage = 'new', pipelineId = null 
                 <p className="mt-1 text-sm text-red-600">{errors.profit_est.message}</p>
               )}
             </div>
+            {(() => {
+              const margin = calcMargin(
+                Number(watch('profit_est')) || null,
+                Number(watch('value_est')) || null,
+              )
+              if (margin == null) return null
+              return (
+                <div className={`col-span-2 flex items-center justify-between rounded border px-3 py-2 text-sm font-semibold ${
+                  margin > 50 ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : margin >= 30 ? 'border-amber-200 bg-amber-50 text-amber-700'
+                  : 'border-red-200 bg-red-50 text-red-700'
+                }`}>
+                  <span>Estimated margin</span>
+                  <span className={`tabular-nums ${marginColor(margin)}`}>{margin}%</span>
+                </div>
+              )
+            })()}
             <div>
               <label className="mb-1 block text-sm font-medium text-stone-700">Lead source</label>
               <OptionSelect
@@ -253,6 +272,7 @@ function InlineContactForm({
   const [name, setName] = useState(initialName)
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
+  const [contactType, setContactType] = useState<ContactType | ''>('')
   const [error, setError] = useState<string | null>(null)
 
   const submit = async () => {
@@ -272,6 +292,7 @@ function InlineContactForm({
         phone: normalized,
         email: email.trim() || null,
         lead_source: null,
+        contact_type: (contactType as ContactType) || null,
       })
       onCreated(contact)
     } catch (e) {
@@ -301,6 +322,24 @@ function InlineContactForm({
         onChange={(e) => setEmail(e.target.value)}
         className="w-full rounded border border-stone-300 px-3 py-2 text-sm focus:border-amber-600 focus:outline-none"
       />
+      <div>
+        <p className="mb-1 text-xs font-medium text-stone-600">Contact type</p>
+        <div className="flex gap-3 text-sm">
+          {(['homeowner', 'builder', 'contractor'] as ContactType[]).map((t) => (
+            <label key={t} className="flex cursor-pointer items-center gap-1.5">
+              <input
+                type="radio"
+                name="inline_contact_type"
+                value={t}
+                checked={contactType === t}
+                onChange={() => setContactType(t)}
+                className="accent-amber-600"
+              />
+              <span>{CONTACT_TYPE_LABELS[t]}</span>
+            </label>
+          ))}
+        </div>
+      </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex justify-end gap-2">
         <button

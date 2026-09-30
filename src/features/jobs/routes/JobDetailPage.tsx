@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { OptionSelect } from '../../../components/OptionSelect'
 import { useProfiles } from '../../auth/api'
-import { formatCurrency } from '../../../lib/format'
+import { formatCurrency, calcMargin } from '../../../lib/format'
 import { useJob, useUpdateJob, useWorkspaceStages } from '../api'
 import type { JobDetail, JobStage } from '../api'
 import { CommsThread } from '../../comms/components/CommsThread'
@@ -269,6 +269,20 @@ function JobDetailsForm({ job }: { job: JobDetail }) {
             className={inputClass}
           />,
         )}
+        {(() => {
+          const margin = calcMargin(Number(form.profit_est) || null, Number(form.value_est) || null)
+          if (margin == null) return null
+          return (
+            <div className={`flex items-center gap-1.5 rounded border px-3 py-2 text-sm font-semibold ${
+              margin > 50 ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : margin >= 30 ? 'border-amber-200 bg-amber-50 text-amber-700'
+              : 'border-red-200 bg-red-50 text-red-700'
+            }`}>
+              <span>Est. margin</span>
+              <span className="tabular-nums">{margin}%</span>
+            </div>
+          )
+        })()}
         {field(
           'Final value ($)',
           <input
@@ -287,6 +301,20 @@ function JobDetailsForm({ job }: { job: JobDetail }) {
             className={inputClass}
           />,
         )}
+        {(() => {
+          const margin = calcMargin(Number(form.profit_final) || null, Number(form.value_final) || null)
+          if (margin == null) return null
+          return (
+            <div className={`flex items-center gap-1.5 rounded border px-3 py-2 text-sm font-semibold ${
+              margin > 50 ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : margin >= 30 ? 'border-amber-200 bg-amber-50 text-amber-700'
+              : 'border-red-200 bg-red-50 text-red-700'
+            }`}>
+              <span>Final margin</span>
+              <span className="tabular-nums">{margin}%</span>
+            </div>
+          )
+        })()}
         {field(
           'Lead source',
           <OptionSelect

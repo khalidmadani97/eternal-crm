@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { useProfiles } from '../../auth/api'
-import { formatCurrency, formatDate } from '../../../lib/format'
+import { formatCurrency, formatDate, calcMargin, marginColor } from '../../../lib/format'
 import {
   installDate,
   useJobs,
@@ -335,11 +335,18 @@ function BoardCard({
               )}
               {formatCurrency(job.value_final ?? job.value_est)}
             </div>
-            {(job.profit_final ?? job.profit_est) != null && (
-              <div className="text-xs tabular-nums text-emerald-600">
-                {formatCurrency(job.profit_final ?? job.profit_est)} profit
-              </div>
-            )}
+            {(job.profit_final ?? job.profit_est) != null && (() => {
+              const profit = job.profit_final ?? job.profit_est
+              const margin = calcMargin(profit, job.value_final ?? job.value_est)
+              return (
+                <div className="text-xs tabular-nums text-emerald-600">
+                  {formatCurrency(profit)} profit
+                  {margin != null && (
+                    <span className={`ml-1 font-medium ${marginColor(margin)}`}>{margin}%</span>
+                  )}
+                </div>
+              )
+            })()}
           </div>
           <button
             ref={menuBtnRef}
