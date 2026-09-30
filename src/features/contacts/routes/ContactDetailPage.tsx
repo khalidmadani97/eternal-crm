@@ -4,8 +4,8 @@ import { StageBadge } from '../../jobs/components/StageBadge'
 import type { JobStage } from '../../jobs/api'
 import { formatCurrency, formatDate, formatPhone } from '../../../lib/format'
 import { formatAgo } from '../../../lib/format'
-import { CONTACT_METHOD_LABELS, useContact, useSoftDeleteContact, useUpdateContact } from '../api'
-import type { ContactMethod } from '../api'
+import { CONTACT_METHOD_LABELS, CONTACT_TYPE_LABELS, useContact, useSoftDeleteContact, useUpdateContact } from '../api'
+import type { ContactMethod, ContactType } from '../api'
 import { ContactForm } from '../components/ContactForm'
 import { ContactTimeline } from '../components/ContactTimeline'
 import { LogContactDialog } from '../components/LogContactDialog'
@@ -74,6 +74,16 @@ export function ContactDetailPage() {
           <dl className="space-y-2">
             <Row label="Phone" value={formatPhone(contact.phone)} />
             <Row label="Email" value={contact.email ?? '—'} />
+            <Row
+              label="Type"
+              value={
+                contact.contact_type ? (
+                  <span className="rounded bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-700">
+                    {CONTACT_TYPE_LABELS[contact.contact_type as ContactType]}
+                  </span>
+                ) : '—'
+              }
+            />
             <Row label="Address" value={contact.address ?? '—'} />
             <Row label="City" value={contact.city ?? '—'} />
             <Row

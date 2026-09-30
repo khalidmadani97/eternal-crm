@@ -72,8 +72,11 @@ function normalizePhone(input: string): string | null {
 
 interface ColumnMap {
   name: number | null
+  first_name: number | null  // separate first-name column if present
+  last_name: number | null   // separate last-name column if present
   phone: number | null
   email: number | null
+  city: number | null
   message: number | null
   /** Additional columns holding lead context (form questions, budgets,
    *  timelines…) — all captured into the lead's notes. */
@@ -87,24 +90,24 @@ interface ColumnMap {
 
 function heuristicMap(headers: string[]): ColumnMap {
   const find = (patterns: RegExp[]) => {
-    const i = headers.findIndex((h) => patterns.some((p) => p.test(h.toLowerCase())))
+    const i = headers.findIndex((h) => patterns.some((p) => p.test(h.trim().toLowerCase())))
     return i === -1 ? null : i
   }
-  const name = find([/full.?name/, /^name$/, /first.?name/, /contact/])
-  const phone = find([/phone/, /mobile/, /tel/, /number/])
-  const email = find([/e.?mail/])
-  const message = find([/message/, /notes?/, /comment/, /inquiry|enquiry/, /details?/, /describe|description/, /project/])
-  // Everything else that isn't obvious metadata is lead context.
-  const stage = find([/stage/, /status/, /pipeline/])
+  // Patterns handle both full words and common short-form headers (p, n, e, c…)
+  const name       = find([/full.?name/, /^name$/, /^n$/, /^full$/, /contact/])
+  const first_name = find([/^first.?name$/, /^first$/, /^fn$/, /^fname$/])
+  const last_name  = find([/^last.?name$/, /^last$/, /^ln$/, /^lname$/, /^surname$/])
+  const phone      = find([/phone/, /mobile/, /^p$/, /^ph$/, /^mob$/, /^cell$/, /tel/, /number/])
+  const email      = find([/e.?mail/, /^e$/, /^em$/])
+  const city       = find([/^city$/, /^c$/, /^location$/, /^loc$/, /^area$/, /^town$/, /^region$/])
+  const message    = find([/message/, /notes?/, /comment/, /inquiry|enquiry/, /details?/, /describe|description/, /project/])
+  const stage      = find([/stage/, /status/, /pipeline/])
   const META = /time|date|^id$|campaign|ad.?(set|name|id)|form|platform|source|created/
+  const reserved = new Set([name, first_name, last_name, phone, email, city, message, stage].filter((v): v is number => v !== null))
   const notes = headers
     .map((h, i) => i)
-    .filter(
-      (i) =>
-        i !== name && i !== phone && i !== email && i !== message && i !== stage &&
-        headers[i].trim() !== '' && !META.test(headers[i].toLowerCase()),
-    )
-  return { name, phone, email, message, notes, stage, mapped_by: 'heuristic' }
+    .filter((i) => !reserved.has(i) && headers[i].trim() !== '' && !META.test(headers[i].trim().toLowerCase()))
+  return { name, first_name, last_name, phone, email, city, message, notes, stage, mapped_by: 'heuristic' }
 }
 
 async function aiMap(headers: string[], samples: string[][]): Promise<ColumnMap | null> {
@@ -123,7 +126,17 @@ async function aiMap(headers: string[], samples: string[][]): Promise<ColumnMap 
           {
             role: 'system',
             content:
-              'You map lead-form spreadsheet columns. Given headers (0-indexed) and sample rows, return JSON {"name":i|null,"phone":i|null,"email":i|null,"message":i|null,"stage":i|null,"notes":[i,...]} — indexes of the lead\'s full name, phone, email, main free-text message, "stage": a column holding the lead\'s pipeline stage/status if one exists, AND "notes": every OTHER column that looks like lead context worth keeping (form questions, budget, timeline, service wanted, address…). EXCLUDE metadata (timestamps, ids, campaign/ad/form names, platform). Use the samples to disambiguate. null/[] when absent.',
+              'You map lead-form spreadsheet columns. Given headers (0-indexed) and sample rows, return JSON with these fields (all null/[] when absent):\n' +
+              '  "name": index of a full-name column (null if absent)\n' +
+              '  "first_name": index of a first-name-only column (null if absent)\n' +
+              '  "last_name": index of a last-name-only column (null if absent)\n' +
+              '  "phone": index of phone/mobile number column — IMPORTANT: short headers like "p", "ph", "mob" are phone, NOT name\n' +
+              '  "email": index of email column\n' +
+              '  "city": index of city/location/area column (null if absent)\n' +
+              '  "message": index of main free-text message/inquiry\n' +
+              '  "stage": index of pipeline-stage/status column if present\n' +
+              '  "notes": array of indexes of OTHER columns worth keeping as lead context (budget, timeline, service, address…)\n' +
+              'EXCLUDE metadata columns (timestamps, IDs, campaign/ad/form names, platform). Use sample rows to disambiguate short headers.',
           },
           { role: 'user', content: JSON.stringify({ headers, samples }) },
         ],
@@ -137,7 +150,18 @@ async function aiMap(headers: string[], samples: string[][]): Promise<ColumnMap 
     const notes = Array.isArray(m.notes)
       ? [...new Set(m.notes.map(idx).filter((v: number | null): v is number => v !== null))]
       : []
-    return { name: idx(m.name), phone: idx(m.phone), email: idx(m.email), message: idx(m.message), stage: idx(m.stage), notes, mapped_by: 'ai' }
+    return {
+      name: idx(m.name),
+      first_name: idx(m.first_name),
+      last_name: idx(m.last_name),
+      phone: idx(m.phone),
+      email: idx(m.email),
+      city: idx(m.city),
+      message: idx(m.message),
+      stage: idx(m.stage),
+      notes,
+      mapped_by: 'ai',
+    }
   } catch {
     return null
   }
@@ -208,7 +232,8 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
     !map ||
     map.notes === undefined ||
     map.stage === undefined ||
-    (map.name === null && map.phone === null && map.email === null)
+    map.city === undefined ||  // force remap: old cached maps predate city field
+    (map.name === null && map.first_name === null && map.phone === null && map.email === null)
   ) {
     map = (await aiMap(headers, dataRows.slice(0, 3))) ?? heuristicMap(headers)
     await sb.from('lead_sheets').update({ column_map: map }).eq('id', sheet.id)
@@ -275,9 +300,14 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
     existingKeys.add(key)
 
     const cell = (i: number | null) => (i !== null && cells[i] !== undefined ? cells[i].trim() : '')
-    const rawName = cell(map.name)
+    const rawFirstName = cell(map.first_name)
+    const rawLastName  = cell(map.last_name)
+    // Prefer explicit full-name column; fall back to combining first + last
+    const rawName = cell(map.name) ||
+      (rawFirstName && rawLastName ? `${rawFirstName} ${rawLastName}` : rawFirstName || rawLastName)
     const rawPhone = cell(map.phone)
     const rawEmail = cell(map.email)
+    const rawCity  = cell(map.city)
     const message = cell(map.message)
     const noteParts: string[] = []
     if (message) noteParts.push(message)
@@ -335,6 +365,7 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
           full_name: rawName || rawEmail || phone || 'Sheet lead',
           phone,
           email: rawEmail || null,
+          city: rawCity || null,
           lead_source: sheet.provider,
         })
         .select('id')
@@ -347,6 +378,12 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
       contactId = contact.id
     }
 
+    // Build "First Name - City" title
+    const firstName = rawName ? rawName.split(' ')[0] : ''
+    const jobTitle = firstName && rawCity
+      ? `${firstName} - ${rawCity}`
+      : firstName || rawEmail || `${sheet.name} lead`
+
     const { data: jobNumber, error: numberError } = await sb.rpc('next_document_number_for', {
       p_business: sheet.business_id,
       p_prefix: 'EI',
@@ -358,7 +395,7 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
         business_id: sheet.business_id,
         contact_id: contactId,
         job_number: jobNumber,
-        title: rawName || rawEmail || `${sheet.name} lead`,
+        title: jobTitle,
         stage: rowStage,
         lead_source: sheet.provider,
       })
@@ -426,27 +463,53 @@ async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
   let updated = 0
   const dataRows2 = rows.slice(1)
   const keys2 = await Promise.all(dataRows2.map(async (cells) => `${sheet.id}:${await rowHash(cells)}`))
-  const leadByKey = new Map<string, string>()
+  // Include contact_id so we can fix corrupted contact names too
+  const leadByKey = new Map<string, { jobId: string; contactId: string | null }>()
   for (let i = 0; i < keys2.length; i += 200) {
     const { data: leadRows } = await sb
-      .from('inbound_leads').select('dedupe_key, job_id')
+      .from('inbound_leads').select('dedupe_key, job_id, contact_id')
       .eq('business_id', sheet.business_id).in('dedupe_key', keys2.slice(i, i + 200))
-    for (const r of leadRows ?? []) if (r.job_id) leadByKey.set(r.dedupe_key as string, r.job_id as string)
+    for (const r of leadRows ?? []) {
+      if (r.job_id) leadByKey.set(r.dedupe_key as string, { jobId: r.job_id as string, contactId: (r.contact_id as string | null) ?? null })
+    }
   }
   for (let rowIndex = 0; rowIndex < dataRows2.length; rowIndex++) {
     const cells = dataRows2[rowIndex]
-    const jobId = leadByKey.get(keys2[rowIndex])
-    if (!jobId) continue
-    const lead = { job_id: jobId }
+    const entry = leadByKey.get(keys2[rowIndex])
+    if (!entry) continue
     const cell = (i: number | null) => (i !== null && cells[i] !== undefined ? cells[i].trim() : '')
-    const rawName = cell(map.name)
+    const rawFirstName = cell(map.first_name)
+    const rawLastName  = cell(map.last_name)
+    const rawName = cell(map.name) ||
+      (rawFirstName && rawLastName ? `${rawFirstName} ${rawLastName}` : rawFirstName || rawLastName)
+    const rawCity  = cell(map.city)
     const rawStage = map.stage !== null ? cell(map.stage).toLowerCase() : ''
-    const patch: Record<string, string> = {}
-    if (rawName) patch.title = rawName
-    if (rawStage && stageValues[rawStage]) patch.stage = stageValues[rawStage]
-    if (Object.keys(patch).length) {
-      const { error } = await sb.from('jobs').update(patch).eq('id', lead.job_id)
+
+    // Fix job title to "First Name - City" format
+    const jobPatch: Record<string, string> = {}
+    if (rawName) {
+      const firstName = rawName.split(' ')[0]
+      jobPatch.title = firstName && rawCity ? `${firstName} - ${rawCity}` : firstName
+    }
+    if (rawStage && stageValues[rawStage]) jobPatch.stage = stageValues[rawStage]
+    if (Object.keys(jobPatch).length) {
+      const { error } = await sb.from('jobs').update(jobPatch).eq('id', entry.jobId)
       if (!error) updated++
+    }
+
+    // Fix contact full_name if it looks like a phone number (E.164) or is missing
+    if (rawName && entry.contactId) {
+      const { data: contact } = await sb
+        .from('contacts').select('full_name, city').eq('id', entry.contactId).single()
+      if (contact) {
+        const nameIsPhone = /^\+?\d[\d\s\-().]{6,}$/.test((contact.full_name ?? '').trim())
+        const contactPatch: Record<string, string | null> = {}
+        if (nameIsPhone || !contact.full_name) contactPatch.full_name = rawName
+        if (rawCity && !contact.city) contactPatch.city = rawCity
+        if (Object.keys(contactPatch).length) {
+          await sb.from('contacts').update(contactPatch).eq('id', entry.contactId)
+        }
+      }
     }
   }
   return { updated }

@@ -30,11 +30,20 @@ export function useContactSearch(term: string) {
   })
 }
 
+export type ContactType = 'homeowner' | 'builder' | 'contractor'
+
+export const CONTACT_TYPE_LABELS: Record<ContactType, string> = {
+  homeowner: 'Homeowner',
+  builder: 'Builder',
+  contractor: 'Contractor',
+}
+
 export interface NewContactInput {
   full_name: string
   phone: string | null
   email: string | null
   lead_source: string | null
+  contact_type?: ContactType | null
 }
 
 export function useCreateContact() {
@@ -43,7 +52,8 @@ export function useCreateContact() {
     mutationFn: async (input: NewContactInput) => {
       const { data, error } = await supabase
         .from('contacts')
-        .insert(input)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .insert(input as any)
         .select('id, full_name, phone, company:companies ( id, name )')
         .single()
       if (error) throw error
@@ -64,6 +74,7 @@ export interface ContactRow {
   email: string | null
   address: string | null
   city: string | null
+  contact_type: ContactType | null
   extra: Record<string, string>
   lead_source: string | null
   auto_created: boolean
@@ -81,7 +92,7 @@ export function useContacts(includeAutoCreated: boolean) {
       let query = supabase
         .from('contacts')
         .select(
-          'id, full_name, phone, email, address, city, extra, lead_source, auto_created, notes, last_contacted_at, last_contact_method, last_contact_detail, company:companies ( id, name )',
+          'id, full_name, phone, email, address, city, contact_type, extra, lead_source, auto_created, notes, last_contacted_at, last_contact_method, last_contact_detail, company:companies ( id, name )',
         )
         .is('deleted_at', null)
         .order('full_name')
@@ -113,7 +124,7 @@ export function useContact(id: string) {
       const { data, error } = await supabase
         .from('contacts')
         .select(
-          `id, full_name, phone, email, address, city, extra, lead_source, auto_created, notes,
+          `id, full_name, phone, email, address, city, contact_type, extra, lead_source, auto_created, notes,
            last_contacted_at, last_contact_method, last_contact_detail,
            company:companies ( id, name ),
            jobs ( id, job_number, title, stage, value_est, value_final, created_at, deleted_at )`,
@@ -134,6 +145,7 @@ export interface ContactInput {
   email: string | null
   address: string | null
   city: string | null
+  contact_type: ContactType | null
   extra: Record<string, string>
   lead_source: string | null
   company_id: string | null
@@ -145,7 +157,8 @@ export function useUpdateContact() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, input }: { id: string; input: Partial<ContactInput> }) => {
-      const { error } = await supabase.from('contacts').update(input).eq('id', id)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await supabase.from('contacts').update(input as any).eq('id', id)
       if (error) throw error
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['contacts'] }),
@@ -156,7 +169,8 @@ export function useCreateFullContact() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (input: ContactInput) => {
-      const { data, error } = await supabase.from('contacts').insert(input).select('id').single()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await supabase.from('contacts').insert(input as any).select('id').single()
       if (error) throw error
       return data
     },

@@ -3,7 +3,8 @@ import { ExtraFieldsEditor } from '../../../components/ExtraFieldsEditor'
 import { OptionSelect } from '../../../components/OptionSelect'
 import { useCompanies } from '../../companies/api'
 import { normalizePhone } from '../../../lib/format'
-import type { ContactInput, ContactRow } from '../api'
+import type { ContactInput, ContactRow, ContactType } from '../api'
+import { CONTACT_TYPE_LABELS } from '../api'
 
 interface Props {
   initial?: Partial<ContactRow>
@@ -22,6 +23,7 @@ export function ContactForm({ initial, submitting, submitLabel, error, onSubmit,
     email: initial?.email ?? '',
     address: initial?.address ?? '',
     city: initial?.city ?? '',
+    contact_type: (initial?.contact_type ?? '') as ContactType | '',
     lead_source: initial?.lead_source ?? '',
     company_id: initial?.company?.id ?? '',
     notes: initial?.notes ?? '',
@@ -46,6 +48,7 @@ export function ContactForm({ initial, submitting, submitLabel, error, onSubmit,
       email: form.email.trim() || null,
       address: form.address.trim() || null,
       city: form.city.trim() || null,
+      contact_type: (form.contact_type as ContactType) || null,
       extra: Object.fromEntries(Object.entries(extra).filter(([, v]) => v.trim() !== '')),
       lead_source: form.lead_source.trim() || null,
       company_id: form.company_id || null,
@@ -73,6 +76,33 @@ export function ContactForm({ initial, submitting, submitLabel, error, onSubmit,
           <span className="mb-1 block font-medium text-stone-700">Email</span>
           <input type="email" value={form.email} onChange={set('email')} className={inputClass} />
         </label>
+        <div className="text-sm sm:col-span-2">
+          <span className="mb-1.5 block font-medium text-stone-700">Contact type</span>
+          <div className="flex gap-3">
+            {(['homeowner', 'builder', 'contractor'] as ContactType[]).map((t) => (
+              <label key={t} className="flex cursor-pointer items-center gap-1.5">
+                <input
+                  type="radio"
+                  name="contact_type"
+                  value={t}
+                  checked={form.contact_type === t}
+                  onChange={() => setForm({ ...form, contact_type: t })}
+                  className="accent-amber-600"
+                />
+                <span>{CONTACT_TYPE_LABELS[t]}</span>
+              </label>
+            ))}
+            {form.contact_type && (
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, contact_type: '' })}
+                className="ml-auto text-xs text-stone-400 hover:text-stone-600"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-stone-700">Address</span>
           <input value={form.address} onChange={set('address')} className={inputClass} />
