@@ -333,8 +333,7 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
       if (value) noteParts.push(`${headers[i] || `col ${i}`}: ${value}`)
     }
     const noteBody = noteParts.join('\n')
-    const rawStage = map.stage !== null ? cell(map.stage).toLowerCase() : ''
-    const rowStage = (rawStage && stageValues[rawStage]) || 'new'
+    const rowStage = 'new'
     const raw_payload = Object.fromEntries(headers.map((h, i) => [h || `col_${i}`, cells[i] ?? '']))
 
     // Raw first — a parse problem must never lose the lead.
