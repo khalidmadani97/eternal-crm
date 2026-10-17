@@ -62,7 +62,13 @@ function heuristicMap(headers: string[]): Record<number, FieldTarget> {
 // ── File parsing ──────────────────────────────────────────────────────────────
 
 async function parseFile(file: File): Promise<{ headers: string[]; rows: string[][] }> {
-  const buffer = await file.arrayBuffer()
+  // Use FileReader for iOS Safari compatibility (file.arrayBuffer() is unreliable on older iPad)
+  const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => resolve(e.target!.result as ArrayBuffer)
+    reader.onerror = () => reject(reader.error ?? new Error('FileReader failed'))
+    reader.readAsArrayBuffer(file)
+  })
   const workbook = XLSX.read(buffer, { type: 'array' })
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
   const raw = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '', raw: false })
@@ -180,6 +186,7 @@ export function BulkUploadDialog({ stages, pipelineId, onClose, onDone }: Props)
 
   // ── Duplicate resolution (Promise-pause pattern) ────────────────────────────
 
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const resolveRef = useRef<((c: DuplicateChoice) => void) | null>(null)
 
   const askDuplicate = (
@@ -397,18 +404,24 @@ export function BulkUploadDialog({ stages, pipelineId, onClose, onDone }: Props)
             >
               <p className="text-sm font-medium text-stone-700">Drop a CSV or XLSX file here</p>
               <p className="text-xs text-stone-400">or</p>
-              <label className="cursor-pointer rounded border border-stone-300 px-4 py-2 text-sm text-stone-700 hover:bg-stone-100">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="rounded border border-stone-300 px-4 py-2 text-sm text-stone-700 hover:bg-stone-100"
+              >
                 Browse
-                <input
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  className="sr-only"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) void loadFile(file)
-                  }}
-                />
-              </label>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                style={{ position: 'absolute', opacity: 0, width: 1, height: 1, pointerEvents: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) void loadFile(file)
+                  e.target.value = ''
+                }}
+              />
               <p className="text-xs text-stone-400">.csv · .xlsx · .xls</p>
             </div>
           </div>
