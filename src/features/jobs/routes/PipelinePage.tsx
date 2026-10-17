@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { LeadSheetsDialog } from '../../leads/components/LeadSheetsDialog'
 import { useLeadSheets, useSearchLeads, useSyncLeadSheets } from '../../leads/api'
 import { useCreatePipeline, usePipelines, useWorkspaceStages } from '../api'
-import type { JobStage } from '../api'
+
 import { NewJobDialog } from '../components/NewJobDialog'
 import { JobsTable } from '../components/JobsTable'
 import { StageBoard } from '../components/StageBoard'
 import { ArchivedJobsTable } from '../components/ArchivedJobsTable'
+import { BulkUploadDialog } from '../../leads/components/BulkUploadDialog'
 
 type View = 'board' | 'list' | 'archived'
 
@@ -17,6 +18,7 @@ export function PipelinePage() {
   const [view, setView] = useState<View>('board')
   const [showSources, setShowSources] = useState(false)
   const [showNewLead, setShowNewLead] = useState(false)
+  const [showUpload, setShowUpload] = useState(false)
   const { data: pipelines } = usePipelines()
   const createPipeline = useCreatePipeline()
   const [activePipelineId, setActivePipelineId] = useState<string | null>(null)
@@ -52,6 +54,12 @@ export function PipelinePage() {
           {hasSheets && sheets?.some((s) => s.last_error) && (
             <span className="ml-1.5 text-red-600">!</span>
           )}
+        </button>
+        <button
+          onClick={() => setShowUpload(true)}
+          className="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50"
+        >
+          ↑ Upload CSV/XLSX
         </button>
         <button
           onClick={() => setShowNewLead(true)}
@@ -106,7 +114,7 @@ export function PipelinePage() {
       {view === 'list' && (
         <JobsTable
           stages={stages}
-          newJobStage={(stages[0] ?? 'new') as JobStage}
+          newJobStage="new"
           newJobLabel="New lead"
           detailPath="/leads"
           pipelineId={currentPipeline?.id ?? null}
@@ -122,9 +130,16 @@ export function PipelinePage() {
         />
       )}
       {showSources && <LeadSheetsDialog onClose={() => setShowSources(false)} />}
+      {showUpload && (
+        <BulkUploadDialog
+          stages={stages}
+          pipelineId={currentPipeline?.id ?? null}
+          onClose={() => setShowUpload(false)}
+        />
+      )}
       {showNewLead && (
         <NewJobDialog
-          initialStage={(stages[0] ?? 'new') as JobStage}
+          initialStage="new"
           pipelineId={currentPipeline?.id ?? null}
           onClose={() => setShowNewLead(false)}
         />

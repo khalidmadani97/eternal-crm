@@ -537,6 +537,40 @@ export function useBulkArchiveJobs() {
   })
 }
 
+export function useBulkMoveStage() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ ids, stage }: { ids: string[]; stage: JobStage }) => {
+      const { error } = await supabase.from('jobs').update({ stage }).in('id', ids)
+      if (error) throw error
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+  })
+}
+
+export function useBulkAssign() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ ids, userId }: { ids: string[]; userId: string | null }) => {
+      const { error } = await supabase.from('jobs').update({ assigned_to: userId }).in('id', ids)
+      if (error) throw error
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+  })
+}
+
+export function useBulkToggleFollowUp() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ ids, value }: { ids: string[]; value: boolean }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await supabase.from('jobs').update({ follow_up: value } as any).in('id', ids)
+      if (error) throw error
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+  })
+}
+
 // ── Board ────────────────────────────────────────────────────────────────────
 
 /** Stage move with an optimistic cache update and rollback — the board drags

@@ -13,6 +13,9 @@ import {
   useUpdateJob,
   useToggleFollowUp,
   useBulkArchiveJobs,
+  useBulkMoveStage,
+  useBulkAssign,
+  useBulkToggleFollowUp,
   CLOSE_GRADE_STYLES,
   marginSigns,
 } from '../api'
@@ -45,12 +48,17 @@ export function StageBoard({
   const updateJob = useUpdateJob()
   const toggleFollowUp = useToggleFollowUp()
   const archiveJob = useBulkArchiveJobs()
+  const bulkMove = useBulkMoveStage()
+  const bulkAssign = useBulkAssign()
+  const bulkFollowUp = useBulkToggleFollowUp()
   const [dragId, setDragId] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState<JobStage | null>(null)
   const [pendingLost, setPendingLost] = useState<string | null>(null)
   const [customizing, setCustomizing] = useState(false)
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  // Slide-to-select: track whether pointer is held down over the board
+  const pointerDownRef = useRef(false)
 
   const toggleSelect = (id: string) =>
     setSelectedIds((prev) => {
@@ -59,10 +67,15 @@ export function StageBoard({
       return next
     })
 
+  const selectCard = (id: string) =>
+    setSelectedIds((prev) => (prev.has(id) ? prev : new Set([...prev, id])))
+
   const exitSelection = () => {
     setSelectionMode(false)
     setSelectedIds(new Set())
   }
+
+  // allVisibleIds computed after scoped is defined below
   // Mobile: jump-bar chips track which column fills the screen (snap scroll).
   const boardRef = useRef<HTMLDivElement>(null)
   const [activeStage, setActiveStage] = useState<JobStage | null>(null)
@@ -128,6 +141,8 @@ export function StageBoard({
         (j.summary ?? '').toLowerCase().includes(q)
       )
     })
+
+  const allVisibleIds = (scoped ?? []).map((j) => j.id)
 
   const drop = (stage: JobStage) => {
     setDragOver(null)
@@ -216,45 +231,128 @@ export function StageBoard({
               Move failed — the card has been put back. {moveStage.error.message}
             </span>
           )}
-          {selectionMode ? (
+          <button
+            onClick={() => setSelectionMode((v) => !v)}
+            className={`rounded border px-3 py-1.5 text-sm ${
+              selectionMode
+                ? 'border-amber-500 bg-amber-50 text-amber-800'
+                : 'border-stone-300 text-stone-700 hover:bg-stone-50'
+            }`}
+          >
+            {selectionMode ? `Selecting (${selectedIds.size})` : 'Select'}
+          </button>
+          <button
+            onClick={() => setCustomizing(true)}
+            className="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50"
+          >
+            Customize stages
+          </button>
+        </div>
+      </div>
+
+      {/* Bulk action bar — only visible when at least one card is selected */}
+      {selectionMode && (
+        <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
+          <span className="text-sm font-medium text-amber-900">
+            {selectedIds.size === 0
+              ? 'Tap cards to select'
+              : `${selectedIds.size} selected`}
+          </span>
+          {selectedIds.size > 0 && (
             <>
-              {selectedIds.size > 0 && (
-                <button
-                  onClick={() => {
-                    if (window.confirm(`Archive ${selectedIds.size} lead${selectedIds.size > 1 ? 's' : ''}? They will be hidden from the board.`))
-                      archiveJob.mutate([...selectedIds], { onSuccess: exitSelection })
-                  }}
-                  disabled={archiveJob.isPending}
-                  className="rounded border border-stone-300 bg-red-50 px-3 py-1.5 text-sm text-red-700 hover:bg-red-100 disabled:opacity-50"
-                >
-                  {archiveJob.isPending ? 'Archiving…' : `Archive ${selectedIds.size} selected`}
-                </button>
-              )}
               <button
-                onClick={exitSelection}
-                className="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50"
+                onClick={() => setSelectedIds(new Set(allVisibleIds))}
+                className="text-xs text-amber-700 underline hover:text-amber-900"
               >
-                Cancel
+                Select all ({allVisibleIds.length})
               </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => setSelectionMode(true)}
-                className="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50"
+
+              {/* Move to stage */}
+              <select
+                defaultValue=""
+                onChange={(e) => {
+                  if (!e.target.value) return
+                  bulkMove.mutate(
+                    { ids: [...selectedIds], stage: e.target.value as JobStage },
+                    { onSuccess: exitSelection },
+                  )
+                  e.target.value = ''
+                }}
+                disabled={bulkMove.isPending}
+                className="rounded border border-amber-300 bg-white px-2 py-1 text-sm text-stone-700"
               >
-                Select
+                <option value="">Move to…</option>
+                {stages.map((s) => (
+                  <option key={s} value={s}>{STAGE_LABELS[s] ?? s}</option>
+                ))}
+              </select>
+
+              {/* Assign to */}
+              <select
+                defaultValue=""
+                onChange={(e) => {
+                  if (e.target.value === '') return
+                  bulkAssign.mutate(
+                    { ids: [...selectedIds], userId: e.target.value === '_none' ? null : e.target.value },
+                    { onSuccess: exitSelection },
+                  )
+                  e.target.value = ''
+                }}
+                disabled={bulkAssign.isPending}
+                className="rounded border border-amber-300 bg-white px-2 py-1 text-sm text-stone-700"
+              >
+                <option value="">Assign to…</option>
+                <option value="_none">Unassign</option>
+                {profiles?.map((p) => (
+                  <option key={p.id} value={p.id}>{p.full_name ?? 'Unnamed'}</option>
+                ))}
+              </select>
+
+              {/* Follow up */}
+              <button
+                onClick={() => {
+                  const selectedJobs = (scoped ?? []).filter((j) => selectedIds.has(j.id))
+                  const allFollowed = selectedJobs.every((j) => j.follow_up)
+                  bulkFollowUp.mutate(
+                    { ids: [...selectedIds], value: !allFollowed },
+                    { onSuccess: exitSelection },
+                  )
+                }}
+                disabled={bulkFollowUp.isPending}
+                className="rounded border border-amber-300 bg-white px-3 py-1 text-sm text-stone-700 hover:bg-amber-100"
+              >
+                Follow up
               </button>
+
+              {/* Archive */}
               <button
-                onClick={() => setCustomizing(true)}
-                className="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50"
+                onClick={() => {
+                  if (window.confirm(`Archive ${selectedIds.size} lead${selectedIds.size > 1 ? 's' : ''}? They will be hidden from the board.`))
+                    archiveJob.mutate([...selectedIds], { onSuccess: exitSelection })
+                }}
+                disabled={archiveJob.isPending}
+                className="rounded border border-red-300 bg-red-50 px-3 py-1 text-sm text-red-700 hover:bg-red-100"
               >
-                Customize stages
+                Archive
               </button>
             </>
           )}
+          {selectedIds.size === 0 && allVisibleIds.length > 0 && (
+            <button
+              onClick={() => setSelectedIds(new Set(allVisibleIds))}
+              className="text-xs text-amber-700 underline hover:text-amber-900"
+            >
+              Select all ({allVisibleIds.length})
+            </button>
+          )}
+          <button
+            onClick={exitSelection}
+            className="ml-auto rounded border border-amber-300 px-3 py-1 text-sm text-stone-700 hover:bg-amber-100"
+          >
+            Cancel
+          </button>
         </div>
-      </div>
+      )}
       {scoped && scoped.length === 0 && (
         <p className="py-12 text-center text-stone-500">Nothing here yet.</p>
       )}
@@ -280,6 +378,9 @@ export function StageBoard({
       <div
         ref={boardRef}
         onScroll={trackScroll}
+        onPointerDown={() => { pointerDownRef.current = true }}
+        onPointerUp={() => { pointerDownRef.current = false }}
+        onPointerLeave={() => { pointerDownRef.current = false }}
         className="flex flex-1 snap-x gap-2 overflow-x-auto pb-4 [-webkit-overflow-scrolling:touch] sm:gap-3 md:snap-none"
       >
         {columns.map(({ stage, label }) => {
@@ -324,6 +425,12 @@ export function StageBoard({
                     selectionMode={selectionMode}
                     selected={selectedIds.has(job.id)}
                     onToggleSelect={() => toggleSelect(job.id)}
+                    onSlideEnter={() => {
+                      if (selectionMode && pointerDownRef.current) selectCard(job.id)
+                    }}
+                    onLongPress={() => {
+                      if (!selectionMode) { setSelectionMode(true); selectCard(job.id) }
+                    }}
                     onDragStart={() => setDragId(job.id)}
                     onDragEnd={() => setDragId(null)}
                     onMoveWon={() => moveStage.mutate({ id: job.id, stage: 'won' })}
@@ -366,6 +473,8 @@ function BoardCard({
   selectionMode,
   selected,
   onToggleSelect,
+  onSlideEnter,
+  onLongPress,
   onDragStart,
   onDragEnd,
   onMoveWon,
@@ -380,6 +489,8 @@ function BoardCard({
   selectionMode: boolean
   selected: boolean
   onToggleSelect: () => void
+  onSlideEnter: () => void
+  onLongPress: () => void
   onDragStart: () => void
   onDragEnd: () => void
   onMoveWon: () => void
@@ -392,6 +503,7 @@ function BoardCard({
   const navigate = useNavigate()
   const menuBtnRef = useRef<HTMLButtonElement>(null)
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null)
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!menuPos) return
@@ -414,6 +526,16 @@ function BoardCard({
         if (selectionMode) { onToggleSelect(); return }
         void navigate(`${detailPath}/${job.id}`)
       }}
+      onPointerDown={() => {
+        longPressTimer.current = setTimeout(() => { onLongPress() }, 500)
+      }}
+      onPointerUp={() => {
+        if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
+      }}
+      onPointerLeave={() => {
+        if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
+      }}
+      onPointerEnter={onSlideEnter}
       onDragStart={(e) => {
         if (selectionMode) { e.preventDefault(); return }
         // Safari refuses to start a drag without data; keep it text/plain.
