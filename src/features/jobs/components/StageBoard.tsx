@@ -58,6 +58,8 @@ export function StageBoard({
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [rubberBand, setRubberBand] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
+  const [bulkMoveError, setBulkMoveError] = useState<string | null>(null)
+  const [bulkMoveTarget, setBulkMoveTarget] = useState('')
 
   const handleCardSelect = (id: string, shift: boolean) => {
     if (shift) {
@@ -314,19 +316,31 @@ export function StageBoard({
 
               {/* Move to stage */}
               <select
-                defaultValue=""
+                value={bulkMoveTarget}
                 onChange={(e) => {
-                  if (!e.target.value) return
+                  const target = e.target.value as JobStage
+                  if (!target) return
+                  setBulkMoveError(null)
+                  setBulkMoveTarget(target)
                   bulkMove.mutate(
-                    { ids: [...selectedIds], stage: e.target.value as JobStage },
-                    { onSuccess: exitSelection },
+                    { ids: [...selectedIds], stage: target },
+                    {
+                      onSuccess: () => {
+                        setBulkMoveTarget('')
+                        exitSelection()
+                        jumpTo(target)
+                      },
+                      onError: (err) => {
+                        setBulkMoveTarget('')
+                        setBulkMoveError((err as Error).message ?? 'Move failed')
+                      },
+                    },
                   )
-                  e.target.value = ''
                 }}
                 disabled={bulkMove.isPending}
                 className="rounded border border-amber-300 bg-white px-2 py-1 text-sm text-stone-700"
               >
-                <option value="">Move to…</option>
+                <option value="">{bulkMove.isPending ? 'Moving…' : 'Move to…'}</option>
                 {stages.map((s) => (
                   <option key={s} value={s}>{STAGE_LABELS[s] ?? s}</option>
                 ))}
@@ -396,6 +410,12 @@ export function StageBoard({
           >
             Cancel
           </button>
+        </div>
+      )}
+      {bulkMoveError && (
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <span>Move failed: {bulkMoveError}</span>
+          <button onClick={() => setBulkMoveError(null)} className="ml-auto text-red-500 hover:text-red-700">✕</button>
         </div>
       )}
       {scoped && scoped.length === 0 && (
