@@ -57,13 +57,19 @@ export function StageBoard({
   const [customizing, setCustomizing] = useState(false)
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [rubberBand, setRubberBand] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
 
-  const toggleSelect = (id: string) =>
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      return next
-    })
+  const handleCardSelect = (id: string, shift: boolean) => {
+    if (shift) {
+      setSelectedIds((prev) => new Set([...prev, id]))
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        if (next.has(id)) next.delete(id); else next.add(id)
+        return next
+      })
+    }
+  }
 
   const exitSelection = () => {
     setSelectionMode(false)
@@ -138,6 +144,50 @@ export function StageBoard({
     })
 
   const allVisibleIds = (scoped ?? []).map((j) => j.id)
+
+  const selectAllInStage = (stage: JobStage) => {
+    const ids = (scoped ?? []).filter((j) => j.stage === stage).map((j) => j.id)
+    const allSelected = ids.length > 0 && ids.every((id) => selectedIds.has(id))
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (allSelected) ids.forEach((id) => next.delete(id))
+      else ids.forEach((id) => next.add(id))
+      return next
+    })
+  }
+
+  const startRubberBand = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!selectionMode) return
+    const target = e.target as Element
+    if (target.closest('[data-card-id]')) return // let card handle it
+    setRubberBand({ x1: e.clientX, y1: e.clientY, x2: e.clientX, y2: e.clientY })
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  const moveRubberBand = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!rubberBand) return
+    setRubberBand((b) => b ? { ...b, x2: e.clientX, y2: e.clientY } : null)
+  }
+
+  const finishRubberBand = () => {
+    if (!rubberBand) return
+    const { x1, y1, x2, y2 } = rubberBand
+    const minX = Math.min(x1, x2), maxX = Math.max(x1, x2)
+    const minY = Math.min(y1, y2), maxY = Math.max(y1, y2)
+    if (maxX - minX > 4 || maxY - minY > 4) { // ignore tiny accidental drags
+      const cards = document.querySelectorAll<HTMLElement>('[data-card-id]')
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        cards.forEach((el) => {
+          const r = el.getBoundingClientRect()
+          if (r.left < maxX && r.right > minX && r.top < maxY && r.bottom > minY)
+            next.add(el.dataset.cardId!)
+        })
+        return next
+      })
+    }
+    setRubberBand(null)
+  }
 
   const drop = (stage: JobStage) => {
     setDragOver(null)
@@ -373,7 +423,11 @@ export function StageBoard({
       <div
         ref={boardRef}
         onScroll={trackScroll}
-          className="flex flex-1 snap-x gap-2 overflow-x-auto pb-4 [-webkit-overflow-scrolling:touch] sm:gap-3 md:snap-none"
+          onPointerDown={startRubberBand}
+        onPointerMove={moveRubberBand}
+        onPointerUp={finishRubberBand}
+        onPointerLeave={finishRubberBand}
+        className="flex flex-1 snap-x gap-2 overflow-x-auto pb-4 [-webkit-overflow-scrolling:touch] sm:gap-3 md:snap-none"
       >
         {columns.map(({ stage, label }) => {
           const inStage = (scoped ?? []).filter((j) => j.stage === stage)
@@ -401,9 +455,34 @@ export function StageBoard({
               <div className="border-b border-stone-200 px-3 py-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-stone-800">{label}</span>
-                  <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs text-stone-600">
-                    {inStage.length}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {selectionMode && inStage.length > 0 && (
+                      <button
+                        onClick={() => selectAllInStage(stage)}
+                        className="flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900"
+                      >
+                        <span
+                          className={`flex h-3.5 w-3.5 items-center justify-center rounded border ${
+                            inStage.every((j) => selectedIds.has(j.id))
+                              ? 'border-amber-500 bg-amber-500'
+                              : inStage.some((j) => selectedIds.has(j.id))
+                              ? 'border-amber-400 bg-amber-200'
+                              : 'border-stone-400 bg-white'
+                          }`}
+                        >
+                          {inStage.every((j) => selectedIds.has(j.id)) && (
+                            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M1 4l2 2 4-4"/>
+                            </svg>
+                          )}
+                        </span>
+                        All
+                      </button>
+                    )}
+                    <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs text-stone-600">
+                      {inStage.length}
+                    </span>
+                  </div>
                 </div>
                 <p className="text-xs tabular-nums text-stone-500">{formatCurrency(total)}</p>
               </div>
@@ -416,9 +495,11 @@ export function StageBoard({
                     detailPath={detailPath}
                     selectionMode={selectionMode}
                     selected={selectedIds.has(job.id)}
-                    onToggleSelect={() => toggleSelect(job.id)}
+                    onToggleSelect={(shift) => handleCardSelect(job.id, shift)}
                     onDragStart={() => setDragId(job.id)}
                     onDragEnd={() => setDragId(null)}
+                    stages={stages}
+                    onMoveStage={(s) => moveStage.mutate({ id: job.id, stage: s })}
                     onMoveWon={() => moveStage.mutate({ id: job.id, stage: 'won' })}
                     onMoveLost={() => setPendingLost(job.id)}
                     onAssignMe={() =>
@@ -436,6 +517,23 @@ export function StageBoard({
           )
         })}
       </div>
+      {rubberBand && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            left: Math.min(rubberBand.x1, rubberBand.x2),
+            top: Math.min(rubberBand.y1, rubberBand.y2),
+            width: Math.abs(rubberBand.x2 - rubberBand.x1),
+            height: Math.abs(rubberBand.y2 - rubberBand.y1),
+            border: '2px solid #d97706',
+            backgroundColor: 'rgba(251,191,36,0.12)',
+            borderRadius: 4,
+            pointerEvents: 'none',
+            zIndex: 9999,
+          }}
+        />,
+        document.body,
+      )}
       {customizing && stageSettings && (
         <CustomizeStagesDialog settings={stageSettings} phase={phase} pipelineId={pipelineId} onClose={() => setCustomizing(false)} />
       )}
@@ -461,6 +559,8 @@ function BoardCard({
   onToggleSelect,
   onDragStart,
   onDragEnd,
+  stages,
+  onMoveStage,
   onMoveWon,
   onMoveLost,
   onAssignMe,
@@ -472,9 +572,11 @@ function BoardCard({
   detailPath: string
   selectionMode: boolean
   selected: boolean
-  onToggleSelect: () => void
+  onToggleSelect: (shift: boolean) => void
   onDragStart: () => void
   onDragEnd: () => void
+  stages: JobStage[]
+  onMoveStage: (stage: JobStage) => void
   onMoveWon: () => void
   onMoveLost: () => void
   onAssignMe: () => void
@@ -502,8 +604,8 @@ function BoardCard({
   return (
     <div
       draggable={!selectionMode}
-      onClick={() => {
-        if (selectionMode) { onToggleSelect(); return }
+      onClick={(e) => {
+        if (selectionMode) { onToggleSelect(e.shiftKey); return }
         void navigate(`${detailPath}/${job.id}`)
       }}
       onDragStart={(e) => {
@@ -514,6 +616,7 @@ function BoardCard({
         onDragStart()
       }}
       onDragEnd={onDragEnd}
+      data-card-id={job.id}
       className={`relative cursor-pointer rounded border p-3.5 shadow-sm transition-shadow hover:shadow ${
         selected
           ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-400'
@@ -636,6 +739,16 @@ function BoardCard({
             icon={<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2 11L11 2M11 2H6M11 2V7"/></svg>}
             label="Open detail"
           />
+          <div className="my-1 border-t border-stone-100" />
+          {stages.filter((s) => s !== job.stage && s !== 'lost').map((s) => (
+            <CardMenuItem
+              key={s}
+              onClick={() => { setMenuPos(null); onMoveStage(s) }}
+              icon={<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M2 6.5h9M7.5 3l3.5 3.5L7.5 10"/></svg>}
+              label={`→ ${STAGE_LABELS[s] ?? s}`}
+              className={s === 'won' ? 'text-emerald-700 hover:bg-emerald-50' : ''}
+            />
+          ))}
           <div className="my-1 border-t border-stone-100" />
           <CardMenuItem
             onClick={() => { setMenuPos(null); onMoveWon() }}
