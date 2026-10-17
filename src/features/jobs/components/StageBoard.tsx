@@ -57,8 +57,6 @@ export function StageBoard({
   const [customizing, setCustomizing] = useState(false)
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  // Slide-to-select: track whether pointer is held down over the board
-  const pointerDownRef = useRef(false)
 
   const toggleSelect = (id: string) =>
     setSelectedIds((prev) => {
@@ -66,9 +64,6 @@ export function StageBoard({
       if (next.has(id)) next.delete(id); else next.add(id)
       return next
     })
-
-  const selectCard = (id: string) =>
-    setSelectedIds((prev) => (prev.has(id) ? prev : new Set([...prev, id])))
 
   const exitSelection = () => {
     setSelectionMode(false)
@@ -378,10 +373,7 @@ export function StageBoard({
       <div
         ref={boardRef}
         onScroll={trackScroll}
-        onPointerDown={() => { pointerDownRef.current = true }}
-        onPointerUp={() => { pointerDownRef.current = false }}
-        onPointerLeave={() => { pointerDownRef.current = false }}
-        className="flex flex-1 snap-x gap-2 overflow-x-auto pb-4 [-webkit-overflow-scrolling:touch] sm:gap-3 md:snap-none"
+          className="flex flex-1 snap-x gap-2 overflow-x-auto pb-4 [-webkit-overflow-scrolling:touch] sm:gap-3 md:snap-none"
       >
         {columns.map(({ stage, label }) => {
           const inStage = (scoped ?? []).filter((j) => j.stage === stage)
@@ -425,12 +417,6 @@ export function StageBoard({
                     selectionMode={selectionMode}
                     selected={selectedIds.has(job.id)}
                     onToggleSelect={() => toggleSelect(job.id)}
-                    onSlideEnter={() => {
-                      if (selectionMode && pointerDownRef.current) selectCard(job.id)
-                    }}
-                    onLongPress={() => {
-                      if (!selectionMode) { setSelectionMode(true); selectCard(job.id) }
-                    }}
                     onDragStart={() => setDragId(job.id)}
                     onDragEnd={() => setDragId(null)}
                     onMoveWon={() => moveStage.mutate({ id: job.id, stage: 'won' })}
@@ -473,8 +459,6 @@ function BoardCard({
   selectionMode,
   selected,
   onToggleSelect,
-  onSlideEnter,
-  onLongPress,
   onDragStart,
   onDragEnd,
   onMoveWon,
@@ -489,8 +473,6 @@ function BoardCard({
   selectionMode: boolean
   selected: boolean
   onToggleSelect: () => void
-  onSlideEnter: () => void
-  onLongPress: () => void
   onDragStart: () => void
   onDragEnd: () => void
   onMoveWon: () => void
@@ -503,8 +485,6 @@ function BoardCard({
   const navigate = useNavigate()
   const menuBtnRef = useRef<HTMLButtonElement>(null)
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null)
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
   useEffect(() => {
     if (!menuPos) return
     const close = () => setMenuPos(null)
@@ -526,16 +506,6 @@ function BoardCard({
         if (selectionMode) { onToggleSelect(); return }
         void navigate(`${detailPath}/${job.id}`)
       }}
-      onPointerDown={() => {
-        longPressTimer.current = setTimeout(() => { onLongPress() }, 500)
-      }}
-      onPointerUp={() => {
-        if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
-      }}
-      onPointerLeave={() => {
-        if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
-      }}
-      onPointerEnter={onSlideEnter}
       onDragStart={(e) => {
         if (selectionMode) { e.preventDefault(); return }
         // Safari refuses to start a drag without data; keep it text/plain.
