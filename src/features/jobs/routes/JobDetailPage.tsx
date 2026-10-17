@@ -16,6 +16,7 @@ import { LeadPayments } from '../../leads/components/LeadPayments'
 import { JobAppointments } from '../../schedule/components/JobAppointments'
 import { ActivityTimeline } from '../components/ActivityTimeline'
 import { JobFiles } from '../components/JobFiles'
+import { CallNotetaker } from '../components/CallNotetaker'
 import { JobNextStep } from '../components/JobNextStep'
 import { JobTasks } from '../components/JobTasks'
 import { LostReasonDialog } from '../components/LostReasonDialog'
@@ -54,6 +55,7 @@ export function JobDetailPage({ mode = 'job' }: { mode?: 'lead' | 'job' }) {
           {mode === 'lead' && <LeadInfo job={job} />}
           {mode === 'lead' && <LeadPayments job={job} />}
           {mode === 'lead' && <LeadGrading job={job} />}
+          {mode === 'lead' && <CallNotetaker jobId={job.id} contactId={job.contact?.id} />}
           {mode === 'lead' && <ActivityTimeline jobId={job.id} contactId={job.contact?.id} title="Notes" />}
           {mode === 'job' && <JobDetailsForm job={job} />}
           {job.contact && (
