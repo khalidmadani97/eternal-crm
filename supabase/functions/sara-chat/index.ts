@@ -1,16 +1,54 @@
 // Sara — conversational assistant (Slices 34/36). Multi-turn chat over the
-// live business snapshot, role-aware, credit-metered. She has exactly ONE
-// write ability: creating tasks on the calendar — guarded on both sides
-// (prompted to be conservative with people's time; server caps 3 per
-// message, validates assignees against the team, clamps due dates).
+// live business snapshot, role-aware, credit-metered. Write abilities:
+//   create_lead  — enter a new lead directly from pasted info
+//   create_task  — put a task on the calendar (capped at 3/msg)
+// Guarded on both sides: prompted carefully, server validates.
 
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { CORS_HEADERS, checkAiCredits, json, logAiUsage, requireStaff } from '../_shared/twilio.ts'
 import { buildSnapshot, callerBusinessId, loadCaller } from '../_shared/sara.ts'
 
+function normalizePhone(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '')
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  if (digits.length >= 7) return `+${digits}`
+  return null
+}
+
 const MAX_TURNS = 14
 const MAX_TASKS_PER_MESSAGE = 3
+const MAX_LEADS_PER_MESSAGE = 5
 const MAX_BULK_ROWS = 500
+
+const CREATE_LEAD_TOOL = {
+  type: 'function',
+  function: {
+    name: 'create_lead',
+    description:
+      'Enter a new lead into the CRM from info the user has given or pasted. ' +
+      'ALWAYS call this when the user shares a name, phone, city, or email from a Google/Meta lead or any other source. ' +
+      'Never create a task to "enter the lead later" — enter it now with this tool. ' +
+      'Extract every field you can see: name, phone, email, city, message/job description, source. ' +
+      'Copy city/location names EXACTLY as written — never autocomplete, correct spelling, or substitute a place name ' +
+      '(e.g. "White Lake" must stay "White Lake", never "Whitby" or any other city). ' +
+      'The contact is stored as "New Lead" until a rep qualifies it; the real name is recorded separately on the lead card.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Full name from the lead' },
+        phone: { type: 'string', description: 'Phone number (any format — will be normalised to E.164)' },
+        email: { type: 'string', description: 'Email address' },
+        city: { type: 'string', description: 'City or neighbourhood — copy EXACTLY as written, no spelling corrections or substitutions' },
+        message: { type: 'string', description: 'Lead message, job description, or notes' },
+        lead_source: { type: 'string', description: 'Where this lead came from (e.g. Google Ads, Meta, website, referral)' },
+        pipeline_name: { type: 'string', description: 'Pipeline to add to — omit for the default pipeline' },
+        assignee_name: { type: 'string', description: 'Team member full name to assign the lead to — omit to leave unassigned' },
+      },
+      required: [],
+    },
+  },
+}
 
 const ADMIN_TOOLS = [
   {
@@ -60,6 +98,7 @@ const ADMIN_TOOLS = [
 ]
 
 const TOOLS = [
+  CREATE_LEAD_TOOL,
   {
     type: 'function',
     function: {
@@ -97,6 +136,163 @@ interface CreatedTask {
   assignee: string
   job_number: string | null
   estimated_minutes: number
+}
+
+interface CreatedLead {
+  job_id: string
+  job_number: string
+  title: string
+  name: string | null
+  phone: string | null
+}
+
+async function executeCreateLead(
+  sb: SupabaseClient,
+  businessId: string,
+  args: {
+    name?: string
+    phone?: string
+    email?: string
+    city?: string
+    message?: string
+    lead_source?: string
+    pipeline_name?: string
+    assignee_name?: string
+  },
+): Promise<{ ok: boolean; result: string; created?: CreatedLead }> {
+  const name = args.name?.trim() || null
+  const city = args.city?.trim() || null
+  const phone = args.phone?.trim() ? normalizePhone(args.phone.trim()) : null
+  const email = args.email?.trim() || null
+  const message = args.message?.trim() || null
+  const lead_source = args.lead_source?.trim() || null
+
+  // Resolve optional pipeline
+  let pipelineId: string | null = null
+  if (args.pipeline_name?.trim()) {
+    const { data: pipe } = await sb
+      .from('pipelines')
+      .select('id')
+      .eq('business_id', businessId)
+      .ilike('name', args.pipeline_name.trim())
+      .maybeSingle()
+    if (pipe) pipelineId = pipe.id
+  }
+
+  // Resolve optional assignee
+  let assignedTo: string | null = null
+  if (args.assignee_name?.trim()) {
+    const { data: members } = await sb
+      .from('business_members')
+      .select('user_id, profile:profiles!business_members_user_id_fkey ( full_name )')
+      .eq('business_id', businessId)
+      .eq('status', 'active')
+    const match = (
+      members as unknown as { user_id: string; profile: { full_name: string | null } | null }[] | null
+    )?.find((m) => m.profile?.full_name?.toLowerCase() === args.assignee_name!.trim().toLowerCase())
+    if (match) assignedTo = match.user_id
+  }
+
+  // Try to match existing contact by phone or email before creating a new one.
+  let contactId: string | null = null
+  if (phone || email) {
+    let query = sb.from('contacts').select('id, full_name, phone, email, city').eq('business_id', businessId)
+    if (phone) query = query.eq('phone', phone)
+    else if (email) query = query.ilike('email', email)
+    const { data: existing } = await query.maybeSingle()
+    if (existing) {
+      contactId = existing.id
+      const patch: Record<string, string | null> = {}
+      if ((!existing.full_name || existing.full_name === 'New Lead' || existing.full_name === 'Unknown') && name) patch.full_name = name
+      if (!existing.email && email) patch.email = email
+      if (!existing.city && city) patch.city = city
+      if (Object.keys(patch).length) await sb.from('contacts').update(patch).eq('id', contactId)
+    }
+  }
+  if (!contactId) {
+    const { data: contact, error: contactErr } = await sb
+      .from('contacts')
+      .insert({
+        business_id: businessId,
+        full_name: name || 'Unknown',
+        phone,
+        email,
+        city,
+        lead_source,
+        confirmed: true,
+      })
+      .select('id')
+      .single()
+    if (contactErr || !contact) return { ok: false, result: contactErr?.message ?? 'failed to create contact' }
+    contactId = contact.id
+  }
+
+  // Allocate job number
+  const { data: jobNumber, error: numErr } = await sb.rpc('next_document_number_for', {
+    p_business: businessId,
+    p_prefix: 'EI',
+  })
+  if (numErr || !jobNumber) return { ok: false, result: numErr?.message ?? 'failed to allocate job number' }
+
+  const titleParts = [name, city].filter(Boolean)
+  const title = titleParts.length > 0 ? titleParts.join(' - ') : 'New Lead'
+
+  const { data: job, error: jobErr } = await sb
+    .from('jobs')
+    .insert({
+      business_id: businessId,
+      contact_id: contactId,
+      job_number: jobNumber as string,
+      title,
+      stage: 'new',
+      lead_source,
+      city,
+      assigned_to: assignedTo,
+      pipeline_id: pipelineId,
+    })
+    .select('id')
+    .single()
+  if (jobErr || !job) return { ok: false, result: jobErr?.message ?? 'failed to create job' }
+
+  // Log in inbound_leads so the lead card shows origin info and parsed name/phone
+  const rawPayload: Record<string, string> = {}
+  if (name) rawPayload['names'] = name
+  if (phone) rawPayload['phone'] = phone
+  if (email) rawPayload['email'] = email
+  if (city) rawPayload['city'] = city
+  if (message) rawPayload['message'] = message
+  if (lead_source) rawPayload['source'] = lead_source
+
+  await sb.from('inbound_leads').insert({
+    business_id: businessId,
+    job_id: job.id,
+    contact_id: contactId,
+    provider: 'manual',
+    raw_payload: rawPayload,
+    parsed_name: name,
+    parsed_phone: phone,
+    parsed_email: email,
+    parsed_message: message,
+    converted_at: new Date().toISOString(),
+  })
+
+  // Activity note so the pasted message shows in the timeline
+  if (message) {
+    await sb.from('activities').insert({
+      business_id: businessId,
+      job_id: job.id,
+      contact_id: contactId,
+      kind: 'note',
+      body: `Lead form details:\n${message.slice(0, 1500)}`,
+    })
+  }
+
+  const summary = [name, phone, city].filter(Boolean).join(' · ')
+  return {
+    ok: true,
+    result: `created ${jobNumber} "${title}"${summary ? ` (${summary})` : ''}`,
+    created: { job_id: job.id, job_number: jobNumber as string, title, name, phone },
+  }
 }
 
 async function executeCreateTask(
@@ -417,26 +613,45 @@ other-lane items to the right teammate by name. Be concise.
 Stage directory (KEY ("label", phase)): ${stageDirectory}
 Pipelines: ${pipelineNames}
 
-Your abilities beyond talking: create_task puts a task on the
-calendar.${isAdmin ? `
+── CRM CONTEXT ──────────────────────────────────────────────────────────────
+This is a custom-interiors CRM (Eternal Interiors). Key facts you must know:
 
-Because ${caller.name} is an ADMIN you also have move_leads and
-assign_leads for bulk changes ("move all follow-ups older than 30 days to
-lost", "give Omar every unassigned new lead"). When the admin asks for a
-bulk change, CALL THE TOOL IMMEDIATELY — do NOT ask permission first.
-Calling it is completely safe: it changes NOTHING and only produces the
-confirmation card (with exact count and a typed confirm phrase) that the
-user must complete themselves; they can also Undo for 24h after executing.
-The card IS the permission step — asking "shall I?" before calling is
-wrong and annoying. After calling, relay the exact count from the tool
-result and tell them to use the card. Use stage KEYS from the directory.` : ''} Use it ONLY when the user asks or clearly agrees. BE CONSERVATIVE
-WITH PEOPLE'S TIME: create the fewest tasks that cover the need (usually
-one), pick realistic due dates, spread work across the week, time-box every task tightly
-(estimated_minutes — never pad; most tasks are 15 minutes), and check
-task_load_next_7_days before adding to someone's plate — if they're loaded,
-suggest another day or another teammate instead. Never create more than
-${MAX_TASKS_PER_MESSAGE} tasks in one go. After creating, confirm plainly
-what you scheduled. For anything else you cannot do, say where to click.
+LEAD WORKFLOW: new → contacted → quoted → follow_up → won (moves to Jobs) → lost.
+Jobs in the "won" stage and beyond are production jobs (templated → fabrication →
+scheduled → installed → closed). Pipeline leads live in the Lead board;
+production jobs live in the Jobs board.
+
+CONTACTS: When a lead first comes in, the contact is created as "New Lead" —
+this is intentional. The real name is recorded on the lead card (in inbound_leads)
+and shown on the lead detail page. The sales rep qualifies the lead and fills in
+the real contact details. Never invent contact details.
+
+LEAD ENTRY RULE: When the user shares or pastes any lead info (name, phone, city,
+email, message from Google Ads, Meta, or any source) — USE create_lead TO ENTER
+IT IMMEDIATELY. Do NOT create a task saying "enter this lead" or "add to CRM". You
+have the tool; use it. Extract every field you can see from the pasted text.
+
+── YOUR WRITE ABILITIES ─────────────────────────────────────────────────────
+• create_lead — enter a new lead from pasted info. Use this the moment the user
+  gives you any lead data. Extracts name/phone/city/email/message/source and creates
+  the lead in the pipeline as "New Lead" with the real name stored on the lead card.
+  Never create a task instead of doing this.
+
+• create_task — put a task on the calendar. Use ONLY when the user asks or clearly
+  agrees. BE CONSERVATIVE WITH PEOPLE'S TIME: create the fewest tasks needed (usually
+  one), realistic due dates, time-box tightly (most tasks = 15 min), and check
+  task_load_next_7_days before adding to someone's plate. Max ${MAX_TASKS_PER_MESSAGE}
+  tasks per message.${isAdmin ? `
+
+• move_leads / assign_leads (ADMIN only) — bulk stage moves or assignments.
+  Because ${caller.name} is an ADMIN you have these for bulk changes ("move all
+  follow-ups older than 30 days to lost", "give Omar every unassigned new lead").
+  CALL IMMEDIATELY when asked — calling only stages the action; nothing changes
+  until the user types the confirm phrase on the card. The card IS the permission step.
+  Use stage KEYS from the directory.` : ''}
+
+For anything else you cannot do, say where to click in the CRM.
+─────────────────────────────────────────────────────────────────────────────
 
 SNAPSHOT:
 ${JSON.stringify(snapshot)}`
@@ -447,6 +662,7 @@ ${JSON.stringify(snapshot)}`
     ...trimmed,
   ]
   const createdTasks: CreatedTask[] = []
+  const createdLeads: CreatedLead[] = []
   const stagedActions: StagedAction[] = []
   const toolTrace: { tool: string; result: string }[] = []
   let reply = ''
@@ -486,7 +702,15 @@ ${JSON.stringify(snapshot)}`
       }
       let resultText = 'unknown tool'
       try {
-      if (call.function.name === 'create_task') {
+      if (call.function.name === 'create_lead') {
+        if (createdLeads.length >= MAX_LEADS_PER_MESSAGE) {
+          resultText = `limit of ${MAX_LEADS_PER_MESSAGE} leads per message reached`
+        } else {
+          const outcome = await executeCreateLead(sb, businessId, args)
+          if (outcome.ok && outcome.created) createdLeads.push(outcome.created)
+          resultText = outcome.result
+        }
+      } else if (call.function.name === 'create_task') {
         if (createdTasks.length >= MAX_TASKS_PER_MESSAGE) {
           resultText = `limit of ${MAX_TASKS_PER_MESSAGE} tasks per message reached`
         } else {
@@ -518,8 +742,9 @@ ${JSON.stringify(snapshot)}`
   }
 
   return json({
-    reply: reply || (createdTasks.length ? 'Done — task added to the calendar.' : ''),
+    reply: reply || (createdLeads.length ? `Done — ${createdLeads.length === 1 ? `lead ${createdLeads[0].job_number} added.` : `${createdLeads.length} leads added.`}` : createdTasks.length ? 'Done — task added to the calendar.' : ''),
     createdTasks,
+    createdLeads,
     stagedActions,
     toolTrace,
     usage: { used: credits.used + 1, cap: credits.cap },

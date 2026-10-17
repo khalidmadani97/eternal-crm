@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../../lib/supabase'
 import { formatDateTime, formatPhone } from '../../../lib/format'
 import type { JobDetail } from '../../jobs/api'
+import { useUpdateJob } from '../../jobs/api'
 import { ContactQuickEditPanel } from '../../contacts/components/ContactQuickEditPanel'
 
 // Lead info panel (Slice 41): everything known about where this lead came
@@ -12,6 +13,8 @@ import { ContactQuickEditPanel } from '../../contacts/components/ContactQuickEdi
 interface InboundInfo {
   provider: string
   received_at: string
+  parsed_name: string | null
+  parsed_phone: string | null
   parsed_message: string | null
   raw_payload: Record<string, string>
 }
@@ -22,7 +25,7 @@ function useLeadOrigin(jobId: string) {
     queryFn: async (): Promise<InboundInfo | null> => {
       const { data, error } = await supabase
         .from('inbound_leads')
-        .select('provider, received_at, parsed_message, raw_payload')
+        .select('provider, received_at, parsed_name, parsed_phone, parsed_message, raw_payload')
         .eq('job_id', jobId)
         .order('received_at', { ascending: false })
         .limit(1)
@@ -38,6 +41,19 @@ const META_KEY = /time|date|^id$|campaign|ad.?(set|name|id)|form|platform|source
 export function LeadInfo({ job }: { job: JobDetail }) {
   const { data: origin, isPending, isError, error } = useLeadOrigin(job.id)
   const [editingContact, setEditingContact] = useState(false)
+  const updateJob = useUpdateJob()
+  const [editingCity, setEditingCity] = useState(false)
+  const [cityDraft, setCityDraft] = useState('')
+
+  const startCityEdit = () => {
+    setCityDraft(job.city ?? '')
+    setEditingCity(true)
+  }
+  const saveCity = () => {
+    const val = cityDraft.trim() || null
+    if (val !== job.city) updateJob.mutate({ id: job.id, patch: { city: val } })
+    setEditingCity(false)
+  }
 
   const formAnswers = origin
     ? Object.entries(origin.raw_payload).filter(
@@ -65,15 +81,52 @@ export function LeadInfo({ job }: { job: JobDetail }) {
       <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-xs uppercase tracking-wide text-stone-400">Contact</dt>
-          <dd className="text-stone-800">{job.contact?.full_name ?? '—'}</dd>
+          <dd className="text-stone-800">
+            {job.contact?.full_name === 'New Lead' && origin?.parsed_name
+              ? origin.parsed_name
+              : job.contact?.full_name ?? '—'}
+            {job.contact?.full_name === 'New Lead' && (
+              <span className="ml-1.5 rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500">
+                unqualified
+              </span>
+            )}
+          </dd>
         </div>
         <div>
           <dt className="text-xs uppercase tracking-wide text-stone-400">Phone</dt>
-          <dd className="tabular-nums text-stone-800">{formatPhone(job.contact?.phone)}</dd>
+          <dd className="tabular-nums text-stone-800">
+            {job.contact?.phone
+              ? formatPhone(job.contact.phone)
+              : origin?.parsed_phone
+              ? formatPhone(origin.parsed_phone)
+              : '—'}
+          </dd>
         </div>
         <div>
           <dt className="text-xs uppercase tracking-wide text-stone-400">City</dt>
-          <dd className="text-stone-800">{job.city ?? '—'}</dd>
+          <dd className="text-stone-800">
+            {editingCity ? (
+              <input
+                autoFocus
+                value={cityDraft}
+                onChange={(e) => setCityDraft(e.target.value)}
+                onBlur={saveCity}
+                onKeyDown={(e) => { if (e.key === 'Enter') saveCity(); if (e.key === 'Escape') setEditingCity(false) }}
+                className="w-full rounded border border-amber-400 px-2 py-0.5 text-sm focus:outline-none"
+              />
+            ) : (
+              <button
+                onClick={startCityEdit}
+                className="group flex items-center gap-1.5 text-left hover:text-amber-700"
+                title="Click to edit city"
+              >
+                <span>{job.city ?? '—'}</span>
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="opacity-0 group-hover:opacity-60">
+                  <path d="M8.5 1.5a1.414 1.414 0 0 1 2 2L3 11H1V9L8.5 1.5z"/>
+                </svg>
+              </button>
+            )}
+          </dd>
         </div>
         <div>
           <dt className="text-xs uppercase tracking-wide text-stone-400">Address</dt>
@@ -142,6 +195,7 @@ export function LeadInfo({ job }: { job: JobDetail }) {
       {editingContact && job.contact && (
         <ContactQuickEditPanel
           contactId={job.contact.id}
+          fallbackCity={job.city ?? undefined}
           onClose={() => setEditingContact(false)}
         />
       )}

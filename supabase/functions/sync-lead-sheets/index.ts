@@ -110,6 +110,18 @@ function heuristicMap(headers: string[]): ColumnMap {
   return { name, first_name, last_name, phone, email, city, message, notes, stage, mapped_by: 'heuristic' }
 }
 
+/** Returns true if the mapped name column's sample values actually look like names. */
+function nameColumnLooksValid(map: ColumnMap, sampleRows: string[][]): boolean {
+  const nameIdx = map.name ?? map.first_name ?? map.last_name
+  if (nameIdx === null) return true
+  const phonePattern = /^\+?\d[\d\s\-().]{6,}$|^[a-z]{1,4}:\s*\+?\d/i
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const values = sampleRows.map(r => (r[nameIdx] ?? '').trim()).filter(Boolean)
+  if (!values.length) return true
+  const badCount = values.filter(v => phonePattern.test(v) || emailPattern.test(v)).length
+  return badCount < values.length // reject if every sample value is a phone/email
+}
+
 async function aiMap(headers: string[], samples: string[][]): Promise<ColumnMap | null> {
   const apiKey = Deno.env.get('AI_API_KEY')
   if (!apiKey) return null
@@ -232,11 +244,15 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
     !map ||
     map.notes === undefined ||
     map.stage === undefined ||
-    map.city === undefined ||  // force remap: old cached maps predate city field
-    // No name column found — likely wrong mapping, retry with updated heuristic
-    (map.name === null && map.first_name === null && map.last_name === null)
+    map.city === undefined ||
+    // Name column missing or its values look like phones — force a remap
+    (map.name === null && map.first_name === null && map.last_name === null) ||
+    !nameColumnLooksValid(map, dataRows.slice(0, 3))
   ) {
-    map = (await aiMap(headers, dataRows.slice(0, 3))) ?? heuristicMap(headers)
+    const aiResult = await aiMap(headers, dataRows.slice(0, 3))
+    map = (aiResult && nameColumnLooksValid(aiResult, dataRows.slice(0, 3)))
+      ? aiResult
+      : heuristicMap(headers)
     await sb.from('lead_sheets').update({ column_map: map }).eq('id', sheet.id)
   }
 
@@ -363,11 +379,12 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
         .from('contacts')
         .insert({
           business_id: sheet.business_id,
-          full_name: rawName || rawEmail || phone || 'Sheet lead',
-          phone,
+          full_name: rawName || 'Unknown',
+          phone: phone || null,
           email: rawEmail || null,
           city: rawCity || null,
           lead_source: sheet.provider,
+          confirmed: false,
         })
         .select('id')
         .single()
@@ -377,6 +394,18 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
         continue
       }
       contactId = contact.id
+    } else {
+      // Backfill missing fields on an existing contact matched by phone/email.
+      const { data: existing } = await sb
+        .from('contacts').select('full_name, phone, email, city').eq('id', contactId).single()
+      if (existing) {
+        const patch: Record<string, string | null> = {}
+        if ((!existing.full_name || existing.full_name === 'New Lead' || existing.full_name === 'Unknown') && rawName) patch.full_name = rawName
+        if (!existing.phone && phone) patch.phone = phone
+        if (!existing.email && rawEmail) patch.email = rawEmail
+        if (!existing.city && rawCity) patch.city = rawCity
+        if (Object.keys(patch).length) await sb.from('contacts').update(patch).eq('id', contactId)
+      }
     }
 
     // Build "Full Name - City" title
@@ -433,7 +462,10 @@ async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
   const rows = parseCsv(text)
   if (rows.length < 2) return { updated: 0 }
   const headers = rows[0]
-  const map = (await aiMap(headers, rows.slice(1, 4))) ?? heuristicMap(headers)
+  const aiResult2 = await aiMap(headers, rows.slice(1, 4))
+  const map = (aiResult2 && nameColumnLooksValid(aiResult2, rows.slice(1, 4)))
+    ? aiResult2
+    : heuristicMap(headers)
 
   const { data: stageRows } = await sb
     .from('stage_settings').select('stage, label').eq('business_id', sheet.business_id)
@@ -497,18 +529,14 @@ async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
       if (!error) updated++
     }
 
-    // Fix contact full_name if it looks like a phone number (E.164) or is missing
-    if (rawName && entry.contactId) {
+    // Fix any old contacts whose full_name was set to a phone number → "New Lead"
+    if (entry.contactId) {
       const { data: contact } = await sb
-        .from('contacts').select('full_name, city').eq('id', entry.contactId).single()
+        .from('contacts').select('full_name').eq('id', entry.contactId).single()
       if (contact) {
-        // Matches bare E.164 (+14165551234) AND prefix-style (p:+14165551234, p: +1...)
         const nameIsPhone = /^\+?\d[\d\s\-().]{6,}$|^[a-z]{1,4}:\s*\+?\d/i.test((contact.full_name ?? '').trim())
-        const contactPatch: Record<string, string | null> = {}
-        if (nameIsPhone || !contact.full_name) contactPatch.full_name = rawName
-        if (rawCity && !contact.city) contactPatch.city = rawCity
-        if (Object.keys(contactPatch).length) {
-          await sb.from('contacts').update(contactPatch).eq('id', entry.contactId)
+        if (nameIsPhone) {
+          await sb.from('contacts').update({ full_name: 'New Lead', phone: null, email: null }).eq('id', entry.contactId)
         }
       }
     }

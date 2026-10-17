@@ -3,12 +3,22 @@ import { normalizePhone } from '../../../lib/format'
 import { useContact, useUpdateContact, CONTACT_TYPE_LABELS } from '../api'
 import type { ContactType } from '../api'
 
+const GRADE_COLORS: Record<number, string> = {
+  1: 'bg-red-500 text-white',
+  2: 'bg-orange-400 text-white',
+  3: 'bg-yellow-400 text-stone-900',
+  4: 'bg-lime-400 text-stone-900',
+  5: 'bg-emerald-500 text-white',
+}
+const GRADE_LABELS: Record<number, string> = { 1: 'Cold', 2: 'Lukewarm', 3: 'Warm', 4: 'Hot', 5: 'On fire' }
+
 interface Props {
   contactId: string
+  fallbackCity?: string
   onClose: () => void
 }
 
-export function ContactQuickEditPanel({ contactId, onClose }: Props) {
+export function ContactQuickEditPanel({ contactId, fallbackCity, onClose }: Props) {
   const { data: contact, isPending, isError } = useContact(contactId)
   const update = useUpdateContact()
   const [form, setForm] = useState({
@@ -17,6 +27,7 @@ export function ContactQuickEditPanel({ contactId, onClose }: Props) {
     email: '',
     city: '',
     contact_type: '' as ContactType | '',
+    lead_grade: null as number | null,
     notes: '',
   })
   const [phoneError, setPhoneError] = useState<string | null>(null)
@@ -29,8 +40,9 @@ export function ContactQuickEditPanel({ contactId, onClose }: Props) {
       full_name: contact.full_name,
       phone: contact.phone ?? '',
       email: contact.email ?? '',
-      city: contact.city ?? '',
+      city: contact.city ?? fallbackCity ?? '',
       contact_type: contact.contact_type ?? '',
+      lead_grade: contact.lead_grade ?? null,
       notes: contact.notes ?? '',
     })
   }, [contact])
@@ -51,6 +63,7 @@ export function ContactQuickEditPanel({ contactId, onClose }: Props) {
         email: form.email.trim() || null,
         city: form.city.trim() || null,
         contact_type: (form.contact_type as ContactType) || null,
+        lead_grade: form.lead_grade,
         notes: form.notes.trim() || null,
         // keep unchanged fields by omitting them (Partial<ContactInput>)
         address: contact?.address ?? null,
@@ -159,6 +172,29 @@ export function ContactQuickEditPanel({ contactId, onClose }: Props) {
                   Clear type
                 </button>
               )}
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-stone-600">Lead grade</label>
+              <div className="flex gap-1.5">
+                {[1, 2, 3, 4, 5].map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setForm({ ...form, lead_grade: form.lead_grade === g ? null : g })}
+                    title={GRADE_LABELS[g]}
+                    className={`h-8 w-8 rounded text-sm font-bold transition-transform hover:scale-110 ${
+                      form.lead_grade === g
+                        ? GRADE_COLORS[g] + ' ring-2 ring-stone-900/20'
+                        : 'bg-stone-100 text-stone-400 hover:bg-stone-200'
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+                {form.lead_grade && (
+                  <span className="ml-1 self-center text-xs text-stone-500">{GRADE_LABELS[form.lead_grade]}</span>
+                )}
+              </div>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-stone-600">Notes</label>

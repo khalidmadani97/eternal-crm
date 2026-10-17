@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { LeadSheetsDialog } from '../../leads/components/LeadSheetsDialog'
-import { useLeadSheets, useSyncLeadSheets } from '../../leads/api'
+import { useLeadSheets, useSearchLeads, useSyncLeadSheets } from '../../leads/api'
 import { useCreatePipeline, usePipelines, useWorkspaceStages } from '../api'
+import type { JobStage } from '../api'
 import { NewJobDialog } from '../components/NewJobDialog'
 import { JobsTable } from '../components/JobsTable'
 import { StageBoard } from '../components/StageBoard'
+import { ArchivedJobsTable } from '../components/ArchivedJobsTable'
 
-type View = 'board' | 'list'
+type View = 'board' | 'list' | 'archived'
 
 /** Leads workspace (Slice 27, GHL-style): board or list. Winning a lead
  *  moves it to the Jobs workspace automatically — membership is the stage. */
@@ -40,6 +43,7 @@ export function PipelinePage() {
       <div className="mb-2 flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold text-stone-900">Pipeline</h1>
         <ViewToggle view={view} onChange={setView} />
+        <LeadSearchBox />
         <button
           onClick={() => setShowSources(true)}
           className="ml-auto rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50"
@@ -90,7 +94,7 @@ export function PipelinePage() {
           <span className="ml-auto pb-1 text-xs text-stone-400">Win a lead and it moves to Jobs.</span>
         </div>
       )}
-      {view === 'board' ? (
+      {view === 'board' && (
         <StageBoard
           stages={stages}
           detailPath="/leads"
@@ -98,11 +102,20 @@ export function PipelinePage() {
           pipelineId={currentPipeline?.id ?? null}
           isDefaultPipeline={isDefaultPipeline}
         />
-      ) : (
+      )}
+      {view === 'list' && (
         <JobsTable
           stages={stages}
-          newJobStage="new"
+          newJobStage={(stages[0] ?? 'new') as JobStage}
           newJobLabel="New lead"
+          detailPath="/leads"
+          pipelineId={currentPipeline?.id ?? null}
+          isDefaultPipeline={isDefaultPipeline}
+        />
+      )}
+      {view === 'archived' && (
+        <ArchivedJobsTable
+          stages={stages}
           detailPath="/leads"
           pipelineId={currentPipeline?.id ?? null}
           isDefaultPipeline={isDefaultPipeline}
@@ -111,7 +124,7 @@ export function PipelinePage() {
       {showSources && <LeadSheetsDialog onClose={() => setShowSources(false)} />}
       {showNewLead && (
         <NewJobDialog
-          initialStage="new"
+          initialStage={(stages[0] ?? 'new') as JobStage}
           pipelineId={currentPipeline?.id ?? null}
           onClose={() => setShowNewLead(false)}
         />
@@ -120,10 +133,73 @@ export function PipelinePage() {
   )
 }
 
+function LeadSearchBox() {
+  const [term, setTerm] = useState('')
+  const [open, setOpen] = useState(false)
+  const { data: results, isFetching } = useSearchLeads(term)
+  const navigate = useNavigate()
+  const boxRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      if (!boxRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [])
+
+  const go = (id: string) => {
+    setTerm('')
+    setOpen(false)
+    void navigate(`/leads/${id}`)
+  }
+
+  return (
+    <div ref={boxRef} className="relative">
+      <input
+        type="search"
+        value={term}
+        onChange={(e) => { setTerm(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        placeholder="Search leads…"
+        className="w-44 rounded border border-stone-300 bg-white px-3 py-1.5 text-sm focus:border-amber-600 focus:outline-none sm:w-56"
+      />
+      {open && term.trim().length >= 2 && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-80 overflow-hidden rounded-lg border border-stone-200 bg-white shadow-xl">
+          {isFetching && (
+            <p className="px-3 py-2 text-sm text-stone-400">Searching…</p>
+          )}
+          {!isFetching && (!results || results.length === 0) && (
+            <p className="px-3 py-2 text-sm text-stone-400">No leads found.</p>
+          )}
+          {results?.map((r) => (
+            <button
+              key={r.jobId}
+              onMouseDown={() => go(r.jobId)}
+              className="flex w-full flex-col px-3 py-2.5 text-left hover:bg-amber-50"
+            >
+              <span className="text-sm font-medium text-stone-900">
+                {r.parsedName ?? r.title}
+              </span>
+              <span className="text-xs text-stone-400">
+                {r.jobNumber}
+                {r.parsedPhone && ` · ${r.parsedPhone}`}
+                {r.title && r.parsedName && r.title !== r.parsedName && (
+                  <> · {r.title}</>
+                )}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => void }) {
   return (
     <div className="flex rounded border border-stone-300 text-sm">
-      {(['board', 'list'] as View[]).map((v) => (
+      {(['board', 'list', 'archived'] as View[]).map((v) => (
         <button
           key={v}
           onClick={() => onChange(v)}

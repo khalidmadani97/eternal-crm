@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 
@@ -19,9 +19,9 @@ export const JOB_STAGES: JobStage[] = [
 ]
 
 const JOB_LIST_SELECT = `
-  id, job_number, title, summary, stage, pipeline_id, close_grade, margin_grade, value_est, value_final, profit_est, profit_final, lead_source,
-  site_address, created_at,
-  contact:contacts ( id, full_name, phone, last_contacted_at, last_contact_method ),
+  id, job_number, title, summary, stage, pipeline_id, close_grade, margin_grade, value_est, value_final, profit_est, profit_final, lead_source, direction, deposit_paid, balance_paid,
+  site_address, created_at, updated_at, follow_up,
+  contact:contacts ( id, full_name, phone, last_contacted_at, last_contact_method, confirmed ),
   company:companies ( id, name ),
   assignee:profiles ( id, full_name ),
   appointments ( id, kind, starts_at )
@@ -41,14 +41,20 @@ export interface JobListRow {
   profit_est: number | null
   profit_final: number | null
   lead_source: string | null
+  direction: 'north' | 'south' | 'east' | 'west' | null
+  deposit_paid: boolean
+  balance_paid: boolean
   site_address: string | null
   created_at: string
+  updated_at: string
+  follow_up: boolean
   contact: {
     id: string
     full_name: string
     phone: string | null
     last_contacted_at: string | null
     last_contact_method: string | null
+    confirmed: boolean
   } | null
   company: { id: string; name: string } | null
   assignee: { id: string; full_name: string | null } | null
@@ -89,6 +95,7 @@ export interface NewJobInput {
   value_est: number | null
   profit_est?: number | null
   lead_source: string | null
+  direction?: 'north' | 'south' | 'east' | 'west' | null
 }
 
 export function useCreateJob() {
@@ -132,9 +139,13 @@ export interface JobDetail {
   profit_est: number | null
   profit_final: number | null
   lead_source: string | null
+  direction: 'north' | 'south' | 'east' | 'west' | null
+  deposit_paid: boolean
+  balance_paid: boolean
+  follow_up: boolean
   lost_reason: string | null
   created_at: string
-  contact: { id: string; full_name: string; phone: string | null } | null
+  contact: { id: string; full_name: string; phone: string | null; confirmed: boolean } | null
   company: { id: string; name: string } | null
   assignee: { id: string; full_name: string | null } | null
 }
@@ -147,8 +158,8 @@ export function useJob(id: string) {
         .from('jobs')
         .select(
           `id, job_number, title, summary, stage, site_address, city, extra, close_grade, margin_grade, value_est, value_final, profit_est, profit_final,
-           lead_source, lost_reason, created_at,
-           contact:contacts ( id, full_name, phone ),
+           lead_source, direction, deposit_paid, balance_paid, follow_up, lost_reason, created_at,
+           contact:contacts ( id, full_name, phone, confirmed ),
            company:companies ( id, name ),
            assignee:profiles ( id, full_name )`,
         )
@@ -175,10 +186,23 @@ export interface UpdateJobInput {
     profit_est: number | null
     profit_final: number | null
     lead_source: string | null
+    direction: 'north' | 'south' | 'east' | 'west' | null
     assigned_to: string | null
     stage: JobStage
     lost_reason: string
+    deposit_paid: boolean
+    balance_paid: boolean
   }>
+}
+
+/** Returns true for stages that should trigger a conversion event.
+ *  Won always qualifies. Visible custom stages (not hidden) also qualify
+ *  so a "Completed" pipeline stage fires the same event. */
+function isConversionStage(stage: JobStage, queryClient: QueryClient): boolean {
+  if (stage === 'won') return true
+  if (!stage.startsWith('custom_')) return false
+  const settings = queryClient.getQueryData<StageSetting[]>(['stage-settings'])
+  return settings?.some((s) => s.stage === stage && !s.hidden) ?? false
 }
 
 export function useUpdateJob() {
@@ -191,10 +215,33 @@ export function useUpdateJob() {
     onSuccess: (_data, { id, patch }) => {
       void queryClient.invalidateQueries({ queryKey: ['jobs'] })
       void queryClient.invalidateQueries({ queryKey: ['activities', id] })
-      if (patch.stage === 'won') {
+      if (patch.stage && isConversionStage(patch.stage, queryClient)) {
         void supabase.functions.invoke('process-conversions', { body: {} })
       }
     },
+  })
+}
+
+export function useToggleFollowUp() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, value }: { id: string; value: boolean }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await supabase.from('jobs').update({ follow_up: value } as any).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+  })
+}
+
+export function useConfirmContact() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (contactId: string) => {
+      const { error } = await supabase.from('contacts').update({ confirmed: true } as never).eq('id', contactId)
+      if (error) throw error
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['jobs'] }),
   })
 }
 
@@ -233,6 +280,19 @@ export function useDeleteNote(jobId: string) {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['activities'] })
+      void queryClient.invalidateQueries({ queryKey: ['activities', jobId] })
+    },
+  })
+}
+
+export function useUpdateNote(jobId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, body }: { id: string; body: string }) => {
+      const { error } = await supabase.from('activities').update({ body }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['activities', jobId] })
     },
   })
@@ -368,6 +428,7 @@ export interface JobTask {
   title: string
   due_date: string | null
   completed_at: string | null
+  is_next_step: boolean
   assignee: { id: string; full_name: string | null } | null
 }
 
@@ -377,7 +438,7 @@ export function useJobTasks(jobId: string) {
     queryFn: async (): Promise<JobTask[]> => {
       const { data, error } = await supabase
         .from('tasks')
-        .select('id, title, due_date, completed_at, assignee:profiles ( id, full_name )')
+        .select('id, title, due_date, completed_at, is_next_step, assignee:profiles ( id, full_name )')
         .eq('job_id', jobId)
         .order('created_at', { ascending: true })
       if (error) throw error
@@ -389,14 +450,30 @@ export function useJobTasks(jobId: string) {
 export function useAddTask(jobId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ title, dueDate }: { title: string; dueDate: string | null }) => {
-      const { error } = await supabase
-        .from('tasks')
-        .insert({ job_id: jobId, title, due_date: dueDate })
+    mutationFn: async ({
+      title,
+      dueDate,
+      assignedTo,
+      isNextStep,
+    }: {
+      title: string
+      dueDate: string | null
+      assignedTo?: string | null
+      isNextStep?: boolean
+    }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await supabase.from('tasks').insert({
+        job_id: jobId,
+        title,
+        due_date: dueDate,
+        assigned_to: assignedTo ?? null,
+        is_next_step: isNextStep ?? false,
+      } as any)
       if (error) throw error
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['tasks', jobId] })
+      void queryClient.invalidateQueries({ queryKey: ['tasks', 'all'] })
     },
   })
 }
@@ -413,6 +490,34 @@ export function useToggleTask(jobId: string) {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['tasks', jobId] })
+    },
+  })
+}
+
+export function useArchivedJobs() {
+  return useQuery({
+    queryKey: ['jobs', 'archived'],
+    queryFn: async (): Promise<JobListRow[]> => {
+      const { data, error } = await supabase
+        .from('jobs')
+        .select(JOB_LIST_SELECT)
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false })
+      if (error) throw error
+      return data as unknown as JobListRow[]
+    },
+  })
+}
+
+export function useRestoreJob() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('jobs').update({ deleted_at: null }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['jobs'] })
     },
   })
 }
@@ -465,10 +570,10 @@ export function useMoveJobStage() {
       if (context?.previous) queryClient.setQueryData(['jobs', 'list'], context.previous)
     },
     onSuccess: (_data, { stage }) => {
-      // Fire-and-forget conversion event when a job is won. The queue row
-      // was already written by the DB trigger; this processes it immediately.
-      // Failures are visible in Settings → Ad tracking → Retry.
-      if (stage === 'won') {
+      // Fire-and-forget conversion event when a job is won or moves to a
+      // visible custom stage (e.g. "Completed"). Queue row written by DB
+      // trigger; this processes it immediately. See Settings → Ad tracking.
+      if (isConversionStage(stage, queryClient)) {
         void supabase.functions.invoke('process-conversions', { body: {} })
       }
     },
@@ -531,22 +636,41 @@ export function useSaveStageSettings() {
 export const PIPELINE_STAGES: JobStage[] = ['new', 'contacted', 'quoted', 'follow_up', 'won', 'lost']
 export const PRODUCTION_STAGES: JobStage[] = ['won', 'templated', 'fabrication', 'scheduled', 'installed', 'closed']
 
-/** Settings-driven stage list for a workspace. Pipeline always ends with
- *  Won/Lost terminals; production always includes Won as the intake. Custom
- *  columns appear in whichever phase their setting assigns. */
+/** Settings-driven stage list for a workspace. Stage order is fully driven
+ *  by the position field in stage_settings — won and lost are no longer
+ *  pinned to the end of pipeline so custom stages can appear after them. */
 export function useWorkspaceStages(
   phase: 'pipeline' | 'production',
   pipelineId?: string | null,
 ): JobStage[] {
   const { data: settings } = useStageSettings()
   if (!settings) return phase === 'pipeline' ? PIPELINE_STAGES : PRODUCTION_STAGES
+
+  if (phase === 'pipeline') {
+    // Include pipeline-phase stages + won (which lives in production settings
+    // but is shared as a pipeline terminal). Sort everything by position.
+    const relevant = settings.filter(
+      (s) =>
+        (s.phase === 'pipeline' || s.stage === 'won') &&
+        (!pipelineId || s.pipeline_id === pipelineId || s.stage === 'won'),
+    )
+    const stages = relevant
+      .sort((a, b) => a.position - b.position)
+      .map((s) => s.stage as JobStage)
+    const unique = [...new Set(stages)]
+    if (!unique.includes('won')) unique.push('won')
+    if (!unique.includes('lost')) unique.push('lost')
+    return unique
+  }
+
+  // Production: sort by position, guarantee won is present
   const ordered = settings
-    .filter((s) => s.phase === phase && s.stage !== 'won' && s.stage !== 'lost')
-    .filter((s) => phase === 'production' || !pipelineId || s.pipeline_id === pipelineId)
+    .filter((s) => s.phase === 'production')
     .sort((a, b) => a.position - b.position)
-    .map((s) => s.stage)
+    .map((s) => s.stage as JobStage)
   const unique = [...new Set(ordered)]
-  return phase === 'pipeline' ? [...unique, 'won', 'lost'] : ['won', ...unique.filter((s) => s !== 'won')]
+  if (!unique.includes('won')) unique.unshift('won')
+  return unique
 }
 
 // ── Pipelines (Slice 45) ─────────────────────────────────────────────────────

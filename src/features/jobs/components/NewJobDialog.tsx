@@ -32,6 +32,8 @@ export function NewJobDialog({ onClose, initialStage = 'new', pipelineId = null 
   const contactId = watch('contact_id')
   const [selectedContact, setSelectedContact] = useState<ContactOption | null>(null)
 
+  const [direction, setDirection] = useState<'north' | 'south' | 'east' | 'west' | ''>('')
+
   const onSubmit = async (values: NewJobForm) => {
     await createJob.mutateAsync({
       contact_id: values.contact_id,
@@ -43,6 +45,7 @@ export function NewJobDialog({ onClose, initialStage = 'new', pipelineId = null 
       value_est: values.value_est ? Number(values.value_est) : null,
       profit_est: values.profit_est ? Number(values.profit_est) : null,
       lead_source: values.lead_source || null,
+      direction: (direction as 'north' | 'south' | 'east' | 'west') || null,
     })
     onClose()
   }
@@ -123,6 +126,22 @@ export function NewJobDialog({ onClose, initialStage = 'new', pipelineId = null 
               className="w-full rounded border border-stone-300 px-3 py-2 text-sm focus:border-amber-600 focus:outline-none"
               {...register('site_address')}
             />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-stone-700">
+              Direction <span className="font-normal text-stone-400">(from Toronto)</span>
+            </label>
+            <select
+              value={direction}
+              onChange={(e) => setDirection(e.target.value as typeof direction)}
+              className="w-full rounded border border-stone-300 px-3 py-2 text-sm focus:border-amber-600 focus:outline-none"
+            >
+              <option value="">—</option>
+              <option value="north">North</option>
+              <option value="south">South</option>
+              <option value="east">East</option>
+              <option value="west">West</option>
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

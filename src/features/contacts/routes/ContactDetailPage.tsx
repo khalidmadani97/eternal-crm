@@ -1,11 +1,32 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { StageBadge } from '../../jobs/components/StageBadge'
+import { PIPELINE_STAGES, PRODUCTION_STAGES } from '../../jobs/api'
 import type { JobStage } from '../../jobs/api'
+
+const jobPath = (stage: string) =>
+  PIPELINE_STAGES.includes(stage as JobStage) && !PRODUCTION_STAGES.includes(stage as JobStage)
+    ? '/leads'
+    : '/jobs'
 import { formatCurrency, formatDate, formatPhone } from '../../../lib/format'
 import { formatAgo } from '../../../lib/format'
 import { CONTACT_METHOD_LABELS, CONTACT_TYPE_LABELS, useContact, useSoftDeleteContact, useUpdateContact } from '../api'
 import type { ContactMethod, ContactType } from '../api'
+
+const LEAD_GRADE_COLORS: Record<number, string> = {
+  1: 'bg-red-500 text-white',
+  2: 'bg-orange-400 text-white',
+  3: 'bg-yellow-400 text-stone-900',
+  4: 'bg-lime-400 text-stone-900',
+  5: 'bg-emerald-500 text-white',
+}
+const LEAD_GRADE_LABELS: Record<number, string> = {
+  1: 'Cold',
+  2: 'Lukewarm',
+  3: 'Warm',
+  4: 'Hot',
+  5: 'On fire',
+}
 import { ContactForm } from '../components/ContactForm'
 import { ContactTimeline } from '../components/ContactTimeline'
 import { LogContactDialog } from '../components/LogContactDialog'
@@ -100,6 +121,34 @@ export function ContactDetailPage() {
             />
             <Row label="Lead source" value={contact.lead_source ?? '—'} />
             <Row
+              label="Lead grade"
+              value={
+                <div className="mt-0.5 flex gap-1">
+                  {[1, 2, 3, 4, 5].map((g) => (
+                    <button
+                      key={g}
+                      onClick={() =>
+                        updateContact.mutate({ id: contact.id, input: { lead_grade: contact.lead_grade === g ? null : g } })
+                      }
+                      title={LEAD_GRADE_LABELS[g]}
+                      className={`h-7 w-7 rounded text-xs font-bold transition-transform hover:scale-110 ${
+                        contact.lead_grade === g
+                          ? LEAD_GRADE_COLORS[g] + ' ring-2 ring-stone-900/20'
+                          : 'bg-stone-100 text-stone-400 hover:bg-stone-200'
+                      }`}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                  {contact.lead_grade && (
+                    <span className="ml-2 self-center text-xs text-stone-500">
+                      {LEAD_GRADE_LABELS[contact.lead_grade]}
+                    </span>
+                  )}
+                </div>
+              }
+            />
+            <Row
               label="Last contacted"
               value={
                 <span className="flex items-center gap-2">
@@ -141,7 +190,7 @@ export function ContactDetailPage() {
                   .map((j) => (
                     <tr key={j.id} className="border-b border-stone-100 last:border-0">
                       <td className="py-2 pr-3 font-medium">
-                        <Link to={`/jobs/${j.id}`} className="text-stone-900 hover:text-amber-700 hover:underline">
+                        <Link to={`${jobPath(j.stage)}/${j.id}`} className="text-stone-900 hover:text-amber-700 hover:underline">
                           {j.job_number}
                         </Link>
                       </td>

@@ -11,6 +11,7 @@ import {
   useSaveStageSettings,
   useStageSettings,
   useUpdateJob,
+  useToggleFollowUp,
   useBulkArchiveJobs,
   CLOSE_GRADE_STYLES,
   marginSigns,
@@ -36,14 +37,32 @@ export function StageBoard({
   const { data: stageSettings } = useStageSettings()
   const { data: profiles } = useProfiles()
   const { session } = useAuth()
+  const [searchTerm, setSearchTerm] = useState('')
   const [assigneeFilter, setAssigneeFilter] = useState('all')
+  const [sourceFilter, setSourceFilter] = useState('all')
+  const [directionFilter, setDirectionFilter] = useState('all')
   const moveStage = useMoveJobStage()
   const updateJob = useUpdateJob()
+  const toggleFollowUp = useToggleFollowUp()
   const archiveJob = useBulkArchiveJobs()
   const [dragId, setDragId] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState<JobStage | null>(null)
   const [pendingLost, setPendingLost] = useState<string | null>(null)
   const [customizing, setCustomizing] = useState(false)
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+
+  const exitSelection = () => {
+    setSelectionMode(false)
+    setSelectedIds(new Set())
+  }
   // Mobile: jump-bar chips track which column fills the screen (snap scroll).
   const boardRef = useRef<HTMLDivElement>(null)
   const [activeStage, setActiveStage] = useState<JobStage | null>(null)
@@ -98,6 +117,17 @@ export function StageBoard({
       if (assigneeFilter === 'none') return !j.assignee
       return j.assignee?.id === assigneeFilter
     })
+    .filter((j) => sourceFilter === 'all' || j.lead_source === sourceFilter)
+    .filter((j) => directionFilter === 'all' || j.direction === directionFilter)
+    .filter((j) => {
+      if (!searchTerm.trim()) return true
+      const q = searchTerm.toLowerCase()
+      return (
+        j.title.toLowerCase().includes(q) ||
+        (j.contact?.full_name ?? '').toLowerCase().includes(q) ||
+        (j.summary ?? '').toLowerCase().includes(q)
+      )
+    })
 
   const drop = (stage: JobStage) => {
     setDragOver(null)
@@ -128,8 +158,17 @@ export function StageBoard({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-3 flex items-center justify-end">
-        <div className="flex items-center gap-3">
+      <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Search */}
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search…"
+            className="w-36 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-amber-600 focus:outline-none sm:w-48"
+          />
+          {/* Owner */}
           <select
             value={assigneeFilter}
             onChange={(e) => setAssigneeFilter(e.target.value)}
@@ -145,17 +184,75 @@ export function StageBoard({
               </option>
             ))}
           </select>
+          {/* Source */}
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            className="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
+            aria-label="Filter by source"
+          >
+            <option value="all">All sources</option>
+            {[...new Set((jobs ?? []).map((j) => j.lead_source).filter(Boolean))].sort().map((s) => (
+              <option key={s} value={s!}>{s}</option>
+            ))}
+          </select>
+          {/* Direction */}
+          <select
+            value={directionFilter}
+            onChange={(e) => setDirectionFilter(e.target.value)}
+            className="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
+            aria-label="Filter by direction"
+          >
+            <option value="all">All directions</option>
+            <option value="north">North</option>
+            <option value="south">South</option>
+            <option value="east">East</option>
+            <option value="west">West</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
           {moveStage.isError && (
             <span className="text-sm text-red-600">
               Move failed — the card has been put back. {moveStage.error.message}
             </span>
           )}
-          <button
-            onClick={() => setCustomizing(true)}
-            className="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50"
-          >
-            Customize stages
-          </button>
+          {selectionMode ? (
+            <>
+              {selectedIds.size > 0 && (
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Archive ${selectedIds.size} lead${selectedIds.size > 1 ? 's' : ''}? They will be hidden from the board.`))
+                      archiveJob.mutate([...selectedIds], { onSuccess: exitSelection })
+                  }}
+                  disabled={archiveJob.isPending}
+                  className="rounded border border-stone-300 bg-red-50 px-3 py-1.5 text-sm text-red-700 hover:bg-red-100 disabled:opacity-50"
+                >
+                  {archiveJob.isPending ? 'Archiving…' : `Archive ${selectedIds.size} selected`}
+                </button>
+              )}
+              <button
+                onClick={exitSelection}
+                className="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setSelectionMode(true)}
+                className="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50"
+              >
+                Select
+              </button>
+              <button
+                onClick={() => setCustomizing(true)}
+                className="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50"
+              >
+                Customize stages
+              </button>
+            </>
+          )}
         </div>
       </div>
       {scoped && scoped.length === 0 && (
@@ -224,6 +321,9 @@ export function StageBoard({
                     job={job}
                     dragging={dragId === job.id}
                     detailPath={detailPath}
+                    selectionMode={selectionMode}
+                    selected={selectedIds.has(job.id)}
+                    onToggleSelect={() => toggleSelect(job.id)}
                     onDragStart={() => setDragId(job.id)}
                     onDragEnd={() => setDragId(null)}
                     onMoveWon={() => moveStage.mutate({ id: job.id, stage: 'won' })}
@@ -235,6 +335,7 @@ export function StageBoard({
                       if (window.confirm(`Delete "${job.title}"?\nThis cannot be undone.`))
                         archiveJob.mutate([job.id])
                     }}
+                    onToggleFollowUp={() => toggleFollowUp.mutate({ id: job.id, value: !job.follow_up })}
                   />
                 ))}
               </div>
@@ -262,22 +363,30 @@ function BoardCard({
   job,
   dragging,
   detailPath,
+  selectionMode,
+  selected,
+  onToggleSelect,
   onDragStart,
   onDragEnd,
   onMoveWon,
   onMoveLost,
   onAssignMe,
   onDelete,
+  onToggleFollowUp,
 }: {
   job: JobListRow
   dragging: boolean
   detailPath: string
+  selectionMode: boolean
+  selected: boolean
+  onToggleSelect: () => void
   onDragStart: () => void
   onDragEnd: () => void
   onMoveWon: () => void
   onMoveLost: () => void
   onAssignMe: () => void
   onDelete: () => void
+  onToggleFollowUp: () => void
 }) {
   const install = installDate(job)
   const navigate = useNavigate()
@@ -300,21 +409,41 @@ function BoardCard({
 
   return (
     <div
-      draggable
-      onClick={() => void navigate(`${detailPath}/${job.id}`)}
+      draggable={!selectionMode}
+      onClick={() => {
+        if (selectionMode) { onToggleSelect(); return }
+        void navigate(`${detailPath}/${job.id}`)
+      }}
       onDragStart={(e) => {
+        if (selectionMode) { e.preventDefault(); return }
         // Safari refuses to start a drag without data; keep it text/plain.
         e.dataTransfer.setData('text/plain', job.id)
         e.dataTransfer.effectAllowed = 'move'
         onDragStart()
       }}
       onDragEnd={onDragEnd}
-      className={`cursor-pointer rounded border p-3.5 shadow-sm transition-shadow hover:shadow ${
-        job.close_grade
+      className={`relative cursor-pointer rounded border p-3.5 shadow-sm transition-shadow hover:shadow ${
+        selected
+          ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-400'
+          : job.close_grade
           ? CLOSE_GRADE_STYLES[job.close_grade]
           : 'border-stone-200 bg-white hover:border-amber-300'
       } ${dragging ? 'opacity-40' : ''}`}
     >
+      {selectionMode && (
+        <span
+          className={`absolute left-2 top-2 flex h-4 w-4 items-center justify-center rounded border-2 ${
+            selected ? 'border-amber-500 bg-amber-500' : 'border-stone-300 bg-white'
+          }`}
+          aria-hidden
+        >
+          {selected && (
+            <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1.5 4.5l2 2 4-4"/>
+            </svg>
+          )}
+        </span>
+      )}
       {/* Row 1: job number + value + menu */}
       <div className="flex items-center justify-between gap-2">
         <Link
@@ -374,17 +503,33 @@ function BoardCard({
         <p className="truncate text-xs text-stone-500">{job.summary}</p>
       )}
 
-      {/* Row 4: contact name + phone */}
+      {/* Row 4: contact name + phone + unconfirmed badge */}
       <div className="mt-1 flex items-baseline justify-between gap-2">
-        <span className="truncate text-xs text-stone-600">{job.contact?.full_name ?? '—'}</span>
+        <span className="flex items-center gap-1 truncate text-xs text-stone-600">
+          {job.contact?.full_name ?? '—'}
+          {job.contact && !job.contact.confirmed && (
+            <span className="rounded bg-orange-100 px-1 py-0.5 text-xs font-medium text-orange-700">
+              Unconfirmed
+            </span>
+          )}
+        </span>
         {job.contact?.phone && (
           <span className="shrink-0 text-xs tabular-nums text-stone-400">{job.contact.phone}</span>
         )}
       </div>
 
-      {/* Row 5: install date + assignee */}
+      {/* Row 5: payments + install date + assignee */}
       <div className="mt-1 flex items-center justify-between text-xs text-stone-400">
-        <span>{install ? `Install ${formatDate(install)}` : ''}</span>
+        <div className="flex items-center gap-1.5">
+          <PaymentDot label="D" paid={job.deposit_paid} />
+          <PaymentDot label="B" paid={job.balance_paid} />
+          {install && <span className="ml-0.5">· Install {formatDate(install)}</span>}
+          {job.follow_up && (
+            <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-semibold text-emerald-700">
+              Follow up
+            </span>
+          )}
+        </div>
         <span className="truncate pl-2 text-right">{job.assignee?.full_name ?? ''}</span>
       </div>
 
@@ -416,6 +561,12 @@ function BoardCard({
             icon={<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><circle cx="6.5" cy="4" r="2.3"/><path d="M1.5 11.5c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5"/></svg>}
             label="Assign to me"
           />
+          <CardMenuItem
+            onClick={() => { setMenuPos(null); onToggleFollowUp() }}
+            icon={<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 1v2M6.5 10v2M1 6.5h2M10 6.5h2M2.9 2.9l1.4 1.4M8.7 8.7l1.4 1.4M2.9 10.1l1.4-1.4M8.7 4.3l1.4-1.4"/><circle cx="6.5" cy="6.5" r="2"/></svg>}
+            label={job.follow_up ? 'Clear follow up' : 'Mark follow up'}
+            className={job.follow_up ? 'text-emerald-700 hover:bg-emerald-50' : ''}
+          />
           <div className="my-1 border-t border-stone-100" />
           <CardMenuItem
             onClick={() => { setMenuPos(null); onDelete() }}
@@ -427,6 +578,28 @@ function BoardCard({
         document.body,
       )}
     </div>
+  )
+}
+
+function PaymentDot({ label, paid }: { label: string; paid: boolean }) {
+  return (
+    <span
+      title={`${label === 'D' ? 'Deposit' : 'Balance'} ${paid ? 'paid' : 'unpaid'}`}
+      className={`inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-xs font-semibold ${
+        paid ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-400'
+      }`}
+    >
+      {label}
+      {paid ? (
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M1.5 4.5l2 2 4-4"/>
+        </svg>
+      ) : (
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+          <path d="M2 2l5 5M7 2L2 7"/>
+        </svg>
+      )}
+    </span>
   )
 }
 
@@ -471,82 +644,131 @@ function CustomizeStagesDialog({
   onClose: () => void
 }) {
   const save = useSaveStageSettings()
-  const [rows, setRows] = useState<StageSetting[]>(
-    settings
-      .filter((s) =>
-        phase === 'production' ? s.pipeline_id === null : !pipelineId || s.pipeline_id === pipelineId,
-      )
-      .map((s) => ({ ...s })),
-  )
 
-  const move = (index: number, dir: -1 | 1) => {
-    const target = index + dir
-    if (target < 0 || target >= rows.length) return
-    const next = [...rows]
-    ;[next[index], next[target]] = [next[target], next[index]]
-    setRows(next.map((r, i) => ({ ...r, position: i })))
+  const [rows, setRows] = useState<StageSetting[]>(() => {
+    // Base: stages that belong to this phase/pipeline
+    const base = settings
+      .filter((s) =>
+        phase === 'production'
+          ? s.pipeline_id === null
+          : s.pipeline_id === pipelineId,
+      )
+      .map((s) => ({ ...s }))
+
+    // Pipeline dialog also needs won (it lives in production settings but is a pipeline terminal).
+    // Explicitly look it up from settings and append if not already present.
+    if (phase === 'pipeline') {
+      const wonRow = settings.find((s) => s.stage === 'won')
+      if (wonRow && !base.find((r) => r.stage === 'won')) {
+        base.push({ ...wonRow })
+      }
+    }
+    return base
+  })
+
+  // Drag order: visible stage keys sorted by current position
+  const [order, setOrder] = useState<string[]>(() => {
+    const visible = rows
+      .filter((r) => !(r.stage.startsWith('custom_') && r.hidden))
+      .sort((a, b) => a.position - b.position)
+    // Production dialog: all production stages. Pipeline: pipeline + won.
+    const relevant =
+      phase === 'pipeline' ? visible.filter((r) => r.phase === 'pipeline' || r.stage === 'won') : visible
+    return relevant.map((r) => r.stage)
+  })
+
+  const [dragging, setDragging] = useState<string | null>(null)
+
+  const orderedRows = order
+    .map((stage) => rows.find((r) => r.stage === stage))
+    .filter((r): r is StageSetting => !!r)
+
+  const onDragStart = (e: React.DragEvent, stage: string) => {
+    e.dataTransfer.effectAllowed = 'move'
+    setDragging(stage)
   }
 
+  const onDragOver = (e: React.DragEvent, target: string) => {
+    e.preventDefault()
+    if (!dragging || dragging === target) return
+    setOrder((prev) => {
+      const from = prev.indexOf(dragging)
+      const to = prev.indexOf(target)
+      if (from < 0 || to < 0 || from === to) return prev
+      const next = [...prev]
+      next.splice(from, 1)
+      next.splice(to, 0, dragging)
+      return next
+    })
+  }
+
+  const onDrop = (e: React.DragEvent) => { e.preventDefault(); setDragging(null) }
+  const onDragEnd = () => setDragging(null)
+
+  const setLabel = (stage: string, v: string) =>
+    setRows((r) => r.map((s) => (s.stage === stage ? { ...s, label: v } : s)))
+  const setHidden = (stage: string, v: boolean) =>
+    setRows((r) => r.map((s) => (s.stage === stage ? { ...s, hidden: v } : s)))
+
   const submit = () => {
-    const cleaned = rows.map((r, i) => ({ ...r, label: r.label.trim() || r.stage, position: i }))
+    // Sequential positions based on current drag order — same logic for both phases.
+    // Won's position is shared between pipeline and Jobs; moving it here moves it there too.
+    const posMap = new Map(order.map((s, i): [string, number] => [s, i]))
+    const cleaned = rows.map((r) => ({
+      ...r,
+      label: r.label.trim() || r.stage,
+      position: posMap.has(r.stage) ? posMap.get(r.stage)! : r.position,
+    }))
     save.mutate(cleaned, { onSuccess: onClose })
   }
 
   return (
     <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
       <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:p-6">
-        <h2 className="mb-1 text-lg font-semibold text-stone-900">Customize {phase === "pipeline" ? "Pipeline" : "Jobs"} stages</h2>
+        <h2 className="mb-1 text-lg font-semibold text-stone-900">
+          Customize {phase === 'pipeline' ? 'Pipeline' : 'Jobs'} stages
+        </h2>
         <p className="mb-4 text-xs text-stone-500">
-          Rename, reorder, or hide columns. Hidden stages still appear while they hold jobs, so
-          nothing ever disappears. Won/Lost keep their special behaviour whatever you call them.
+          Drag to reorder. Rename or hide columns. Hidden stages still appear while they hold jobs.
+          {phase === 'pipeline' && <> Won is shared — its position also affects the Jobs board.</>}
         </p>
         <ul className="space-y-1.5">
-          {rows
-            .filter((r) => !(r.stage.startsWith('custom_') && r.hidden))
-            .filter((r) => r.phase === phase)
-            .map((row) => {
-            const i = rows.indexOf(row)
-            return (
-            <li key={row.stage} className="flex items-center gap-2">
-              <div className="flex flex-col">
-                <button
-                  onClick={() => move(i, -1)}
-                  disabled={i === 0}
-                  className="px-1 text-xs text-stone-400 hover:text-stone-700 disabled:opacity-30"
-                  aria-label={`Move ${row.label} up`}
+          {orderedRows.map((row) => (
+              <li
+                key={row.stage}
+                draggable
+                onDragStart={(e) => onDragStart(e, row.stage)}
+                onDragOver={(e) => onDragOver(e, row.stage)}
+                onDrop={onDrop}
+                onDragEnd={onDragEnd}
+                className={`flex items-center gap-2 rounded-lg border p-1.5 transition-opacity ${
+                  dragging === row.stage ? 'opacity-40' : ''
+                } ${row.hidden ? 'bg-stone-50 opacity-60' : 'border-transparent hover:border-stone-200 hover:bg-stone-50'} cursor-grab active:cursor-grabbing`}
+              >
+                <span
+                  className="flex flex-col gap-[3px] px-1 select-none opacity-40 hover:opacity-70 cursor-grab"
+                  aria-hidden="true"
                 >
-                  ▲
-                </button>
-                <button
-                  onClick={() => move(i, 1)}
-                  disabled={i === rows.length - 1}
-                  className="px-1 text-xs text-stone-400 hover:text-stone-700 disabled:opacity-30"
-                  aria-label={`Move ${row.label} down`}
-                >
-                  ▼
-                </button>
-              </div>
-              <input
-                value={row.label}
-                onChange={(e) =>
-                  setRows(rows.map((r) => (r.stage === row.stage ? { ...r, label: e.target.value } : r)))
-                }
-                className="flex-1 rounded border border-stone-300 px-2 py-1.5 text-sm focus:border-amber-600 focus:outline-none"
-              />
-              <label className="flex items-center gap-1 text-xs text-stone-500">
+                  <span className="block h-0.5 w-4 rounded bg-stone-500" />
+                  <span className="block h-0.5 w-4 rounded bg-stone-500" />
+                  <span className="block h-0.5 w-4 rounded bg-stone-500" />
+                </span>
                 <input
-                  type="checkbox"
-                  checked={row.hidden}
-                  onChange={(e) =>
-                    setRows(rows.map((r) => (r.stage === row.stage ? { ...r, hidden: e.target.checked } : r)))
-                  }
-                  className="h-3.5 w-3.5 accent-amber-600"
+                  value={row.label}
+                  onChange={(e) => setLabel(row.stage, e.target.value)}
+                  className="flex-1 rounded border border-stone-300 px-2 py-1.5 text-sm focus:border-amber-600 focus:outline-none"
                 />
-                hide
-              </label>
-            </li>
-            )
-          })}
+                <label className="flex cursor-pointer items-center gap-1 text-xs text-stone-500">
+                  <input
+                    type="checkbox"
+                    checked={row.hidden}
+                    onChange={(e) => setHidden(row.stage, e.target.checked)}
+                    className="h-3.5 w-3.5 accent-amber-600"
+                  />
+                  {row.hidden ? <span className="text-amber-700">hidden</span> : 'hide'}
+                </label>
+              </li>
+          ))}
         </ul>
         {rows.some((r) => r.stage.startsWith('custom_') && r.hidden) && (
           <button
@@ -555,13 +777,14 @@ function CustomizeStagesDialog({
               if (!next) return
               const name = window.prompt('Name for the new column:', '')
               if (!name?.trim()) return
-              setRows(
-                rows.map((r) =>
-                  r.stage === next.stage
-                    ? { ...r, hidden: false, label: name.trim(), phase }
-                    : r,
+              setRows((r) =>
+                r.map((s) =>
+                  s.stage === next.stage
+                    ? { ...s, hidden: false, label: name.trim(), phase }
+                    : s,
                 ),
               )
+              setOrder((prev) => [...prev, next.stage])
             }}
             className="mt-3 w-full rounded border border-dashed border-stone-300 px-3 py-1.5 text-sm text-stone-500 hover:border-stone-400 hover:text-stone-700"
           >

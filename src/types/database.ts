@@ -675,6 +675,7 @@ export type Database = {
           last_contact_method: string | null
           last_contacted_at: string | null
           last_contacted_by: string | null
+          lead_grade: number | null
           lead_source: string | null
           notes: string | null
           phone: string | null
@@ -697,6 +698,7 @@ export type Database = {
           last_contact_method?: string | null
           last_contacted_at?: string | null
           last_contacted_by?: string | null
+          lead_grade?: number | null
           lead_source?: string | null
           notes?: string | null
           phone?: string | null
@@ -719,6 +721,7 @@ export type Database = {
           last_contact_method?: string | null
           last_contacted_at?: string | null
           last_contacted_by?: string | null
+          lead_grade?: number | null
           lead_source?: string | null
           notes?: string | null
           phone?: string | null
@@ -1445,6 +1448,7 @@ export type Database = {
       jobs: {
         Row: {
           assigned_to: string | null
+          balance_paid: boolean
           business_id: string
           city: string | null
           close_grade: number | null
@@ -1452,6 +1456,8 @@ export type Database = {
           contact_id: string
           created_at: string
           deleted_at: string | null
+          deposit_paid: boolean
+          direction: Database["public"]["Enums"]["job_direction"] | null
           extra: Json
           id: string
           job_number: string
@@ -1473,6 +1479,7 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          balance_paid?: boolean
           business_id?: string
           city?: string | null
           close_grade?: number | null
@@ -1480,6 +1487,8 @@ export type Database = {
           contact_id: string
           created_at?: string
           deleted_at?: string | null
+          deposit_paid?: boolean
+          direction?: Database["public"]["Enums"]["job_direction"] | null
           extra?: Json
           id?: string
           job_number: string
@@ -1501,6 +1510,7 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          balance_paid?: boolean
           business_id?: string
           city?: string | null
           close_grade?: number | null
@@ -1508,6 +1518,8 @@ export type Database = {
           contact_id?: string
           created_at?: string
           deleted_at?: string | null
+          deposit_paid?: boolean
+          direction?: Database["public"]["Enums"]["job_direction"] | null
           extra?: Json
           id?: string
           job_number?: string
@@ -2242,6 +2254,7 @@ export type Database = {
           due_date: string | null
           estimated_minutes: number | null
           id: string
+          is_next_step: boolean
           job_id: string | null
           title: string
           updated_at: string
@@ -2255,6 +2268,7 @@ export type Database = {
           due_date?: string | null
           estimated_minutes?: number | null
           id?: string
+          is_next_step?: boolean
           job_id?: string | null
           title: string
           updated_at?: string
@@ -2268,6 +2282,7 @@ export type Database = {
           due_date?: string | null
           estimated_minutes?: number | null
           id?: string
+          is_next_step?: boolean
           job_id?: string | null
           title?: string
           updated_at?: string
@@ -2470,6 +2485,7 @@ export type Database = {
         | "invoice"
         | "other"
       invoice_status: "draft" | "sent" | "partial" | "paid" | "void"
+      job_direction: "north" | "south" | "east" | "west"
       job_stage:
         | "new"
         | "contacted"
@@ -2681,6 +2697,7 @@ export const Constants = {
         "other",
       ],
       invoice_status: ["draft", "sent", "partial", "paid", "void"],
+      job_direction: ["north", "south", "east", "west"],
       job_stage: [
         "new",
         "contacted",

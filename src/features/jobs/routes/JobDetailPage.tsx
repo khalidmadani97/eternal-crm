@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { OptionSelect } from '../../../components/OptionSelect'
 import { useProfiles } from '../../auth/api'
 import { formatCurrency, calcMargin } from '../../../lib/format'
-import { useJob, useUpdateJob, useWorkspaceStages } from '../api'
+import { useJob, useUpdateJob, useToggleFollowUp, useConfirmContact, useWorkspaceStages } from '../api'
 import type { JobDetail, JobStage } from '../api'
 import { CommsThread } from '../../comms/components/CommsThread'
 import { JobCosts } from '../../expenses/components/JobCosts'
@@ -12,9 +12,11 @@ import { JobQuotes } from '../../quotes/components/JobQuotes'
 import { ExtraFieldsEditor } from '../../../components/ExtraFieldsEditor'
 import { LeadGrading } from '../../leads/components/LeadGrading'
 import { LeadInfo } from '../../leads/components/LeadInfo'
+import { LeadPayments } from '../../leads/components/LeadPayments'
 import { JobAppointments } from '../../schedule/components/JobAppointments'
 import { ActivityTimeline } from '../components/ActivityTimeline'
 import { JobFiles } from '../components/JobFiles'
+import { JobNextStep } from '../components/JobNextStep'
 import { JobTasks } from '../components/JobTasks'
 import { LostReasonDialog } from '../components/LostReasonDialog'
 import { StageBadge, useStageLabels } from '../components/StageBadge'
@@ -50,6 +52,7 @@ export function JobDetailPage({ mode = 'job' }: { mode?: 'lead' | 'job' }) {
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_20rem]">
         <div className="space-y-4">
           {mode === 'lead' && <LeadInfo job={job} />}
+          {mode === 'lead' && <LeadPayments job={job} />}
           {mode === 'lead' && <LeadGrading job={job} />}
           {mode === 'lead' && <ActivityTimeline jobId={job.id} contactId={job.contact?.id} title="Notes" />}
           {mode === 'job' && <JobDetailsForm job={job} />}
@@ -65,6 +68,7 @@ export function JobDetailPage({ mode = 'job' }: { mode?: 'lead' | 'job' }) {
           {mode === 'lead' && <JobDetailsForm job={job} />}
         </div>
         <div className="space-y-4">
+          {mode === 'job' && <JobNextStep jobId={job.id} />}
           <JobAppointments jobId={job.id} />
           <JobQuotes jobId={job.id} />
           {mode === 'job' && <JobCosts jobId={job.id} />}
@@ -79,6 +83,8 @@ export function JobDetailPage({ mode = 'job' }: { mode?: 'lead' | 'job' }) {
 
 function JobHeader({ job, mode }: { job: JobDetail; mode: 'lead' | 'job' }) {
   const updateJob = useUpdateJob()
+  const toggleFollowUp = useToggleFollowUp()
+  const confirmContact = useConfirmContact()
   const workspaceStages = useWorkspaceStages(mode === 'lead' ? 'pipeline' : 'production')
   const { data: conv } = useConversionQueue(job.id)
   // Always include the current stage so an out-of-phase value still renders.
@@ -117,13 +123,27 @@ function JobHeader({ job, mode }: { job: JobDetail; mode: 'lead' | 'job' }) {
       {updateJob.isError && (
         <span className="text-sm text-red-600">Stage change failed. {updateJob.error.message}</span>
       )}
-      <span className="text-sm text-stone-600">
+      <span className="flex items-center gap-2 text-sm text-stone-600">
         {job.contact ? (
           <Link to={`/contacts/${job.contact.id}`} className="text-amber-700 hover:underline">
             {job.contact.full_name}
           </Link>
         ) : (
           '—'
+        )}
+        {job.contact && !job.contact.confirmed && (
+          <>
+            <span className="rounded bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-700">
+              Unconfirmed
+            </span>
+            <button
+              onClick={() => confirmContact.mutate(job.contact!.id)}
+              disabled={confirmContact.isPending}
+              className="rounded border border-green-400 bg-white px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-50 disabled:opacity-50"
+            >
+              {confirmContact.isPending ? 'Confirming…' : 'Confirm contact'}
+            </button>
+          </>
         )}
         {job.company && (
           <>
@@ -134,6 +154,18 @@ function JobHeader({ job, mode }: { job: JobDetail; mode: 'lead' | 'job' }) {
           </>
         )}
       </span>
+      <button
+        onClick={() => toggleFollowUp.mutate({ id: job.id, value: !job.follow_up })}
+        disabled={toggleFollowUp.isPending}
+        title={job.follow_up ? 'Clear follow-up flag' : 'Mark as follow up'}
+        className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50 ${
+          job.follow_up
+            ? 'border-emerald-400 bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+            : 'border-stone-300 bg-white text-stone-500 hover:border-emerald-400 hover:text-emerald-700'
+        }`}
+      >
+        {job.follow_up ? '● Follow up' : '○ Follow up'}
+      </button>
       <span className="ml-auto text-lg font-medium tabular-nums text-stone-900">
         {formatCurrency(job.value_final ?? job.value_est)}
       </span>
@@ -169,6 +201,7 @@ function JobDetailsForm({ job }: { job: JobDetail }) {
     summary: job.summary ?? '',
     site_address: job.site_address ?? '',
     city: job.city ?? '',
+    direction: job.direction ?? '',
     value_est: job.value_est?.toString() ?? '',
     value_final: job.value_final?.toString() ?? '',
     profit_est: job.profit_est?.toString() ?? '',
@@ -191,6 +224,7 @@ function JobDetailsForm({ job }: { job: JobDetail }) {
         summary: form.summary.trim() || null,
         site_address: form.site_address.trim() || null,
         city: form.city.trim() || null,
+        direction: (form.direction as 'north' | 'south' | 'east' | 'west') || null,
         extra: Object.fromEntries(Object.entries(extra).filter(([, v]) => v.trim() !== '')),
         value_est: form.value_est ? Number(form.value_est) : null,
         value_final: form.value_final ? Number(form.value_final) : null,
@@ -250,6 +284,20 @@ function JobDetailsForm({ job }: { job: JobDetail }) {
             placeholder="Toronto"
             className={inputClass}
           />,
+        )}
+        {field(
+          'Direction (from Toronto)',
+          <select
+            value={form.direction}
+            onChange={(e) => setForm({ ...form, direction: e.target.value })}
+            className={inputClass}
+          >
+            <option value="">—</option>
+            <option value="north">North</option>
+            <option value="south">South</option>
+            <option value="east">East</option>
+            <option value="west">West</option>
+          </select>,
         )}
         {field(
           'Estimated value ($)',

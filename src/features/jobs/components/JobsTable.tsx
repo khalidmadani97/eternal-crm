@@ -6,9 +6,9 @@ import { formatAgo, formatCurrency, formatDate } from '../../../lib/format'
 import { CLOSE_GRADE_STYLES, installDate, marginSigns, useBulkArchiveJobs, useJobs, useUpdateJob } from '../api'
 import type { JobListRow, JobStage } from '../api'
 import { NewJobDialog } from './NewJobDialog'
-import { StageBadge, STAGE_LABELS } from './StageBadge'
+import { StageBadge, useStageLabels } from './StageBadge'
 
-type SortKey = 'created' | 'install' | 'value'
+type SortKey = 'created' | 'modified' | 'install' | 'value' | 'contacted'
 
 export function JobsTable({
   stages,
@@ -25,6 +25,7 @@ export function JobsTable({
   pipelineId?: string | null
   isDefaultPipeline?: boolean
 }) {
+  const stageLabels = useStageLabels()
   const { data: allJobs, isPending, isError, error, refetch } = useJobs()
   const jobs = allJobs
     ?.filter((j) => stages.includes(j.stage))
@@ -108,7 +109,7 @@ export function JobsTable({
           <option value="all">All stages</option>
           {stages.map((s) => (
             <option key={s} value={s}>
-              {STAGE_LABELS[s]}
+              {stageLabels[s]}
             </option>
           ))}
         </select>
@@ -143,7 +144,9 @@ export function JobsTable({
           onChange={(e) => setSortKey(e.target.value as SortKey)}
           className="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
         >
-          <option value="created">Newest first</option>
+          <option value="created">Recently added</option>
+          <option value="modified">Last modified</option>
+          <option value="contacted">Last contacted</option>
           <option value="install">By install date</option>
           <option value="value">By value</option>
         </select>
@@ -172,11 +175,17 @@ export function JobsTable({
           <span className="text-sm font-medium text-amber-900">{selected.size} selected</span>
           <button
             onClick={() => {
-              if (
-                window.confirm(
-                  `Delete ${selected.size} ${selected.size === 1 ? 'record' : 'records'}? They are archived (recoverable), never destroyed.`,
-                )
-              )
+              if (window.confirm(`Archive ${selected.size} selected? They will be hidden but recoverable from the Archived view.`))
+                bulkArchive.mutate([...selected], { onSuccess: () => setSelected(new Set()) })
+            }}
+            disabled={bulkArchive.isPending}
+            className="rounded bg-stone-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
+          >
+            {bulkArchive.isPending ? 'Archiving…' : `Archive ${selected.size} selected`}
+          </button>
+          <button
+            onClick={() => {
+              if (window.confirm(`Delete ${selected.size} selected? This removes them from view.`))
                 bulkArchive.mutate([...selected], { onSuccess: () => setSelected(new Set()) })
             }}
             disabled={bulkArchive.isPending}
@@ -221,6 +230,7 @@ export function JobsTable({
                 <th className="px-4 py-3">Install</th>
                 <th className="px-4 py-3">Last contact</th>
                 <th className="px-4 py-3">Assigned</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
@@ -290,6 +300,18 @@ export function JobsTable({
                       ))}
                     </select>
                   </td>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Archive "${j.title}"? It will be hidden from the board.`))
+                          bulkArchive.mutate([j.id])
+                      }}
+                      disabled={bulkArchive.isPending}
+                      className="text-xs text-stone-400 hover:text-red-600 disabled:opacity-50"
+                    >
+                      Archive
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -307,6 +329,17 @@ function sortJobs(jobs: JobListRow[], key: SortKey): JobListRow[] {
   switch (key) {
     case 'created':
       return copy.sort((a, b) => b.created_at.localeCompare(a.created_at))
+    case 'modified':
+      return copy.sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+    case 'contacted':
+      return copy.sort((a, b) => {
+        const ta = a.contact?.last_contacted_at ?? ''
+        const tb = b.contact?.last_contacted_at ?? ''
+        if (ta === tb) return 0
+        if (!ta) return 1
+        if (!tb) return -1
+        return tb.localeCompare(ta)
+      })
     case 'install':
       return copy.sort((a, b) => {
         const ia = installDate(a)

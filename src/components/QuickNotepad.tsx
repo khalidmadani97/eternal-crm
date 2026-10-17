@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useEditor, useEditorState, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -337,6 +337,8 @@ export function QuickNotepad() {
   const chunksRef = useRef<Blob[]>([])
 
   const queryClient = useQueryClient()
+  const { data: membership } = useMyMembership()
+  const businessId = membership?.activeBusinessId
   const { data: notes, isPending } = useQuickNotes()
   const addNote = useAddNote()
   const updateNote = useUpdateNote()
@@ -345,6 +347,87 @@ export function QuickNotepad() {
 
   const active = notes?.filter((n) => !n.completed_at) ?? []
   const done = notes?.filter((n) => !!n.completed_at) ?? []
+
+  // ── Undo toast ──────────────────────────────────────────────────────────────
+  const [undoToast, setUndoToast] = useState<{ type: 'delete' | 'done'; note: QuickNote } | null>(null)
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearUndo = () => {
+    if (undoTimerRef.current) { clearTimeout(undoTimerRef.current); undoTimerRef.current = null }
+    setUndoToast(null)
+  }
+
+  const handleDelete = (note: QuickNote) => {
+    clearUndo()
+    // Optimistically remove from cache; actual delete fires after 5s
+    queryClient.setQueryData<QuickNote[]>(['quick-notes', businessId], (old) =>
+      old?.filter((n) => n.id !== note.id) ?? [],
+    )
+    setUndoToast({ type: 'delete', note })
+    undoTimerRef.current = setTimeout(() => {
+      deleteNote.mutate(note.id)
+      setUndoToast(null)
+      undoTimerRef.current = null
+    }, 5000)
+  }
+
+  const handleDone = (note: QuickNote, complete: boolean) => {
+    toggleComplete.mutate({ id: note.id, complete })
+    if (complete) {
+      clearUndo()
+      setUndoToast({ type: 'done', note })
+      undoTimerRef.current = setTimeout(() => {
+        setUndoToast(null)
+        undoTimerRef.current = null
+      }, 5000)
+    } else {
+      clearUndo()
+    }
+  }
+
+  const handleUndo = useCallback(() => {
+    if (!undoToast) return
+    clearTimeout(undoTimerRef.current ?? undefined)
+    undoTimerRef.current = null
+    if (undoToast.type === 'delete') {
+      // Restore the optimistically removed note
+      queryClient.setQueryData<QuickNote[]>(['quick-notes', businessId], (old) =>
+        old ? [undoToast.note, ...old.filter((n) => n.id !== undoToast.note.id)] : [undoToast.note],
+      )
+    } else {
+      toggleComplete.mutate({ id: undoToast.note.id, complete: false })
+    }
+    setUndoToast(null)
+  }, [undoToast, businessId, queryClient, toggleComplete])
+
+  // Ctrl/Cmd+Z when panel is open (don't intercept inside contenteditable editors)
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        const inEditor = (document.activeElement as HTMLElement | null)?.closest('[contenteditable]')
+        if (!inEditor && undoToast) {
+          e.preventDefault()
+          handleUndo()
+        }
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [open, undoToast, handleUndo])
+
+  // Clear pending delete timer when panel closes
+  useEffect(() => {
+    if (!open && undoTimerRef.current) {
+      // Panel closed — commit any pending delete immediately
+      clearTimeout(undoTimerRef.current)
+      undoTimerRef.current = null
+      if (undoToast?.type === 'delete') {
+        deleteNote.mutate(undoToast.note.id)
+      }
+      setUndoToast(null)
+    }
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Compose editor — lives at component level to persist across open/close
   const editor = useEditor({
@@ -491,9 +574,9 @@ export function QuickNotepad() {
               <NoteCard
                 key={n.id}
                 note={n}
-                onDelete={() => deleteNote.mutate(n.id)}
+                onDelete={() => handleDelete(n)}
                 onUpdate={(html) => updateNote.mutate({ id: n.id, body: html })}
-                onComplete={() => toggleComplete.mutate({ id: n.id, complete: true })}
+                onComplete={() => handleDone(n, true)}
                 onConvertToTask={() => handleConvertToTask(n)}
                 onUndoConvert={(taskId) => void handleUndoConvert(n, taskId)}
               />
@@ -521,9 +604,9 @@ export function QuickNotepad() {
                       <NoteCard
                         key={n.id}
                         note={n}
-                        onDelete={() => deleteNote.mutate(n.id)}
+                        onDelete={() => handleDelete(n)}
                         onUpdate={(html) => updateNote.mutate({ id: n.id, body: html })}
-                        onComplete={() => toggleComplete.mutate({ id: n.id, complete: false })}
+                        onComplete={() => handleDone(n, false)}
                         onConvertToTask={() => handleConvertToTask(n)}
                         onUndoConvert={(taskId) => void handleUndoConvert(n, taskId)}
                       />
@@ -533,6 +616,19 @@ export function QuickNotepad() {
               </div>
             )}
           </div>
+
+          {/* Undo toast */}
+          {undoToast && (
+            <div className="mx-3 mb-2 flex items-center justify-between gap-2 rounded-lg bg-stone-800 px-3 py-2 text-xs text-white shadow">
+              <span>{undoToast.type === 'delete' ? 'Note deleted' : 'Note marked done'}</span>
+              <button
+                onClick={handleUndo}
+                className="rounded px-2 py-0.5 font-semibold text-amber-300 hover:text-amber-100"
+              >
+                Undo
+              </button>
+            </div>
+          )}
 
           {/* Compose area */}
           <div className="shrink-0 border-t border-stone-100">

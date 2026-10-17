@@ -26,11 +26,18 @@ export function JobFiles({ jobId }: { jobId: string }) {
   const upload = useUploadFile(jobId)
   const deleteFile = useDeleteFile(jobId)
   const [kind, setKind] = useState<FileKind>('site_photo')
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const onPick = async (picked: FileList | null) => {
-    if (!picked?.[0] || !session) return
-    await upload.mutateAsync({ file: picked[0], kind, userId: session.user.id })
+    if (!picked || picked.length === 0 || !session) return
+    const files = Array.from(picked)
+    setProgress({ done: 0, total: files.length })
+    for (let i = 0; i < files.length; i++) {
+      await upload.mutateAsync({ file: files[i], kind, userId: session.user.id })
+      setProgress({ done: i + 1, total: files.length })
+    }
+    setProgress(null)
     if (inputRef.current) inputRef.current.value = ''
   }
 
@@ -57,10 +64,15 @@ export function JobFiles({ jobId }: { jobId: string }) {
         <input
           ref={inputRef}
           type="file"
+          multiple
           onChange={(e) => void onPick(e.target.files)}
           className="text-sm"
         />
-        {upload.isPending && <span className="text-sm text-stone-500">Uploading…</span>}
+        {progress && (
+          <span className="text-sm text-stone-500">
+            Uploading {progress.done}/{progress.total}…
+          </span>
+        )}
       </div>
       {upload.isError && (
         <p className="mb-2 text-sm text-red-600">Upload failed. {upload.error.message}</p>

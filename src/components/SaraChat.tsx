@@ -18,6 +18,14 @@ interface CreatedTask {
   estimated_minutes?: number
 }
 
+interface CreatedLead {
+  job_id: string
+  job_number: string
+  title: string
+  name: string | null
+  phone: string | null
+}
+
 interface StagedAction {
   id: string
   kind: string
@@ -32,6 +40,7 @@ interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   createdTasks?: CreatedTask[]
+  createdLeads?: CreatedLead[]
   stagedActions?: StagedAction[]
 }
 
@@ -66,7 +75,7 @@ export function SaraChat() {
         }
         throw error
       }
-      return data as { reply: string; createdTasks?: CreatedTask[]; stagedActions?: StagedAction[]; usage?: { used: number; cap: number } }
+      return data as { reply: string; createdTasks?: CreatedTask[]; createdLeads?: CreatedLead[]; stagedActions?: StagedAction[]; usage?: { used: number; cap: number } }
     },
     onSuccess: (data) => {
       setMessages((m) => [
@@ -75,6 +84,7 @@ export function SaraChat() {
           role: 'assistant',
           content: data.reply,
           createdTasks: data.createdTasks,
+          createdLeads: data.createdLeads,
           stagedActions: data.stagedActions?.map((a) => ({ ...a, state: 'pending' as const })),
         },
       ])
@@ -82,6 +92,10 @@ export function SaraChat() {
       if (data.createdTasks?.length) {
         void queryClient.invalidateQueries({ queryKey: ['tasks'] })
         void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      }
+      if (data.createdLeads?.length) {
+        void queryClient.invalidateQueries({ queryKey: ['jobs'] })
+        void queryClient.invalidateQueries({ queryKey: ['contacts'] })
       }
       setJustAnswered(true)
       setTimeout(() => setJustAnswered(false), 2500)
@@ -233,6 +247,22 @@ export function SaraChat() {
                       )
                     }
                   />
+                ))}
+                {m.createdLeads?.map((l) => (
+                  <Link
+                    key={l.job_id}
+                    to={`/leads/${l.job_id}`}
+                    onClick={() => setOpen(false)}
+                    className="mt-1.5 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 hover:bg-amber-100"
+                  >
+                    <span className="mt-px">🟡</span>
+                    <span>
+                      <span className="font-medium">Lead added:</span> {l.name ?? l.title}
+                      {l.phone ? ` · ${l.phone}` : ''}
+                      <span className="ml-1 text-amber-600">{l.job_number}</span>
+                      <span className="ml-1 text-amber-500">→ view lead</span>
+                    </span>
+                  </Link>
                 ))}
                 {m.createdTasks?.map((t, ti) => (
                   <Link
