@@ -453,7 +453,7 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
 
 // Fix previously imported leads for this sheet:
 //   Part 1 (DB-only, no CSV matching): find all inbound_leads linked to jobs
-//     in 'quoted' with no manual stage moves and reset them to 'new'.
+//     NOT in 'new' with no manual stage moves and reset them to 'new'.
 //   Part 2 (CSV-matched): fix titles using the refreshed column map.
 async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
   // ── Part 1: stage fix via DB — no dedupe key matching required ─────────────
@@ -473,23 +473,25 @@ async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
 
   const allJobIds = allLeads.map((l) => l.jobId)
 
-  // Find which jobs are currently in 'quoted'
-  const quotedJobIds: string[] = []
+  // Find which jobs are NOT in 'new' (old code mis-staged them to contacted,
+  // quoted, follow_up, or any other stage — reset all of them)
+  const nonNewJobIds: string[] = []
   for (let i = 0; i < allJobIds.length; i += 200) {
-    const { data } = await sb.from('jobs').select('id').eq('stage', 'quoted').in('id', allJobIds.slice(i, i + 200))
-    for (const j of data ?? []) quotedJobIds.push(j.id as string)
+    const { data } = await sb.from('jobs').select('id').neq('stage', 'new').in('id', allJobIds.slice(i, i + 200))
+    for (const j of data ?? []) nonNewJobIds.push(j.id as string)
   }
 
   // Among those, find which have been manually moved (have a stage_change activity)
+  // — those were intentionally staged by a rep, leave them alone.
   const manuallyMoved = new Set<string>()
-  for (let i = 0; i < quotedJobIds.length; i += 200) {
+  for (let i = 0; i < nonNewJobIds.length; i += 200) {
     const { data } = await sb.from('activities').select('job_id')
-      .eq('kind', 'stage_change').in('job_id', quotedJobIds.slice(i, i + 200))
+      .eq('kind', 'stage_change').in('job_id', nonNewJobIds.slice(i, i + 200))
     for (const a of data ?? []) manuallyMoved.add(a.job_id as string)
   }
 
   // Reset stage to 'new' for jobs that were never manually staged
-  const toReset = quotedJobIds.filter((id) => !manuallyMoved.has(id))
+  const toReset = nonNewJobIds.filter((id) => !manuallyMoved.has(id))
   for (let i = 0; i < toReset.length; i += 200) {
     const { error } = await sb.from('jobs').update({ stage: 'new' }).in('id', toReset.slice(i, i + 200))
     if (!error) stagesFixed += Math.min(200, toReset.length - i)
