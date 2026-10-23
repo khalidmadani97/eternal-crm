@@ -451,17 +451,59 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
   return { imported, total: dataRows.length, newLeads }
 }
 
-// Re-derive titles for rows already imported before mapping improved.
-// Also resets stage to 'new' for any lead currently in 'quoted' that has
-// never been manually staged (i.e. the old code put it there, not a rep).
+// Fix previously imported leads for this sheet:
+//   Part 1 (DB-only, no CSV matching): find all inbound_leads linked to jobs
+//     in 'quoted' with no manual stage moves and reset them to 'new'.
+//   Part 2 (CSV-matched): fix titles using the refreshed column map.
 async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
+  // ── Part 1: stage fix via DB — no dedupe key matching required ─────────────
+  // Load ALL inbound_leads for this business that have a linked job.
+  let stagesFixed = 0
+  const allLeads: { jobId: string; contactId: string | null }[] = []
+  for (let offset = 0; ; offset += 500) {
+    const { data } = await sb
+      .from('inbound_leads').select('job_id, contact_id')
+      .eq('business_id', sheet.business_id)
+      .not('job_id', 'is', null)
+      .range(offset, offset + 499)
+    if (!data || data.length === 0) break
+    for (const r of data) allLeads.push({ jobId: r.job_id as string, contactId: r.contact_id as string | null })
+    if (data.length < 500) break
+  }
+
+  const allJobIds = allLeads.map((l) => l.jobId)
+
+  // Find which jobs are currently in 'quoted'
+  const quotedJobIds: string[] = []
+  for (let i = 0; i < allJobIds.length; i += 200) {
+    const { data } = await sb.from('jobs').select('id').eq('stage', 'quoted').in('id', allJobIds.slice(i, i + 200))
+    for (const j of data ?? []) quotedJobIds.push(j.id as string)
+  }
+
+  // Among those, find which have been manually moved (have a stage_change activity)
+  const manuallyMoved = new Set<string>()
+  for (let i = 0; i < quotedJobIds.length; i += 200) {
+    const { data } = await sb.from('activities').select('job_id')
+      .eq('kind', 'stage_change').in('job_id', quotedJobIds.slice(i, i + 200))
+    for (const a of data ?? []) manuallyMoved.add(a.job_id as string)
+  }
+
+  // Reset stage to 'new' for jobs that were never manually staged
+  const toReset = quotedJobIds.filter((id) => !manuallyMoved.has(id))
+  for (let i = 0; i < toReset.length; i += 200) {
+    const { error } = await sb.from('jobs').update({ stage: 'new' }).in('id', toReset.slice(i, i + 200))
+    if (!error) stagesFixed += Math.min(200, toReset.length - i)
+  }
+
+  // ── Part 2: title fix via CSV + dedupe key matching ─────────────────────────
   const csvUrl = toCsvUrl(sheet.sheet_url)
-  if (!csvUrl) throw new Error('Not a recognizable Google Sheet / CSV link')
+  if (!csvUrl) return { updated: stagesFixed, stagesFixed }
   const res = await fetch(csvUrl, { redirect: 'follow' })
   const text = await res.text()
-  if (!res.ok || text.trimStart().startsWith('<')) throw new Error('Could not read the sheet')
+  if (!res.ok || text.trimStart().startsWith('<')) return { updated: stagesFixed, stagesFixed }
   const rows = parseCsv(text)
-  if (rows.length < 2) return { updated: 0, stagesFixed: 0 }
+  if (rows.length < 2) return { updated: stagesFixed, stagesFixed }
+
   const headers = rows[0]
   const aiResult2 = await aiMap(headers, rows.slice(1, 4))
   const map = (aiResult2 && nameColumnLooksValid(aiResult2, rows.slice(1, 4)))
@@ -472,37 +514,18 @@ async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
   const dataRows2 = rows.slice(1)
   const keys2 = await Promise.all(dataRows2.map(async (cells) => `${sheet.id}:${await rowHash(cells)}`))
 
-  // Load all previously imported rows for this sheet
+  // Load previously imported rows for this sheet by dedupe key
   const leadByKey = new Map<string, { jobId: string; contactId: string | null }>()
   for (let i = 0; i < keys2.length; i += 200) {
     const { data: leadRows } = await sb
       .from('inbound_leads').select('dedupe_key, job_id, contact_id')
       .eq('business_id', sheet.business_id).in('dedupe_key', keys2.slice(i, i + 200))
     for (const r of leadRows ?? []) {
-      if (r.job_id) leadByKey.set(r.dedupe_key as string, { jobId: r.job_id as string, contactId: (r.contact_id as string | null) ?? null })
+      if (r.job_id) leadByKey.set(r.dedupe_key as string, { jobId: r.job_id as string, contactId: r.contact_id as string | null })
     }
   }
 
-  const allJobIds = [...leadByKey.values()].map((e) => e.jobId)
-
-  // Batch-fetch current stages
-  const stageByJobId = new Map<string, string>()
-  for (let i = 0; i < allJobIds.length; i += 200) {
-    const { data: jobRows } = await sb.from('jobs').select('id, stage').in('id', allJobIds.slice(i, i + 200))
-    for (const j of jobRows ?? []) stageByJobId.set(j.id as string, j.stage as string)
-  }
-
-  // Batch-fetch jobs that have been manually staged (any stage_change activity)
-  // — these were touched by a rep so we must not overwrite their stage.
-  const manuallyMoved = new Set<string>()
-  for (let i = 0; i < allJobIds.length; i += 200) {
-    const { data: acts } = await sb.from('activities').select('job_id')
-      .eq('kind', 'stage_change').in('job_id', allJobIds.slice(i, i + 200))
-    for (const a of acts ?? []) manuallyMoved.add(a.job_id as string)
-  }
-
-  let updated = 0
-  let stagesFixed = 0
+  let titlesFixed = 0
   for (let rowIndex = 0; rowIndex < dataRows2.length; rowIndex++) {
     const cells = dataRows2[rowIndex]
     const entry = leadByKey.get(keys2[rowIndex])
@@ -513,45 +536,25 @@ async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
     const rawName = cell(map.name) ||
       (rawFirstName && rawLastName ? `${rawFirstName} ${rawLastName}` : rawFirstName || rawLastName)
     const rawCity  = cell(map.city)
-
     const rawNameIsPhone = /^\+?\d[\d\s\-().]{6,}$|^[a-z]{1,4}:\s*\+?\d/i.test(rawName)
-    const jobPatch: Record<string, string> = {}
 
-    // Fix title: only when we have a real name (not a phone masquerading as name)
     if (rawName && !rawNameIsPhone) {
-      jobPatch.title = rawName && rawCity ? `${rawName} - ${rawCity}` : rawName
-    }
+      const newTitle = rawName && rawCity ? `${rawName} - ${rawCity}` : rawName
+      const { error } = await sb.from('jobs').update({ title: newTitle }).eq('id', entry.jobId)
+      if (!error) titlesFixed++
 
-    // Fix stage: reset 'quoted' → 'new' only for leads the old import code
-    // mis-staged AND that a rep has never manually moved.
-    const currentStage = stageByJobId.get(entry.jobId)
-    if (currentStage === 'quoted' && !manuallyMoved.has(entry.jobId)) {
-      jobPatch.stage = 'new'
-    }
-
-    if (Object.keys(jobPatch).length) {
-      const { error } = await sb.from('jobs').update(jobPatch).eq('id', entry.jobId)
-      if (!error) {
-        updated++
-        if (jobPatch.stage) stagesFixed++
-      }
-    }
-
-    // Fix contacts whose full_name was set to a phone number by the old mapper
-    if (entry.contactId) {
-      const { data: contact } = await sb
-        .from('contacts').select('full_name').eq('id', entry.contactId).single()
-      if (contact) {
-        const nameIsPhone = /^\+?\d[\d\s\-().]{6,}$|^[a-z]{1,4}:\s*\+?\d/i.test((contact.full_name ?? '').trim())
-        if (nameIsPhone && rawName && !rawNameIsPhone) {
-          await sb.from('contacts').update({ full_name: rawName }).eq('id', entry.contactId)
-        } else if (nameIsPhone) {
-          await sb.from('contacts').update({ full_name: 'New Lead' }).eq('id', entry.contactId)
+      // Fix contact whose full_name was set to a phone number
+      if (entry.contactId) {
+        const { data: contact } = await sb.from('contacts').select('full_name').eq('id', entry.contactId).single()
+        if (contact) {
+          const nameIsPhone = /^\+?\d[\d\s\-().]{6,}$|^[a-z]{1,4}:\s*\+?\d/i.test((contact.full_name ?? '').trim())
+          if (nameIsPhone) await sb.from('contacts').update({ full_name: rawName }).eq('id', entry.contactId)
         }
       }
     }
   }
-  return { updated, stagesFixed }
+
+  return { updated: stagesFixed + titlesFixed, stagesFixed, titlesFixed }
 }
 
 // One digest email per sheet run via Resend — silently skipped when

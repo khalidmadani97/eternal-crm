@@ -141,8 +141,10 @@ export function LeadSheetsDialog({ onClose }: { onClose: () => void }) {
         {sync.isError && <p className="mt-3 text-sm text-red-600">{sync.error.message}</p>}
         {remap.data && (
           <p className="mt-3 rounded bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-            Fixed {remap.data.updated} leads
-            {remap.data.stagesFixed ? ` · moved ${remap.data.stagesFixed} from Send Quote → New` : ''}.
+            {remap.data.stagesFixed
+              ? `Moved ${remap.data.stagesFixed} lead${remap.data.stagesFixed === 1 ? '' : 's'} from Send Quote → New`
+              : 'No mis-staged leads found'}
+            {remap.data.titlesFixed ? ` · fixed ${remap.data.titlesFixed} title${remap.data.titlesFixed === 1 ? '' : 's'}` : ''}.
           </p>
         )}
         {remap.isError && <p className="mt-3 text-sm text-red-600">{remap.error.message}</p>}

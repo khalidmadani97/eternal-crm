@@ -185,8 +185,8 @@ export function useSearchLeads(term: string) {
 export function useRemapLeadSheet() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (sheetId: string): Promise<{ updated: number; stagesFixed: number }> =>
-      (await invokeSync({ action: 'remap', sheetId })) as { updated: number; stagesFixed: number },
+    mutationFn: async (sheetId: string): Promise<{ updated: number; stagesFixed: number; titlesFixed?: number }> =>
+      (await invokeSync({ action: 'remap', sheetId })) as { updated: number; stagesFixed: number; titlesFixed?: number },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['jobs'] })
       void queryClient.invalidateQueries({ queryKey: ['lead-sheets'] })
