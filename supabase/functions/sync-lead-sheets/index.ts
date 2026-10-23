@@ -704,5 +704,34 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ error: 'action must be sync, remap, or preview' }, 400)
+  // Undo the last stage fix: find stage_change activities written by the edge
+  // function (user_id IS NULL, meta.to='new') within the last 24 h and restore
+  // jobs back to their original stage.
+  if (body.action === 'undo_remap') {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    // Find activities created by service-role remap: no user, moved TO new
+    const { data: acts, error: actsError } = await sb
+      .from('activities')
+      .select('job_id, meta')
+      .is('user_id', null)
+      .eq('kind', 'stage_change')
+      .gte('created_at', cutoff)
+      .filter('meta->>to', 'eq', 'new')
+      .filter('meta->>from', 'neq', 'new')
+    if (actsError) return json({ error: actsError.message }, 500)
+
+    let restored = 0
+    for (const act of (acts ?? [])) {
+      const fromStage = (act.meta as { from?: string } | null)?.from
+      if (!fromStage || !act.job_id) continue
+      // Only restore if the job is still in 'new' (user hasn't moved it again)
+      const { data: job } = await sb.from('jobs').select('stage, business_id').eq('id', act.job_id as string).single()
+      if (!job || job.stage !== 'new' || job.business_id !== businessId) continue
+      const { error } = await sb.from('jobs').update({ stage: fromStage }).eq('id', act.job_id as string)
+      if (!error) restored++
+    }
+    return json({ restored })
+  }
+
+  return json({ error: 'action must be sync, remap, preview, or undo_remap' }, 400)
 })

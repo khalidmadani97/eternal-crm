@@ -193,3 +193,12 @@ export function useRemapLeadSheet() {
     },
   })
 }
+
+export function useUndoRemap() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (): Promise<{ restored: number }> =>
+      (await invokeSync({ action: 'undo_remap' })) as { restored: number },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+  })
+}
