@@ -107,16 +107,16 @@ export function LeadSheetsDialog({ onClose }: { onClose: () => void }) {
                 onClick={() => {
                   if (
                     window.confirm(
-                      `Re-map "${s.name}"? Titles and stages of already-imported leads are re-derived from the sheet.`,
+                      `Fix "${s.name}"?\n\n• Titles will be corrected from the sheet data.\n• Any leads mis-landed in "Send Quote" by the old import code will be moved to New (only ones never manually touched).`,
                     )
                   )
                     remap.mutate(s.id)
                 }}
                 disabled={remap.isPending}
                 className="shrink-0 rounded border border-stone-300 px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 disabled:opacity-50"
-                title="Fix titles/stages of leads imported before a mapping improvement"
+                title="Fix titles and reset mis-staged leads to New"
               >
-                {remap.isPending ? 'Re-mapping…' : 'Re-map'}
+                {remap.isPending ? 'Fixing…' : 'Fix titles & stages'}
               </button>
               <button
                 onClick={() => {
@@ -141,7 +141,8 @@ export function LeadSheetsDialog({ onClose }: { onClose: () => void }) {
         {sync.isError && <p className="mt-3 text-sm text-red-600">{sync.error.message}</p>}
         {remap.data && (
           <p className="mt-3 rounded bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-            Re-mapped {remap.data.updated} leads from the sheet.
+            Fixed {remap.data.updated} leads
+            {remap.data.stagesFixed ? ` · moved ${remap.data.stagesFixed} from Send Quote → New` : ''}.
           </p>
         )}
         {remap.isError && <p className="mt-3 text-sm text-red-600">{remap.error.message}</p>}

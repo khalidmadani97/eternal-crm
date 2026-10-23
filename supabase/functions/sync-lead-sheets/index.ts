@@ -451,7 +451,9 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
   return { imported, total: dataRows.length, newLeads }
 }
 
-// Re-derive title/stage for rows already imported before mapping improved.
+// Re-derive titles for rows already imported before mapping improved.
+// Also resets stage to 'new' for any lead currently in 'quoted' that has
+// never been manually staged (i.e. the old code put it there, not a rep).
 async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
   const csvUrl = toCsvUrl(sheet.sheet_url)
   if (!csvUrl) throw new Error('Not a recognizable Google Sheet / CSV link')
@@ -459,42 +461,18 @@ async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
   const text = await res.text()
   if (!res.ok || text.trimStart().startsWith('<')) throw new Error('Could not read the sheet')
   const rows = parseCsv(text)
-  if (rows.length < 2) return { updated: 0 }
+  if (rows.length < 2) return { updated: 0, stagesFixed: 0 }
   const headers = rows[0]
   const aiResult2 = await aiMap(headers, rows.slice(1, 4))
   const map = (aiResult2 && nameColumnLooksValid(aiResult2, rows.slice(1, 4)))
     ? aiResult2
     : heuristicMap(headers)
-
-  const { data: stageRows } = await sb
-    .from('stage_settings').select('stage, label').eq('business_id', sheet.business_id)
-  const stageByLabel = new Map<string, string>()
-  for (const s of (stageRows ?? []) as { stage: string; label: string }[]) {
-    stageByLabel.set(s.stage.toLowerCase(), s.stage)
-    stageByLabel.set(s.label.toLowerCase(), s.stage)
-  }
-  const stageValues: Record<string, string> = {}
-  if (map.stage !== null) {
-    const distinct = [...new Set(rows.slice(1).map((r) => (r[map.stage!] ?? '').trim().toLowerCase()).filter(Boolean))]
-    for (const v of distinct) {
-      const direct = stageByLabel.get(v)
-      if (direct) stageValues[v] = direct
-    }
-    const unresolved = distinct.filter((v) => stageValues[v] === undefined)
-    if (unresolved.length) {
-      const aiResolved = await aiMapStageValues(unresolved, (stageRows ?? []) as { stage: string; label: string }[])
-      for (const [raw, key] of Object.entries(aiResolved)) {
-        if (stageByLabel.has(key.toLowerCase())) stageValues[raw] = stageByLabel.get(key.toLowerCase())!
-      }
-    }
-    map.stage_values = stageValues
-  }
   await sb.from('lead_sheets').update({ column_map: map }).eq('id', sheet.id)
 
-  let updated = 0
   const dataRows2 = rows.slice(1)
   const keys2 = await Promise.all(dataRows2.map(async (cells) => `${sheet.id}:${await rowHash(cells)}`))
-  // Include contact_id so we can fix corrupted contact names too
+
+  // Load all previously imported rows for this sheet
   const leadByKey = new Map<string, { jobId: string; contactId: string | null }>()
   for (let i = 0; i < keys2.length; i += 200) {
     const { data: leadRows } = await sb
@@ -504,6 +482,27 @@ async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
       if (r.job_id) leadByKey.set(r.dedupe_key as string, { jobId: r.job_id as string, contactId: (r.contact_id as string | null) ?? null })
     }
   }
+
+  const allJobIds = [...leadByKey.values()].map((e) => e.jobId)
+
+  // Batch-fetch current stages
+  const stageByJobId = new Map<string, string>()
+  for (let i = 0; i < allJobIds.length; i += 200) {
+    const { data: jobRows } = await sb.from('jobs').select('id, stage').in('id', allJobIds.slice(i, i + 200))
+    for (const j of jobRows ?? []) stageByJobId.set(j.id as string, j.stage as string)
+  }
+
+  // Batch-fetch jobs that have been manually staged (any stage_change activity)
+  // — these were touched by a rep so we must not overwrite their stage.
+  const manuallyMoved = new Set<string>()
+  for (let i = 0; i < allJobIds.length; i += 200) {
+    const { data: acts } = await sb.from('activities').select('job_id')
+      .eq('kind', 'stage_change').in('job_id', allJobIds.slice(i, i + 200))
+    for (const a of acts ?? []) manuallyMoved.add(a.job_id as string)
+  }
+
+  let updated = 0
+  let stagesFixed = 0
   for (let rowIndex = 0; rowIndex < dataRows2.length; rowIndex++) {
     const cells = dataRows2[rowIndex]
     const entry = leadByKey.get(keys2[rowIndex])
@@ -514,33 +513,45 @@ async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
     const rawName = cell(map.name) ||
       (rawFirstName && rawLastName ? `${rawFirstName} ${rawLastName}` : rawFirstName || rawLastName)
     const rawCity  = cell(map.city)
-    const rawStage = map.stage !== null ? cell(map.stage).toLowerCase() : ''
 
-    // Fix job title to "First Name - City" format (skip if rawName is still a phone)
     const rawNameIsPhone = /^\+?\d[\d\s\-().]{6,}$|^[a-z]{1,4}:\s*\+?\d/i.test(rawName)
     const jobPatch: Record<string, string> = {}
+
+    // Fix title: only when we have a real name (not a phone masquerading as name)
     if (rawName && !rawNameIsPhone) {
       jobPatch.title = rawName && rawCity ? `${rawName} - ${rawCity}` : rawName
     }
-    if (rawStage && stageValues[rawStage]) jobPatch.stage = stageValues[rawStage]
-    if (Object.keys(jobPatch).length) {
-      const { error } = await sb.from('jobs').update(jobPatch).eq('id', entry.jobId)
-      if (!error) updated++
+
+    // Fix stage: reset 'quoted' → 'new' only for leads the old import code
+    // mis-staged AND that a rep has never manually moved.
+    const currentStage = stageByJobId.get(entry.jobId)
+    if (currentStage === 'quoted' && !manuallyMoved.has(entry.jobId)) {
+      jobPatch.stage = 'new'
     }
 
-    // Fix any old contacts whose full_name was set to a phone number → "New Lead"
+    if (Object.keys(jobPatch).length) {
+      const { error } = await sb.from('jobs').update(jobPatch).eq('id', entry.jobId)
+      if (!error) {
+        updated++
+        if (jobPatch.stage) stagesFixed++
+      }
+    }
+
+    // Fix contacts whose full_name was set to a phone number by the old mapper
     if (entry.contactId) {
       const { data: contact } = await sb
         .from('contacts').select('full_name').eq('id', entry.contactId).single()
       if (contact) {
         const nameIsPhone = /^\+?\d[\d\s\-().]{6,}$|^[a-z]{1,4}:\s*\+?\d/i.test((contact.full_name ?? '').trim())
-        if (nameIsPhone) {
-          await sb.from('contacts').update({ full_name: 'New Lead', phone: null, email: null }).eq('id', entry.contactId)
+        if (nameIsPhone && rawName && !rawNameIsPhone) {
+          await sb.from('contacts').update({ full_name: rawName }).eq('id', entry.contactId)
+        } else if (nameIsPhone) {
+          await sb.from('contacts').update({ full_name: 'New Lead' }).eq('id', entry.contactId)
         }
       }
     }
   }
-  return { updated }
+  return { updated, stagesFixed }
 }
 
 // One digest email per sheet run via Resend — silently skipped when
