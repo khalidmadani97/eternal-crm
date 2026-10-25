@@ -213,6 +213,19 @@ async function aiMapStageValues(
   }
 }
 
+// ── Stage helpers ────────────────────────────────────────────────────────────
+
+/** First non-hidden pipeline-phase stage for a business (by position).
+ *  Falls back to 'new' for businesses with no stage_settings yet. */
+function firstPipelineStage(
+  rows: { stage: string; position: number; phase: string; pipeline_id: string | null; hidden: boolean }[],
+): string {
+  const best = rows
+    .filter((s) => s.phase === 'pipeline' && s.pipeline_id !== null && !s.hidden)
+    .sort((a, b) => a.position - b.position)[0]
+  return best?.stage ?? 'new'
+}
+
 // ── Sync one sheet ───────────────────────────────────────────────────────────
 
 interface SheetRow {
@@ -259,7 +272,7 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
   // Resolve the sheet's stage values against this business's stages.
   const { data: stageRows } = await sb
     .from('stage_settings')
-    .select('stage, label')
+    .select('stage, label, position, phase, pipeline_id, hidden')
     .eq('business_id', sheet.business_id)
   const stageByLabel = new Map<string, string>()
   for (const s of (stageRows ?? []) as { stage: string; label: string }[]) {
@@ -333,7 +346,9 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
       if (value) noteParts.push(`${headers[i] || `col ${i}`}: ${value}`)
     }
     const noteBody = noteParts.join('\n')
-    const rowStage = 'new'
+    const rowStage = firstPipelineStage(
+      (stageRows ?? []) as { stage: string; position: number; phase: string; pipeline_id: string | null; hidden: boolean }[],
+    )
     const raw_payload = Object.fromEntries(headers.map((h, i) => [h || `col_${i}`, cells[i] ?? '']))
 
     // Raw first — a parse problem must never lose the lead.
@@ -456,6 +471,15 @@ async function syncSheet(sb: SupabaseClient, sheet: SheetRow) {
 //     NOT in 'new' with no manual stage moves and reset them to 'new'.
 //   Part 2 (CSV-matched): fix titles using the refreshed column map.
 async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
+  // Determine the correct landing stage for this business's pipeline.
+  const { data: stageSettingsRows } = await sb
+    .from('stage_settings')
+    .select('stage, position, phase, pipeline_id, hidden')
+    .eq('business_id', sheet.business_id)
+  const resetStage = firstPipelineStage(
+    (stageSettingsRows ?? []) as { stage: string; position: number; phase: string; pipeline_id: string | null; hidden: boolean }[],
+  )
+
   // ── Part 1: stage fix via DB — no dedupe key matching required ─────────────
   // Load ALL inbound_leads for this business that have a linked job.
   let stagesFixed = 0
@@ -473,11 +497,11 @@ async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
 
   const allJobIds = allLeads.map((l) => l.jobId)
 
-  // Find which jobs are NOT in 'new' (old code mis-staged them to contacted,
-  // quoted, follow_up, or any other stage — reset all of them)
+  // Find which jobs are NOT in the first pipeline stage (old code mis-staged them
+  // to contacted, quoted, or any other stage — reset all of them)
   const nonNewJobIds: string[] = []
   for (let i = 0; i < allJobIds.length; i += 200) {
-    const { data } = await sb.from('jobs').select('id').neq('stage', 'new').in('id', allJobIds.slice(i, i + 200))
+    const { data } = await sb.from('jobs').select('id').neq('stage', resetStage).in('id', allJobIds.slice(i, i + 200))
     for (const j of data ?? []) nonNewJobIds.push(j.id as string)
   }
 
@@ -490,10 +514,10 @@ async function remapSheet(sb: SupabaseClient, sheet: SheetRow) {
     for (const a of data ?? []) manuallyMoved.add(a.job_id as string)
   }
 
-  // Reset stage to 'new' for jobs that were never manually staged
+  // Reset stage to the first pipeline stage for jobs that were never manually staged
   const toReset = nonNewJobIds.filter((id) => !manuallyMoved.has(id))
   for (let i = 0; i < toReset.length; i += 200) {
-    const { error } = await sb.from('jobs').update({ stage: 'new' }).in('id', toReset.slice(i, i + 200))
+    const { error } = await sb.from('jobs').update({ stage: resetStage }).in('id', toReset.slice(i, i + 200))
     if (!error) stagesFixed += Math.min(200, toReset.length - i)
   }
 
@@ -708,7 +732,7 @@ Deno.serve(async (req) => {
   // function (user_id IS NULL, meta.to='new') within the last 24 h and restore
   // jobs back to their original stage.
   if (body.action === 'undo_remap') {
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
     // Find activities created by service-role remap: no user, moved TO new
     const { data: acts, error: actsError } = await sb
       .from('activities')
@@ -716,17 +740,17 @@ Deno.serve(async (req) => {
       .is('user_id', null)
       .eq('kind', 'stage_change')
       .gte('created_at', cutoff)
-      .filter('meta->>to', 'eq', 'new')
-      .filter('meta->>from', 'neq', 'new')
     if (actsError) return json({ error: actsError.message }, 500)
 
     let restored = 0
     for (const act of (acts ?? [])) {
-      const fromStage = (act.meta as { from?: string } | null)?.from
-      if (!fromStage || !act.job_id) continue
-      // Only restore if the job is still in 'new' (user hasn't moved it again)
+      const meta = act.meta as { from?: string; to?: string } | null
+      const fromStage = meta?.from
+      const toStage = meta?.to
+      if (!fromStage || !toStage || fromStage === toStage || !act.job_id) continue
+      // Only restore if the job is still in the stage it was moved to (rep hasn't moved it since)
       const { data: job } = await sb.from('jobs').select('stage, business_id').eq('id', act.job_id as string).single()
-      if (!job || job.stage !== 'new' || job.business_id !== businessId) continue
+      if (!job || job.stage !== toStage || job.business_id !== businessId) continue
       const { error } = await sb.from('jobs').update({ stage: fromStage }).eq('id', act.job_id as string)
       if (!error) restored++
     }

@@ -955,10 +955,10 @@ function CustomizeStagesDialog({
         </h2>
         <p className="mb-4 text-xs text-stone-500">
           Drag to reorder. Rename or hide columns. Hidden stages still appear while they hold jobs.
-          {phase === 'pipeline' && <> Won is shared — its position also affects the Jobs board.</>}
+          {phase === 'pipeline' && <> <span className="font-medium text-amber-700">Position 1</span> is where new sheet-imported leads land. Won is shared — its position also affects the Jobs board.</>}
         </p>
         <ul className="space-y-1.5">
-          {orderedRows.map((row) => (
+          {orderedRows.map((row, i) => (
               <li
                 key={row.stage}
                 draggable
@@ -970,6 +970,9 @@ function CustomizeStagesDialog({
                   dragging === row.stage ? 'opacity-40' : ''
                 } ${row.hidden ? 'bg-stone-50 opacity-60' : 'border-transparent hover:border-stone-200 hover:bg-stone-50'} cursor-grab active:cursor-grabbing`}
               >
+                <span className="w-5 shrink-0 text-center text-xs font-semibold tabular-nums text-stone-400 select-none">
+                  {i + 1}
+                </span>
                 <span
                   className="flex flex-col gap-[3px] px-1 select-none opacity-40 hover:opacity-70 cursor-grab"
                   aria-hidden="true"
