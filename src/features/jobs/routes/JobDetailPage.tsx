@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { OptionSelect } from '../../../components/OptionSelect'
 import { useProfiles } from '../../auth/api'
 import { formatCurrency, calcMargin } from '../../../lib/format'
-import { useJob, useUpdateJob, useToggleFollowUp, useConfirmContact, useWorkspaceStages } from '../api'
+import { useJob, useUpdateJob, useToggleFollowUp, useConfirmContact, useWorkspaceStages, useStageSettings } from '../api'
 import type { JobDetail, JobStage } from '../api'
 import { CommsThread } from '../../comms/components/CommsThread'
 import { JobCosts } from '../../expenses/components/JobCosts'
@@ -87,13 +87,21 @@ function JobHeader({ job, mode }: { job: JobDetail; mode: 'lead' | 'job' }) {
   const updateJob = useUpdateJob()
   const toggleFollowUp = useToggleFollowUp()
   const confirmContact = useConfirmContact()
-  const workspaceStages = useWorkspaceStages(mode === 'lead' ? 'pipeline' : 'production')
+  const { data: stageSettings } = useStageSettings()
+  const workspaceStages = useWorkspaceStages(
+    mode === 'lead' ? 'pipeline' : 'production',
+    mode === 'lead' ? (job.pipeline_id ?? null) : null,
+  )
   const { data: conv } = useConversionQueue(job.id)
   // Always include the current stage so an out-of-phase value still renders.
   const STAGE_LABELS = useStageLabels()
-  const stageOptions = workspaceStages.includes(job.stage)
+  const hiddenStages = new Set(
+    (stageSettings ?? []).filter((s) => s.hidden).map((s) => s.stage),
+  )
+  const stageOptions = (workspaceStages.includes(job.stage)
     ? workspaceStages
     : [job.stage, ...workspaceStages]
+  ).filter((s) => !hiddenStages.has(s) || s === job.stage)
   const [pendingLost, setPendingLost] = useState(false)
 
   const changeStage = (stage: JobStage) => {

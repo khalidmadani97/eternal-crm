@@ -129,6 +129,7 @@ export interface JobDetail {
   title: string
   summary: string | null
   stage: JobStage
+  pipeline_id: string | null
   site_address: string | null
   city: string | null
   extra: Record<string, string>
@@ -157,7 +158,7 @@ export function useJob(id: string) {
       const { data, error } = await supabase
         .from('jobs')
         .select(
-          `id, job_number, title, summary, stage, site_address, city, extra, close_grade, margin_grade, value_est, value_final, profit_est, profit_final,
+          `id, job_number, title, summary, stage, pipeline_id, site_address, city, extra, close_grade, margin_grade, value_est, value_final, profit_est, profit_final,
            lead_source, direction, deposit_paid, balance_paid, follow_up, lost_reason, created_at,
            contact:contacts ( id, full_name, phone, confirmed ),
            company:companies ( id, name ),
