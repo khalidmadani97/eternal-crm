@@ -976,6 +976,11 @@ function CustomizeStagesDialog({
                 <span className="w-5 shrink-0 text-center text-xs font-semibold tabular-nums text-stone-400 select-none">
                   {i + 1}
                 </span>
+                {phase === 'pipeline' && i === 0 && (
+                  <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                    new leads land here
+                  </span>
+                )}
                 <span
                   className="flex flex-col gap-[3px] px-1 select-none opacity-40 hover:opacity-70 cursor-grab"
                   aria-hidden="true"
