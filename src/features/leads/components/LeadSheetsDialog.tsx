@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { formatDateTime } from '../../../lib/format'
-import { useAddLeadSheet, useDeleteLeadSheet, useLeadSheets, useRemapLeadSheet, useSyncLeadSheets, useUndoRemap } from '../api'
+import { useAddLeadSheet, useDeleteLeadSheet, useLeadSheets, useSyncLeadSheets } from '../api'
 
 /** Live lead-sheet sources (Slice 39): connect the Google Sheet behind a
  *  Meta Lead Ads form or Google Form; new rows become pipeline leads. */
@@ -9,8 +9,6 @@ export function LeadSheetsDialog({ onClose }: { onClose: () => void }) {
   const addSheet = useAddLeadSheet()
   const deleteSheet = useDeleteLeadSheet()
   const sync = useSyncLeadSheets()
-  const remap = useRemapLeadSheet()
-  const undo = useUndoRemap()
   const [form, setForm] = useState({ name: '', provider: 'meta', sheet_url: '' })
 
   const add = () => {
@@ -106,21 +104,6 @@ export function LeadSheetsDialog({ onClose }: { onClose: () => void }) {
               </button>
               <button
                 onClick={() => {
-                  if (
-                    window.confirm(
-                      `Fix "${s.name}"?\n\n• Titles will be corrected from the sheet data.\n• Any leads mis-landed in "Send Quote" by the old import code will be moved to New (only ones never manually touched).`,
-                    )
-                  )
-                    remap.mutate(s.id)
-                }}
-                disabled={remap.isPending}
-                className="shrink-0 rounded border border-stone-300 px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 disabled:opacity-50"
-                title="Fix titles and reset mis-staged leads to New"
-              >
-                {remap.isPending ? 'Fixing…' : 'Fix titles & stages'}
-              </button>
-              <button
-                onClick={() => {
                   if (window.confirm(`Disconnect "${s.name}"? Already-imported leads stay.`))
                     deleteSheet.mutate(s.id)
                 }}
@@ -140,35 +123,6 @@ export function LeadSheetsDialog({ onClose }: { onClose: () => void }) {
           </p>
         )}
         {sync.isError && <p className="mt-3 text-sm text-red-600">{sync.error.message}</p>}
-        {remap.data && (
-          <p className="mt-3 rounded bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-            {remap.data.stagesFixed
-              ? `Moved ${remap.data.stagesFixed} lead${remap.data.stagesFixed === 1 ? '' : 's'} from Send Quote → New`
-              : 'No mis-staged leads found'}
-            {remap.data.titlesFixed ? ` · fixed ${remap.data.titlesFixed} title${remap.data.titlesFixed === 1 ? '' : 's'}` : ''}.
-          </p>
-        )}
-        {remap.isError && <p className="mt-3 text-sm text-red-600">{remap.error.message}</p>}
-        <div className="mt-3 flex items-center gap-3 border-t border-stone-100 pt-3">
-          <button
-            onClick={() => {
-              if (window.confirm('Undo the last "Fix titles & stages"? Leads that were moved to New in the last 24 hours will be returned to where they were.'))
-                undo.mutate()
-            }}
-            disabled={undo.isPending}
-            className="rounded border border-red-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
-          >
-            {undo.isPending ? 'Undoing…' : 'Undo last fix'}
-          </button>
-          {undo.data && (
-            <span className="text-xs text-stone-600">
-              {undo.data.restored > 0
-                ? `Restored ${undo.data.restored} lead${undo.data.restored === 1 ? '' : 's'} to their previous stages.`
-                : 'Nothing to undo (no recent moves found).'}
-            </span>
-          )}
-          {undo.isError && <span className="text-xs text-red-600">{undo.error.message}</span>}
-        </div>
         <p className="mt-3 text-xs text-stone-400">
           Sheets auto-sync every few minutes while the pipeline is open. New leads email the team
           when RESEND_API_KEY is configured.

@@ -386,8 +386,11 @@ export function StageBoard({
               {/* Archive */}
               <button
                 onClick={() => {
-                  if (window.confirm(`Archive ${selectedIds.size} lead${selectedIds.size > 1 ? 's' : ''}? They will be hidden from the board.`))
-                    archiveJob.mutate([...selectedIds], { onSuccess: exitSelection })
+                  const n = selectedIds.size
+                  const ok = n >= 10
+                    ? window.prompt(`You're about to archive ${n} leads. Type ${n} to confirm.`) === String(n)
+                    : window.confirm(`Archive ${n} lead${n > 1 ? 's' : ''}? They will be hidden from the board.`)
+                  if (ok) archiveJob.mutate([...selectedIds], { onSuccess: exitSelection })
                 }}
                 disabled={archiveJob.isPending}
                 className="rounded border border-red-300 bg-red-50 px-3 py-1 text-sm text-red-700 hover:bg-red-100"
