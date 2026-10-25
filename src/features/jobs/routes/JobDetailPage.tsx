@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { OptionSelect } from '../../../components/OptionSelect'
 import { useProfiles } from '../../auth/api'
 import { formatCurrency, calcMargin } from '../../../lib/format'
-import { useJob, useUpdateJob, useToggleFollowUp, useConfirmContact, useWorkspaceStages, useStageSettings } from '../api'
+import { useJob, useUpdateJob, useToggleFollowUp, useConfirmContact, useWorkspaceStages, useStageSettings, usePipelines } from '../api'
 import type { JobDetail, JobStage } from '../api'
 import { CommsThread } from '../../comms/components/CommsThread'
 import { JobCosts } from '../../expenses/components/JobCosts'
@@ -88,9 +88,14 @@ function JobHeader({ job, mode }: { job: JobDetail; mode: 'lead' | 'job' }) {
   const toggleFollowUp = useToggleFollowUp()
   const confirmContact = useConfirmContact()
   const { data: stageSettings } = useStageSettings()
+  const { data: pipelines } = usePipelines()
+  // For null-pipeline legacy leads, fall back to the first (default) pipeline.
+  const effectivePipelineId = mode === 'lead'
+    ? (job.pipeline_id ?? pipelines?.[0]?.id ?? null)
+    : null
   const workspaceStages = useWorkspaceStages(
     mode === 'lead' ? 'pipeline' : 'production',
-    mode === 'lead' ? (job.pipeline_id ?? null) : null,
+    effectivePipelineId,
   )
   const { data: conv } = useConversionQueue(job.id)
   // Always include the current stage so an out-of-phase value still renders.
